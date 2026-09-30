@@ -34,7 +34,7 @@ This app is aimed at Epson inkjet printers that expose the same service protocol
 
 - `Ink Levels` panel with adaptive single-row gauges for 4 to 8 inks
 - `Waste Levels` panel with dynamic counter rows
-- `Refresh`, `Write Counters`, `Head Cleaning`, `Nozzle Check`, `About`, and protocol log copy actions
+- Circular `Refresh` and `About` icon buttons, `Reset Counters`, `Head Cleaning`, `Nozzle Check`, and a protocol log copy action
 - Exit confirmation on Android back press
 
 ## Technical Notes
@@ -45,6 +45,46 @@ This app is aimed at Epson inkjet printers that expose the same service protocol
 - USB stack: `UsbManager`, `UsbDeviceConnection`, bulk endpoints, printer-class control requests
 - Protocol: Epson `st` / `||` commands over D4 / IEEE 1284.4, plus USB ESC/P2 maintenance print jobs where needed
 - Model database: bundled `devices.xml` derived from the upstream `ez-reset` project
+
+## Fonts
+
+The UI uses two typefaces from the [Google Fonts](https://github.com/google/fonts) repository, both
+under the SIL Open Font License:
+
+- **Space Grotesk** — display text (headings, the printer state)
+- **Figtree** — body text
+- **Monospace** — protocol log and technical values
+
+They are bundled as **static instances, one file per weight**, generated from the upstream variable
+fonts with [`fonttools`](https://github.com/fonttools/fonttools):
+
+```sh
+fonttools varLib.instancer "Figtree[wght].ttf"       wght=400 -o figtree_regular.ttf
+fonttools varLib.instancer "Figtree[wght].ttf"       wght=500 -o figtree_medium.ttf
+fonttools varLib.instancer "Figtree[wght].ttf"       wght=600 -o figtree_semibold.ttf
+fonttools varLib.instancer "SpaceGrotesk[wght].ttf"  wght=500 -o space_grotesk_medium.ttf
+fonttools varLib.instancer "SpaceGrotesk[wght].ttf"  wght=600 -o space_grotesk_semibold.ttf
+```
+
+The generated files were then verified to have the `fvar` table removed and `OS/2.usWeightClass` set
+to the matching value, and their `name` table rewritten so each file reports its real weight instead
+of inheriting the upstream family name.
+
+### Do not swap these for the variable fonts
+
+The upstream variable files default to `wght=300` and identify themselves as `"Figtree Light"` and
+`"Space Grotesk Light"` with `OS/2.usWeightClass = 300`. Dropping them into `res/font/` as a
+replacement means **every declared weight resolves to Light 300**: headings declared as SemiBold
+render thin, and the whole scale loses its hierarchy.
+
+This is a silent regression. It compiles, it runs, and there is no error to search for — the only
+symptom is text that looks wrong, which is easy to dismiss as a matter of taste.
+
+If you need a weight that is not bundled, generate another static instance with the command above
+rather than substituting the variable file.
+
+The license texts are kept alongside the rest of the project's notices in
+`app/src/main/res/raw/ofl_figtree.txt` and `ofl_space_grotesk.txt`.
 
 ## Project Structure
 
@@ -76,9 +116,9 @@ Key identifiers:
 1. Connect an Epson printer through USB OTG.
 2. Grant USB permission when Android asks.
 3. Open the app.
-4. Tap `Refresh` to read printer status.
+4. Tap the refresh button to read printer status.
 5. Review ink and waste counter values.
-6. Use `Write Counters` only if you understand the maintenance implications.
+6. Use `Reset Counters` only if you understand the maintenance implications.
 7. Use `Head Cleaning` or `Nozzle Check` for supported maintenance operations.
 
 ## Warning
