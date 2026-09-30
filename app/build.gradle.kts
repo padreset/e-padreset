@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "info.tekware.aereset"
+    namespace = "com.padreset.epadreset"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "info.tekware.aereset"
+        applicationId = "com.padreset.epadreset"
         minSdk = 24
         targetSdk = 35
         versionCode = 2

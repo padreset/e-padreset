@@ -1,5 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.AeReset" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.EPadReset" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Fondo de ventana y de la pantalla de arranque. Sin declararlos, el
              tema base de Material 3 pinta el splash con #FEF7FF. -->
         <item name="android:windowBackground">@color/splash_background</item>

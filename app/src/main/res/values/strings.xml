@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Android Epson Reset</string>
+    <string name="app_name">E-Pad Reset</string>
 
     <!-- Accessibility descriptions for the icon-only controls. Kept in resources
          so they can be translated; the icons themselves carry the meaning

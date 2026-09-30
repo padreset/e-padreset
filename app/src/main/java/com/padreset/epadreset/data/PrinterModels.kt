@@ -1,4 +1,4 @@
-package info.tekware.aereset.data
+package com.padreset.epadreset.data
 
 import android.content.Context
 import org.w3c.dom.Element

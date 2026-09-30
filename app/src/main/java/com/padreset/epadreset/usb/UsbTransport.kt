@@ -1,4 +1,4 @@
-package info.tekware.aereset.usb
+package com.padreset.epadreset.usb
 
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -13,7 +13,7 @@ import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.Build.VERSION.SDK_INT
-import info.tekware.aereset.data.EpsonPrinterCatalog
+import com.padreset.epadreset.data.EpsonPrinterCatalog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine

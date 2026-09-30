@@ -1,4 +1,4 @@
-package info.tekware.aereset.protocol
+package com.padreset.epadreset.protocol
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder

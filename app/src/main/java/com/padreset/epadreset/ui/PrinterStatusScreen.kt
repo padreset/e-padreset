@@ -1,4 +1,4 @@
-package info.tekware.aereset.ui
+package com.padreset.epadreset.ui
 
 import android.app.Activity
 import android.content.Intent
@@ -60,26 +60,26 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import info.tekware.aereset.R
-import info.tekware.aereset.data.InkLevel
-import info.tekware.aereset.data.WasteCounterStatus
-import info.tekware.aereset.ui.components.PadAlertDialog
-import info.tekware.aereset.ui.components.PadButton
-import info.tekware.aereset.ui.components.PadButtonVariant
-import info.tekware.aereset.ui.components.PadCallout
-import info.tekware.aereset.ui.components.PadCard
-import info.tekware.aereset.ui.components.PadIconButton
-import info.tekware.aereset.ui.components.PadMetaRow
-import info.tekware.aereset.ui.components.PadSectionLabel
-import info.tekware.aereset.ui.components.PadStatusDot
-import info.tekware.aereset.ui.components.PadTone
-import info.tekware.aereset.ui.theme.PadColors
-import info.tekware.aereset.ui.theme.PadMono
-import info.tekware.aereset.ui.theme.PadRadius
-import info.tekware.aereset.ui.theme.PadSeverity
-import info.tekware.aereset.ui.theme.PadSpace
-import info.tekware.aereset.ui.theme.PadTheme
-import info.tekware.aereset.ui.theme.severityFor
+import com.padreset.epadreset.R
+import com.padreset.epadreset.data.InkLevel
+import com.padreset.epadreset.data.WasteCounterStatus
+import com.padreset.epadreset.ui.components.PadAlertDialog
+import com.padreset.epadreset.ui.components.PadButton
+import com.padreset.epadreset.ui.components.PadButtonVariant
+import com.padreset.epadreset.ui.components.PadCallout
+import com.padreset.epadreset.ui.components.PadCard
+import com.padreset.epadreset.ui.components.PadIconButton
+import com.padreset.epadreset.ui.components.PadMetaRow
+import com.padreset.epadreset.ui.components.PadSectionLabel
+import com.padreset.epadreset.ui.components.PadStatusDot
+import com.padreset.epadreset.ui.components.PadTone
+import com.padreset.epadreset.ui.theme.PadColors
+import com.padreset.epadreset.ui.theme.PadMono
+import com.padreset.epadreset.ui.theme.PadRadius
+import com.padreset.epadreset.ui.theme.PadSeverity
+import com.padreset.epadreset.ui.theme.PadSpace
+import com.padreset.epadreset.ui.theme.PadTheme
+import com.padreset.epadreset.ui.theme.severityFor
 import java.util.Locale
 
 private const val REPO_URL = "https://github.com/tekware-it/android-epson-reset"
@@ -471,7 +471,7 @@ private fun HeaderBar(onAbout: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Android Epson Reset",
+            text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.headlineSmall,
             color = pad.fg,
             modifier = Modifier.weight(1f),

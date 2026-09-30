@@ -1,4 +1,4 @@
-package info.tekware.aereset.ui.components
+package com.padreset.epadreset.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -32,9 +32,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import info.tekware.aereset.ui.theme.PadRadius
-import info.tekware.aereset.ui.theme.PadSpace
-import info.tekware.aereset.ui.theme.PadTheme
+import com.padreset.epadreset.ui.theme.PadRadius
+import com.padreset.epadreset.ui.theme.PadSpace
+import com.padreset.epadreset.ui.theme.PadTheme
 
 /** Button emphasis levels used across the redesign. */
 enum class PadButtonVariant { Primary, Secondary, Danger }

@@ -1,6 +1,6 @@
-package info.tekware.aereset.protocol
+package com.padreset.epadreset.protocol
 
-import info.tekware.aereset.data.PrinterSpec
+import com.padreset.epadreset.data.PrinterSpec
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Test

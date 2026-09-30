@@ -1,4 +1,4 @@
-package info.tekware.aereset.data
+package com.padreset.epadreset.data
 
 data class InkLevel(
     val color: String,

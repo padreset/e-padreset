@@ -1,4 +1,4 @@
-package info.tekware.aereset.ui.theme
+package com.padreset.epadreset.ui.theme
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf

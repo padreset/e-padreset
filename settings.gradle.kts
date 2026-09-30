@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "android-epson-reset"
+rootProject.name = "epad-reset"
 include(":app")

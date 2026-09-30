@@ -1,4 +1,4 @@
-package info.tekware.aereset.ui.theme
+package com.padreset.epadreset.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,7 +76,7 @@ private fun padScheme(p: PadColors): ColorScheme {
 }
 
 @Composable
-fun AeResetTheme(
+fun EPadResetTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {

@@ -1,11 +1,11 @@
-package info.tekware.aereset.ui
+package com.padreset.epadreset.ui
 
 import android.app.Application
 import android.hardware.usb.UsbDevice
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import info.tekware.aereset.data.PrinterStatusSnapshot
-import info.tekware.aereset.service.PrinterService
+import com.padreset.epadreset.data.PrinterStatusSnapshot
+import com.padreset.epadreset.service.PrinterService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

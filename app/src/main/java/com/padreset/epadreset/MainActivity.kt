@@ -1,4 +1,4 @@
-package info.tekware.aereset
+package com.padreset.epadreset
 
 import android.hardware.usb.UsbManager
 import android.os.Bundle
@@ -8,9 +8,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import info.tekware.aereset.ui.MainViewModel
-import info.tekware.aereset.ui.PrinterStatusScreen
-import info.tekware.aereset.ui.theme.AeResetTheme
+import com.padreset.epadreset.ui.MainViewModel
+import com.padreset.epadreset.ui.PrinterStatusScreen
+import com.padreset.epadreset.ui.theme.EPadResetTheme
 
 class MainActivity : ComponentActivity() {
     private val viewModel by viewModels<MainViewModel>()
@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            AeResetTheme {
+            EPadResetTheme {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 PrinterStatusScreen(
                     uiState = uiState,

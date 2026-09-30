@@ -1,4 +1,4 @@
-# Android Epson Reset
+# E-Pad Reset
 
 <p align="center">
   <a href="https://github.com/tekware-it/android-epson-reset/releases">
@@ -88,15 +88,15 @@ The license texts are kept alongside the rest of the project's notices in
 
 ## Project Structure
 
-- `app/src/main/java/info/tekware/aereset/ui`
+- `app/src/main/java/com/padreset/epadreset/ui`
   UI, dialogs, status monitor, log panel
-- `app/src/main/java/info/tekware/aereset/service`
+- `app/src/main/java/com/padreset/epadreset/service`
   Printer orchestration and command flow
-- `app/src/main/java/info/tekware/aereset/usb`
+- `app/src/main/java/com/padreset/epadreset/usb`
   Android USB Host transport
-- `app/src/main/java/info/tekware/aereset/protocol`
+- `app/src/main/java/com/padreset/epadreset/protocol`
   Epson packet and D4 framing logic
-- `app/src/main/java/info/tekware/aereset/data`
+- `app/src/main/java/com/padreset/epadreset/data`
   Printer model and status data structures
 - `app/src/main/assets/devices.xml`
   Bundled Epson model database
@@ -107,9 +107,9 @@ Open the project in Android Studio and build the `app` module.
 
 Key identifiers:
 
-- Project name: `android-epson-reset`
-- Application ID: `info.tekware.aereset`
-- Launcher label: `Android Epson Reset`
+- Project name: `epad-reset`
+- Application ID: `com.padreset.epadreset`
+- Launcher label: `E-Pad Reset`
 
 ## Usage
 
