@@ -5,6 +5,8 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -13,47 +15,74 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import info.tekware.aereset.R
 import info.tekware.aereset.data.InkLevel
-import info.tekware.aereset.data.PrinterStatusSnapshot
 import info.tekware.aereset.data.WasteCounterStatus
+import info.tekware.aereset.ui.components.PadAlertDialog
+import info.tekware.aereset.ui.components.PadButton
+import info.tekware.aereset.ui.components.PadButtonVariant
+import info.tekware.aereset.ui.components.PadCallout
+import info.tekware.aereset.ui.components.PadCard
+import info.tekware.aereset.ui.components.PadIconButton
+import info.tekware.aereset.ui.components.PadMetaRow
+import info.tekware.aereset.ui.components.PadSectionLabel
+import info.tekware.aereset.ui.components.PadStatusDot
+import info.tekware.aereset.ui.components.PadTone
+import info.tekware.aereset.ui.theme.PadColors
+import info.tekware.aereset.ui.theme.PadMono
+import info.tekware.aereset.ui.theme.PadRadius
+import info.tekware.aereset.ui.theme.PadSeverity
+import info.tekware.aereset.ui.theme.PadSpace
+import info.tekware.aereset.ui.theme.PadTheme
+import info.tekware.aereset.ui.theme.severityFor
 import java.util.Locale
+
+private const val REPO_URL = "https://github.com/tekware-it/android-epson-reset"
 
 @Composable
 fun PrinterStatusScreen(
@@ -66,6 +95,7 @@ fun PrinterStatusScreen(
     onNozzleCheck: (Int) -> Unit,
     onDismissActionSuccess: () -> Unit,
 ) {
+    val pad = PadTheme.colors
     val context = LocalContext.current
     var showWarning by remember { mutableStateOf(false) }
     var showServiceCleaningDialog by remember { mutableStateOf(false) }
@@ -93,27 +123,41 @@ fun PrinterStatusScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFD9D9D9))
-            .padding(8.dp),
+            .background(pad.bg),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = PadSpace.lg, vertical = PadSpace.md),
+            verticalArrangement = Arrangement.spacedBy(PadSpace.md),
         ) {
-            TitleBar(
-                uiState = uiState,
-                onAbout = { showAbout = true },
-            )
-            Spacer(Modifier.height(8.dp))
+            HeaderBar(onAbout = { showAbout = true })
 
-            Panel("Ink Levels") {
-                InkLevelsPanel(uiState.status?.inkLevels.orEmpty())
+            StatusHeroCard(
+                uiState = uiState,
+                onRefresh = if (uiState.status == null) onConnect else onRefresh,
+            )
+
+            if (!uiState.error.isNullOrBlank()) {
+                PadCallout(
+                    title = "Operation failed",
+                    text = uiState.error,
+                    tone = PadTone.Danger,
+                )
             }
 
-            Spacer(Modifier.height(8.dp))
+            PadCard {
+                PadSectionLabel("Ink levels")
+                InkLevelsPanel(
+                    levels = uiState.status?.inkLevels.orEmpty(),
+                    connected = uiState.status != null,
+                )
+            }
 
-            Panel("Waste Levels") {
+            PadCard {
+                PadSectionLabel("Waste levels")
                 WasteLevelsPanel(
                     counters = uiState.status?.wasteCounters.orEmpty(),
                     connected = uiState.status != null,
@@ -122,9 +166,8 @@ fun PrinterStatusScreen(
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            Panel("Maintenance") {
+            PadCard {
+                PadSectionLabel("Maintenance")
                 MaintenancePanel(
                     cleaningOptions = cleaningOptions,
                     supportsGenericMaintenanceJobs = uiState.supportsGenericMaintenanceJobs,
@@ -141,49 +184,24 @@ fun PrinterStatusScreen(
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            ClassicButton(
-                text = "Refresh",
-                enabled = !uiState.isBusy,
-                onClick = if (uiState.status == null) onConnect else onRefresh,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
-
-            if (!uiState.error.isNullOrBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = uiState.error,
-                    color = Color(0xFF8B0000),
-                    style = MaterialTheme.typography.bodySmall,
+            PadCard {
+                PadSectionLabel(
+                    text = "Protocol log",
+                    trailing = { CopyLogButton(uiState.logs) },
                 )
-            }
-
-            Spacer(Modifier.height(8.dp))
-            Panel(
-                title = "Protocol Log",
-                headerAction = {
-                    if (uiState.logs.isNotEmpty()) {
-                        CopyLogButton(uiState.logs)
-                    }
-                },
-            ) {
                 ProtocolLogPanel(uiState.logs)
             }
+
+            Spacer(Modifier.height(PadSpace.lg))
         }
 
         if (uiState.isBusy) {
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(32.dp),
-                strokeWidth = 3.dp,
-            )
+            BusyIndicator(modifier = Modifier.align(Alignment.Center))
         }
     }
 
     if (showWarning) {
-        AlertDialog(
+        PadAlertDialog(
             onDismissRequest = { showWarning = false },
             title = { Text("Reset waste counters") },
             confirmButton = {
@@ -194,7 +212,12 @@ fun PrinterStatusScreen(
                     },
                     enabled = selectedCounters.isNotEmpty(),
                 ) {
-                    Text("Write Counters")
+                    // "Reset" is the word the whole ecosystem uses (WIC Reset,
+                    // Adjustment Program, ez-reset, padreset itself) and the one
+                    // users look for. The precise mechanic, including the fact
+                    // that a non-zero target is a write rather than a reset,
+                    // belongs in the dialog body where there is room to explain it.
+                    Text("Reset Counters")
                 }
             },
             dismissButton = {
@@ -203,7 +226,7 @@ fun PrinterStatusScreen(
                 }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                     Text("Resetting waste ink counters modifies internal printer firmware values. Use at your own risk.")
                     OutlinedTextField(
                         value = targetPercentageText,
@@ -214,25 +237,21 @@ fun PrinterStatusScreen(
                         },
                         label = { Text("Target percentage") },
                         singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     availableCounters.forEach { counter ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(counter.name, color = Color.Black)
-                            Checkbox(
-                                checked = counter.name in selectedCounters,
-                                onCheckedChange = { checked ->
-                                    selectedCounters = if (checked) {
-                                        selectedCounters + counter.name
-                                    } else {
-                                        selectedCounters - counter.name
-                                    }
-                                },
-                            )
-                        }
+                        SelectableRow(
+                            label = counter.name,
+                            selected = counter.name in selectedCounters,
+                            multi = true,
+                            onSelect = { checked ->
+                                selectedCounters = if (checked) {
+                                    selectedCounters + counter.name
+                                } else {
+                                    selectedCounters - counter.name
+                                }
+                            },
+                        )
                     }
                 }
             },
@@ -240,7 +259,7 @@ fun PrinterStatusScreen(
     }
 
     if (showServiceCleaningDialog) {
-        AlertDialog(
+        PadAlertDialog(
             onDismissRequest = { showServiceCleaningDialog = false },
             title = { Text("Head cleaning") },
             confirmButton = {
@@ -260,24 +279,17 @@ fun PrinterStatusScreen(
                 }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                     Text("Head cleaning consumes ink. Choose the cleaning level supported by this printer.")
                     cleaningOptions.forEach { option ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(option, color = Color.Black)
-                            Checkbox(
-                                checked = option == selectedCleaning,
-                                onCheckedChange = { checked ->
-                                    if (checked) {
-                                        selectedCleaning = option
-                                    }
-                                },
-                            )
-                        }
+                        SelectableRow(
+                            label = option,
+                            selected = option == selectedCleaning,
+                            multi = false,
+                            onSelect = { checked ->
+                                if (checked) selectedCleaning = option
+                            },
+                        )
                     }
                 }
             },
@@ -291,7 +303,7 @@ fun PrinterStatusScreen(
             "Clean the color ink nozzles",
             "Head cleaning (alternative mode)",
         )
-        AlertDialog(
+        PadAlertDialog(
             onDismissRequest = { showGenericCleaningDialog = false },
             title = { Text("Head cleaning") },
             confirmButton = {
@@ -310,43 +322,31 @@ fun PrinterStatusScreen(
                 }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                     Text("This mode sends a generic Epson ESC/P2 maintenance job. Support may vary by model.")
                     cleaningModes.forEachIndexed { index, label ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(label, color = Color.Black)
-                            Checkbox(
-                                checked = genericCleaningGroup == index,
-                                onCheckedChange = { checked ->
-                                    if (checked) {
-                                        genericCleaningGroup = index
-                                    }
-                                },
-                            )
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("Power Clean", color = Color.Black)
-                        Checkbox(
-                            checked = genericPowerClean,
-                            onCheckedChange = { genericPowerClean = it },
+                        SelectableRow(
+                            label = label,
+                            selected = genericCleaningGroup == index,
+                            multi = false,
+                            onSelect = { checked ->
+                                if (checked) genericCleaningGroup = index
+                            },
                         )
                     }
+                    SelectableRow(
+                        label = "Power Clean",
+                        selected = genericPowerClean,
+                        multi = true,
+                        onSelect = { genericPowerClean = it },
+                    )
                 }
             },
         )
     }
 
     if (showNozzleCheckDialog) {
-        AlertDialog(
+        PadAlertDialog(
             onDismissRequest = { showNozzleCheckDialog = false },
             title = { Text("Nozzle check") },
             confirmButton = {
@@ -365,23 +365,16 @@ fun PrinterStatusScreen(
                 }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                     listOf("Standard nozzle test", "Alternative nozzle test").forEachIndexed { index, label ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(label, color = Color.Black)
-                            Checkbox(
-                                checked = selectedNozzleCheckType == index,
-                                onCheckedChange = { checked ->
-                                    if (checked) {
-                                        selectedNozzleCheckType = index
-                                    }
-                                },
-                            )
-                        }
+                        SelectableRow(
+                            label = label,
+                            selected = selectedNozzleCheckType == index,
+                            multi = false,
+                            onSelect = { checked ->
+                                if (checked) selectedNozzleCheckType = index
+                            },
+                        )
                     }
                 }
             },
@@ -389,11 +382,11 @@ fun PrinterStatusScreen(
     }
 
     if (showAbout) {
-        AlertDialog(
+        PadAlertDialog(
             onDismissRequest = { showAbout = false },
             title = { Text("About") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                     Text("Android Epson Reset")
                     Text("GitHub: tekware-it/android-epson-reset")
                 }
@@ -402,12 +395,7 @@ fun PrinterStatusScreen(
                 Button(
                     onClick = {
                         showAbout = false
-                        context.startActivity(
-                            Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("https://github.com/tekware-it/android-epson-reset"),
-                            ),
-                        )
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(REPO_URL)))
                     },
                 ) {
                     Text("Open Repo")
@@ -422,7 +410,7 @@ fun PrinterStatusScreen(
     }
 
     if (showExitDialog) {
-        AlertDialog(
+        PadAlertDialog(
             onDismissRequest = { showExitDialog = false },
             title = { Text("Exit app") },
             text = { Text("Do you want to exit and close Android Epson Reset?") },
@@ -445,21 +433,16 @@ fun PrinterStatusScreen(
     }
 
     uiState.actionSuccessMessage?.let { message ->
-        AlertDialog(
+        PadAlertDialog(
             onDismissRequest = onDismissActionSuccess,
             title = { Text("Operation completed") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                     Text(message)
                     Text("Donate now to support development of this and my other free apps, thank you!")
                     OutlinedButton(
                         onClick = {
-                            context.startActivity(
-                                Intent(
-                                    Intent.ACTION_VIEW,
-                                    Uri.parse("https://github.com/tekware-it/android-epson-reset"),
-                                ),
-                            )
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(REPO_URL)))
                         },
                     ) {
                         Text("Open GitHub Repo")
@@ -475,21 +458,210 @@ fun PrinterStatusScreen(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Layout blocks
+// ---------------------------------------------------------------------------
+
 @Composable
-private fun ProtocolLogPanel(logs: List<String>) {
-    if (logs.isEmpty()) {
-        Text("No log entries yet.", color = Color.DarkGray, style = MaterialTheme.typography.bodySmall)
-        return
+private fun HeaderBar(onAbout: () -> Unit) {
+    val pad = PadTheme.colors
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Android Epson Reset",
+            style = MaterialTheme.typography.headlineSmall,
+            color = pad.fg,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(PadSpace.sm))
+        // Icon only, so the control stays recognisable whatever language the app
+        // is running in. About is not a critical path, so mild ambiguity is fine.
+        //
+        // Sits flush with the page margin so the header reads as balanced against
+        // the title. That means it does not share a column with Refresh, which
+        // lives one card inset further in. Tried matching them; the header ended
+        // up looking off-centre, and balance won over the column match.
+        PadIconButton(
+            icon = Icons.Outlined.Info,
+            contentDescription = stringResource(R.string.action_about),
+            onClick = onAbout,
+            size = 40.dp,
+            filled = false,
+        )
+    }
+}
+
+/**
+ * The headline status block, echoing the site's "Current status" panel.
+ *
+ * It answers the two questions a user actually has on opening the app: is a
+ * printer connected, and how close is the waste pad to its limit.
+ */
+@Composable
+private fun StatusHeroCard(
+    uiState: MainUiState,
+    onRefresh: () -> Unit,
+) {
+    val pad = PadTheme.colors
+    val status = uiState.status
+    val printerError = status?.error?.takeIf { it.isNotBlank() && !it.equals("None", ignoreCase = true) }
+
+    val label: String
+    val detail: String
+    val accentColor: Color
+    when {
+        status == null && uiState.isBusy -> {
+            label = "Working"
+            detail = "Scanning for an Epson printer over USB OTG"
+            accentColor = pad.accent
+        }
+        status == null -> {
+            label = "No printer"
+            detail = "Connect an Epson printer over USB OTG, then tap the refresh button"
+            accentColor = pad.muted
+        }
+        printerError != null -> {
+            label = printerError
+            detail = "The printer reported an error"
+            accentColor = pad.danger
+        }
+        else -> {
+            label = status.state.ifBlank { "Ready" }
+            detail = "Connected over USB OTG"
+            accentColor = pad.ok
+        }
     }
 
-    LazyColumn(
+    PadCard {
+        PadSectionLabel("Printer")
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(PadSpace.sm),
+        ) {
+            PadStatusDot(color = accentColor, size = 11.dp)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleLarge,
+                color = pad.fg,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            PadIconButton(
+                icon = Icons.Filled.Refresh,
+                contentDescription = stringResource(
+                    if (status == null) R.string.action_connect_printer else R.string.action_refresh_status,
+                ),
+                enabled = !uiState.isBusy,
+                onClick = onRefresh,
+            )
+        }
+
+        Text(
+            text = detail,
+            style = MaterialTheme.typography.bodySmall,
+            color = pad.muted,
+        )
+
+        if (status != null) {
+            Rule()
+
+            PadMetaRow(label = "Model", value = status.modelName)
+            PadMetaRow(label = "Serial", value = status.serialNumber)
+
+            val worst = status.wasteCounters.maxByOrNull { it.percentage }
+            if (worst != null) {
+                PadMetaRow(
+                    label = "Highest pad",
+                    value = worst.percentage.formatPercent(),
+                    valueColor = severityColor(severityFor(worst.percentage), pad),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BusyIndicator(modifier: Modifier = Modifier) {
+    val pad = PadTheme.colors
+    val shape = RoundedCornerShape(PadRadius.m)
+    Row(
+        modifier = modifier
+            .clip(shape)
+            .background(pad.card)
+            .border(1.dp, pad.border, shape)
+            .padding(horizontal = PadSpace.lg, vertical = PadSpace.md),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(PadSpace.sm),
+    ) {
+        CircularProgressIndicator(
+            color = pad.accent,
+            strokeWidth = 2.5.dp,
+            modifier = Modifier.size(18.dp),
+        )
+        Text("Working…", style = MaterialTheme.typography.bodyMedium, color = pad.fg)
+    }
+}
+
+@Composable
+private fun Rule() {
+    val pad = PadTheme.colors
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+            .height(1.dp)
+            .background(pad.rule),
+    )
+}
+
+/**
+ * The protocol log.
+ *
+ * Rendered as a subtle inset panel on the card rather than a dark terminal: a
+ * dark block inside an otherwise light screen read as a foreign element. The
+ * tinted blue-grey keeps it visibly "technical" without breaking the surface.
+ */
+@Composable
+private fun ProtocolLogPanel(logs: List<String>) {
+    val pad = PadTheme.colors
+    val shape = RoundedCornerShape(PadRadius.m)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .clip(shape)
+            .background(pad.sunken)
+            .border(1.dp, pad.border, shape)
+            .padding(PadSpace.md),
     ) {
-        items(logs.takeLast(80).asReversed()) { line ->
-            Text(line, color = Color.Black, style = MaterialTheme.typography.bodySmall)
+        if (logs.isEmpty()) {
+            Text(
+                text = "No log entries yet.",
+                fontFamily = PadMono,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                color = pad.muted,
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                items(logs.takeLast(80).asReversed()) { line ->
+                    Text(
+                        text = line,
+                        fontFamily = PadMono,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        color = pad.note,
+                    )
+                }
+            }
         }
     }
 }
@@ -500,9 +672,11 @@ private fun CopyLogButton(logs: List<String>) {
     val context = LocalContext.current
     val allLogs = logs.joinToString(separator = "\n")
 
-    ClassicButton(
+    PadButton(
         text = "Copy",
-        enabled = true,
+        variant = PadButtonVariant.Secondary,
+        enabled = logs.isNotEmpty(),
+        height = 34.dp,
         onClick = {
             clipboard.setText(AnnotatedString(allLogs))
             Toast.makeText(context, "Protocol log copied", Toast.LENGTH_SHORT).show()
@@ -510,79 +684,20 @@ private fun CopyLogButton(logs: List<String>) {
     )
 }
 
-@Composable
-private fun TitleBar(
-    uiState: MainUiState,
-    onAbout: () -> Unit,
-) {
-    val status = uiState.status
-    val subtitle = buildString {
-        if (status != null) {
-            append(status.modelName)
-            append("  |  ")
-            append(status.state)
-            if (status.error != "None" && status.error.isNotBlank()) {
-                append(" / ")
-                append(status.error)
-            }
-        } else if (uiState.isBusy) {
-            append("Connecting...")
-        } else {
-            append("Printer not connected")
-        }
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top,
-    ) {
-        Column(modifier = Modifier.widthIn(max = 240.dp)) {
-            Text("Android Epson Reset", fontWeight = FontWeight.Bold, color = Color.Black)
-            Text(subtitle, color = Color.DarkGray, style = MaterialTheme.typography.bodySmall)
-        }
-        ClassicButton(
-            text = "About",
-            enabled = true,
-            onClick = onAbout,
-        )
-    }
-}
+// ---------------------------------------------------------------------------
+// Ink levels
+// ---------------------------------------------------------------------------
 
 @Composable
-private fun Panel(
-    title: String,
-    headerAction: (@Composable () -> Unit)? = null,
-    content: @Composable () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, Color(0xFF8C8C8C))
-            .background(Color(0xFFE6E6E6))
-            .padding(6.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(title, color = Color.Black)
-            headerAction?.invoke()
-        }
-        Spacer(Modifier.height(4.dp))
-        content()
-    }
-}
-
-@Composable
-private fun InkLevelsPanel(levels: List<InkLevel>) {
+private fun InkLevelsPanel(levels: List<InkLevel>, connected: Boolean) {
+    // Placeholder row shown before a printer is connected. Kept in the same order
+    // the real levels are sorted into, so the layout does not reshuffle on connect.
     val displayLevels = if (levels.isEmpty()) {
         listOf(
             InkLevel("Black", 0),
-            InkLevel("Yellow", 0),
-            InkLevel("Magenta", 0),
             InkLevel("Cyan", 0),
+            InkLevel("Magenta", 0),
+            InkLevel("Yellow", 0),
         )
     } else {
         levels.sortedBy { inkSortOrder(it.color) }
@@ -591,12 +706,12 @@ private fun InkLevelsPanel(levels: List<InkLevel>) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val itemsPerRow = displayLevels.size.coerceAtLeast(1)
         val compact = displayLevels.size >= 7
-        val spacing = if (compact) 4.dp else 8.dp
+        val spacing = if (compact) PadSpace.xs else PadSpace.sm
         val cellWidth = (maxWidth - spacing * (itemsPerRow - 1)) / itemsPerRow
         val gaugeHeight = if (compact) 62.dp else 74.dp
         val gaugeFillWidth = if (compact) 0.86f else 0.72f
-        val labelFontSize = if (compact) 10.sp else TextUnit.Unspecified
-        val valueFontSize = if (compact) 10.sp else TextUnit.Unspecified
+        val labelFontSize = if (compact) 11.sp else TextUnit.Unspecified
+        val valueFontSize = if (compact) 11.sp else TextUnit.Unspecified
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -605,6 +720,7 @@ private fun InkLevelsPanel(levels: List<InkLevel>) {
             displayLevels.forEach { level ->
                 InkLevelCell(
                     level = level,
+                    connected = connected,
                     modifier = Modifier.width(cellWidth),
                     gaugeHeight = gaugeHeight,
                     gaugeFillWidth = gaugeFillWidth,
@@ -619,34 +735,36 @@ private fun InkLevelsPanel(levels: List<InkLevel>) {
 @Composable
 private fun InkLevelCell(
     level: InkLevel,
+    connected: Boolean,
     modifier: Modifier = Modifier,
-    gaugeHeight: androidx.compose.ui.unit.Dp = 74.dp,
+    gaugeHeight: Dp = 74.dp,
     gaugeFillWidth: Float = 0.72f,
     labelFontSize: TextUnit = TextUnit.Unspecified,
     valueFontSize: TextUnit = TextUnit.Unspecified,
 ) {
+    val pad = PadTheme.colors
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = inkShortLabel(level.color),
-            color = Color.Black,
-            style = MaterialTheme.typography.bodySmall.withFontSize(labelFontSize),
+            color = pad.muted,
+            style = MaterialTheme.typography.labelSmall.withFontSize(labelFontSize),
             maxLines = 1,
         )
-        Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.height(PadSpace.xs))
         VerticalInkGauge(
             percentage = level.percentage,
             fillColor = inkColor(level.color),
             gaugeHeight = gaugeHeight,
             modifier = Modifier.fillMaxWidth(gaugeFillWidth),
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(PadSpace.xs))
         Text(
-            "${level.percentage}%",
-            color = Color.Black,
-            style = MaterialTheme.typography.bodySmall.withFontSize(valueFontSize),
+            text = if (connected) "${level.percentage}%" else "—",
+            color = if (connected) inkLevelColor(level.percentage, pad) else pad.muted,
+            style = MaterialTheme.typography.labelMedium.withFontSize(valueFontSize),
             maxLines = 1,
         )
     }
@@ -656,25 +774,40 @@ private fun InkLevelCell(
 private fun VerticalInkGauge(
     percentage: Int,
     fillColor: Color,
-    gaugeHeight: androidx.compose.ui.unit.Dp,
+    gaugeHeight: Dp,
     modifier: Modifier = Modifier,
 ) {
+    val pad = PadTheme.colors
+    val target = (percentage.coerceIn(0, 100) / 100f)
+    val fill by animateFloatAsState(
+        targetValue = target,
+        animationSpec = tween(durationMillis = 450),
+        label = "inkGaugeFill",
+    )
+    val shape = RoundedCornerShape(PadRadius.s)
+
     Box(
         modifier = modifier
             .height(gaugeHeight)
-            .border(1.dp, Color(0xFF777777))
-            .background(Color(0xFFC9C9C9)),
+            .clip(shape)
+            .background(pad.sunken)
+            .border(1.dp, pad.border, shape),
         contentAlignment = Alignment.BottomCenter,
     ) {
-        val fillFraction = (percentage.coerceIn(0, 100) / 100f)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height((gaugeHeight - 2.dp) * fillFraction)
-                .background(fillColor),
-        )
+        if (fill > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(gaugeHeight * fill)
+                    .background(fillColor),
+            )
+        }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Waste levels
+// ---------------------------------------------------------------------------
 
 @Composable
 private fun WasteLevelsPanel(
@@ -698,20 +831,99 @@ private fun WasteLevelsPanel(
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(PadSpace.md)) {
         displayCounters.forEach { counter ->
-            WasteCounterRow(counter)
+            WasteCounterRow(counter = counter, connected = connected)
         }
 
-        Spacer(Modifier.height(4.dp))
-        ClassicButton(
-            text = "Write Counters",
+        PadCallout(
+            title = "Resetting does not clean the pad",
+            text = "The counter is electronic; the pad is physical. Wash, replace or redirect the " +
+                "waste ink before resetting, or ink will eventually leak inside the printer.",
+            tone = PadTone.Warn,
+        )
+
+        PadButton(
+            text = "Reset Counters",
+            variant = PadButtonVariant.Danger,
             enabled = connected && !busy,
             onClick = onReset,
             modifier = Modifier.fillMaxWidth(),
         )
     }
 }
+
+@Composable
+private fun WasteCounterRow(counter: WasteCounterStatus, connected: Boolean) {
+    val pad = PadTheme.colors
+    // Every bar is drawn in the brand accent, so a set of counters reads as one
+    // calm group instead of a traffic light. Only the value text escalates, and
+    // only once the pad is close enough to the limit to matter.
+    val valueColor = when {
+        !connected -> pad.muted
+        severityFor(counter.percentage) == PadSeverity.Critical -> pad.danger
+        else -> pad.fg
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(PadSpace.xs)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = counter.name,
+                color = pad.fg,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(PadSpace.sm))
+            Text(
+                text = if (connected) counter.percentage.formatPercent() else "—",
+                color = valueColor,
+                style = MaterialTheme.typography.labelMedium,
+                fontFamily = PadMono,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        HorizontalGauge(percentage = counter.percentage, fillColor = pad.accent)
+    }
+}
+
+@Composable
+private fun HorizontalGauge(percentage: Double, fillColor: Color) {
+    val pad = PadTheme.colors
+    val target = (percentage / 100.0).coerceIn(0.0, 1.0).toFloat()
+    val fill by animateFloatAsState(
+        targetValue = target,
+        animationSpec = tween(durationMillis = 450),
+        label = "wasteGaugeFill",
+    )
+    val shape = RoundedCornerShape(PadRadius.s)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(10.dp)
+            .clip(shape)
+            .background(pad.sunken),
+    ) {
+        if (fill > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(fill)
+                    .height(10.dp)
+                    .background(fillColor),
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Maintenance
+// ---------------------------------------------------------------------------
 
 @Composable
 private fun MaintenancePanel(
@@ -722,85 +934,86 @@ private fun MaintenancePanel(
     onClean: () -> Unit,
     onNozzleCheck: () -> Unit,
 ) {
+    val pad = PadTheme.colors
     val enabled = connected && !busy
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        ClassicButton(
+    Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
+        PadButton(
             text = "Head Cleaning",
+            variant = PadButtonVariant.Secondary,
             enabled = enabled && (cleaningOptions.isNotEmpty() || supportsGenericMaintenanceJobs),
             onClick = onClean,
             modifier = Modifier.fillMaxWidth(),
         )
-        ClassicButton(
+        PadButton(
             text = "Nozzle Check",
+            variant = PadButtonVariant.Secondary,
             enabled = enabled && supportsGenericMaintenanceJobs,
             onClick = onNozzleCheck,
             modifier = Modifier.fillMaxWidth(),
         )
-    }
-}
-
-@Composable
-private fun WasteCounterRow(counter: WasteCounterStatus) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = counter.name,
-                color = Color.Black,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 220.dp),
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = counter.percentage.formatPercent(),
-                color = Color.Black,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-        HorizontalGauge(counter.percentage)
-    }
-}
-
-@Composable
-private fun HorizontalGauge(percentage: Double) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(22.dp)
-            .border(1.dp, Color(0xFF999999))
-            .background(Color(0xFFD3D3D3)),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth((percentage / 100.0).coerceIn(0.0, 1.0).toFloat())
-                .height(20.dp)
-                .background(Color(0xFF2C7DC9)),
+        Text(
+            text = "Head cleaning consumes ink and adds to the waste ink counters.",
+            style = MaterialTheme.typography.bodySmall,
+            color = pad.muted,
         )
     }
 }
 
+// ---------------------------------------------------------------------------
+// Dialogs helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * A full-width selectable row.
+ *
+ * The original used a checkbox for every group, including the ones that are
+ * single-choice. Radio buttons now carry that meaning, checkboxes are kept only
+ * where multiple selections are genuinely allowed.
+ */
 @Composable
-private fun ClassicButton(
-    text: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+private fun SelectableRow(
+    label: String,
+    selected: Boolean,
+    multi: Boolean,
+    onSelect: (Boolean) -> Unit,
 ) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        shape = RoundedCornerShape(0.dp),
-        modifier = modifier
-            .height(34.dp),
+    val pad = PadTheme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(text, color = Color.Black)
+        Text(
+            text = label,
+            color = pad.fg,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(PadSpace.sm))
+        if (multi) {
+            Checkbox(checked = selected, onCheckedChange = onSelect)
+        } else {
+            RadioButton(selected = selected, onClick = { onSelect(!selected) })
+        }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Colour for a single headline value, such as the highest pad reading. */
+private fun severityColor(severity: PadSeverity, pad: PadColors): Color = when (severity) {
+    PadSeverity.Normal -> pad.fg
+    PadSeverity.Critical -> pad.danger
+}
+
+/** Ink behaves the opposite way to waste: a low reading is the alarming one. */
+private fun inkLevelColor(percentage: Int, pad: PadColors): Color = when {
+    percentage <= 10 -> pad.danger
+    else -> pad.fg
 }
 
 private fun inkSortOrder(color: String): Int = when (color.lowercase(Locale.ROOT)) {
@@ -822,13 +1035,21 @@ private fun inkSortOrder(color: String): Int = when (color.lowercase(Locale.ROOT
 }
 
 private fun inkColor(color: String): Color = when (color.lowercase(Locale.ROOT)) {
-    "black" -> Color.Black
-    "yellow" -> Color.Yellow
-    "magenta" -> Color.Magenta
-    "cyan" -> Color.Cyan
+    "black" -> Color(0xFF1A1A1A)
+    "yellow" -> Color(0xFFE8BC3A)
+    "magenta" -> Color(0xFFD6006E)
+    "cyan" -> Color(0xFF00A6D6)
     "light cyan" -> Color(0xFF6FE8FF)
     "light magenta" -> Color(0xFFFF89E9)
-    else -> Color.DarkGray
+    "dark yellow" -> Color(0xFFC08A00)
+    "gray", "grey" -> Color(0xFF6B7280)
+    "light gray", "light grey" -> Color(0xFFA8BEDC)
+    "light black" -> Color(0xFF5A6A80)
+    "red" -> Color(0xFFD02E1F)
+    "blue" -> Color(0xFF0B47C1)
+    "orange" -> Color(0xFFE07A2F)
+    "gloss optimizer" -> Color(0xFF94A5BC)
+    else -> Color(0xFF5A6A80)
 }
 
 private fun inkShortLabel(color: String): String = when (color.lowercase(Locale.ROOT)) {
@@ -849,7 +1070,7 @@ private fun inkShortLabel(color: String): String = when (color.lowercase(Locale.
     else -> color.take(2).uppercase(Locale.ROOT)
 }
 
-private fun TextStyle.withFontSize(fontSize: TextUnit): TextStyle {
+private fun androidx.compose.ui.text.TextStyle.withFontSize(fontSize: TextUnit): androidx.compose.ui.text.TextStyle {
     return if (fontSize == TextUnit.Unspecified) this else copy(fontSize = fontSize)
 }
 

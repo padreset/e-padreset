@@ -1,0 +1,5 @@
+<resources>
+    <!-- En tema oscuro el arranque usa el fondo de la app en lugar de blanco,
+         para no provocar un destello al abrir. -->
+    <color name="splash_background">#050814</color>
+</resources>

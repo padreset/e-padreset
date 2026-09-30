@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">Android Epson Reset</string>
+
+    <!-- Accessibility descriptions for the icon-only controls. Kept in resources
+         so they can be translated; the icons themselves carry the meaning
+         visually for users who do not read the app's language. -->
+    <string name="action_about">About</string>
+    <string name="action_refresh_status">Refresh status</string>
+    <string name="action_connect_printer">Connect printer</string>
 </resources>

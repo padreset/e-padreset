@@ -1,3 +1,11 @@
 <resources>
-    <color name="ic_launcher_background">#DCE8EA</color>
+    <!-- El icono adaptativo usa el logo en el primer plano sobre un fondo blanco
+         plano. El primer plano es un vector de un solo color, asi que no hace
+         falta ninguna variante raster para API 26+. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+
+    <!-- Fondo de la pantalla de arranque. Sin declararlo, Material 3 usa su
+         superficie base por defecto (#FEF7FF), que tira a lavanda y se percibe
+         como rosada. -->
+    <color name="splash_background">#FFFFFF</color>
 </resources>
