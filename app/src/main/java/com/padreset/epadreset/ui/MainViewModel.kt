@@ -2,8 +2,10 @@ package com.padreset.epadreset.ui
 
 import android.app.Application
 import android.hardware.usb.UsbDevice
+import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.padreset.epadreset.R
 import com.padreset.epadreset.data.PrinterStatusSnapshot
 import com.padreset.epadreset.service.PrinterService
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,7 +54,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshStatus() {
         val current = connection ?: run {
-            appendError("Printer is not connected")
+            appendError(str(R.string.error_printer_not_connected))
             return
         }
         viewModelScope.launch {
@@ -72,7 +74,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetWasteCounters(selectedCounterNames: Set<String>, targetPercentage: Int) {
         val current = connection ?: run {
-            appendError("Printer is not connected")
+            appendError(str(R.string.error_printer_not_connected))
             return
         }
         viewModelScope.launch {
@@ -80,7 +82,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val counters = printerService.writeWasteCounters(current, selectedCounterNames, targetPercentage)
                 appendLog("Waste counters written: ${counters.joinToString { "${it.name}=${it.percentage}%" }}")
                 _uiState.value = _uiState.value.copy(
-                    actionSuccessMessage = "Waste ink counters have been updated. Restart the printer if required by the model.",
+                    actionSuccessMessage = str(R.string.msg_counters_updated),
                 )
                 refreshStatus()
             }
@@ -89,14 +91,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun runHeadCleaning(cleaningName: String) {
         val current = connection ?: run {
-            appendError("Printer is not connected")
+            appendError(str(R.string.error_printer_not_connected))
             return
         }
         viewModelScope.launch {
             runJob("Starting head cleaning") {
                 printerService.runHeadCleaning(current, cleaningName)
                 _uiState.value = _uiState.value.copy(
-                    actionSuccessMessage = "Head cleaning '${cleaningName}' command has been sent. Wait for the printer to start the routine, then refresh status manually.",
+                    actionSuccessMessage = str(R.string.msg_cleaning_sent_named, cleaningName),
                 )
             }
         }
@@ -108,14 +110,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         alternativeMode: Boolean,
     ) {
         val current = connection ?: run {
-            appendError("Printer is not connected")
+            appendError(str(R.string.error_printer_not_connected))
             return
         }
         viewModelScope.launch {
             runJob("Starting head cleaning") {
                 printerService.runPrintJobHeadCleaning(current, groupIndex, powerClean, alternativeMode)
                 _uiState.value = _uiState.value.copy(
-                    actionSuccessMessage = "Head cleaning job has been sent. Wait for the printer to start the routine, then refresh status manually.",
+                    actionSuccessMessage = str(R.string.msg_cleaning_sent),
                 )
             }
         }
@@ -123,14 +125,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun printNozzleCheck(type: Int) {
         val current = connection ?: run {
-            appendError("Printer is not connected")
+            appendError(str(R.string.error_printer_not_connected))
             return
         }
         viewModelScope.launch {
             runJob("Printing nozzle check") {
                 printerService.printNozzleCheck(current, type)
                 _uiState.value = _uiState.value.copy(
-                    actionSuccessMessage = "Nozzle check print job has been sent. Wait for the page to print.",
+                    actionSuccessMessage = str(R.string.msg_nozzle_check_sent),
                 )
             }
         }
@@ -144,6 +146,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         connection?.let(printerService::close)
         super.onCleared()
     }
+
+    /** Resolves a user-facing string. The log stays in English on purpose. */
+    private fun str(@StringRes id: Int, vararg args: Any): String =
+        getApplication<Application>().getString(id, *args)
 
     private suspend fun runJob(message: String, block: suspend () -> Unit) {
         _uiState.value = _uiState.value.copy(isBusy = true, error = null)

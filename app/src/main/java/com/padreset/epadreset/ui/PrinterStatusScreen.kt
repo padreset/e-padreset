@@ -143,14 +143,14 @@ fun PrinterStatusScreen(
 
             if (!uiState.error.isNullOrBlank()) {
                 PadCallout(
-                    title = "Operation failed",
+                    title = stringResource(R.string.callout_operation_failed),
                     text = uiState.error,
                     tone = PadTone.Danger,
                 )
             }
 
             PadCard {
-                PadSectionLabel("Ink levels")
+                PadSectionLabel(stringResource(R.string.section_ink_levels))
                 InkLevelsPanel(
                     levels = uiState.status?.inkLevels.orEmpty(),
                     connected = uiState.status != null,
@@ -158,7 +158,7 @@ fun PrinterStatusScreen(
             }
 
             PadCard {
-                PadSectionLabel("Waste levels")
+                PadSectionLabel(stringResource(R.string.section_waste_levels))
                 WasteLevelsPanel(
                     counters = uiState.status?.wasteCounters.orEmpty(),
                     connected = uiState.status != null,
@@ -168,7 +168,7 @@ fun PrinterStatusScreen(
             }
 
             PadCard {
-                PadSectionLabel("Maintenance")
+                PadSectionLabel(stringResource(R.string.section_maintenance))
                 MaintenancePanel(
                     cleaningOptions = cleaningOptions,
                     supportsGenericMaintenanceJobs = uiState.supportsGenericMaintenanceJobs,
@@ -187,7 +187,7 @@ fun PrinterStatusScreen(
 
             PadCard {
                 PadSectionLabel(
-                    text = "Protocol log",
+                    text = stringResource(R.string.section_protocol_log),
                     trailing = { CopyLogButton(uiState.logs) },
                 )
                 ProtocolLogPanel(uiState.logs)
@@ -204,7 +204,7 @@ fun PrinterStatusScreen(
     if (showWarning) {
         PadAlertDialog(
             onDismissRequest = { showWarning = false },
-            title = { Text("Reset waste counters") },
+            title = { Text(stringResource(R.string.dialog_reset_title)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -218,17 +218,17 @@ fun PrinterStatusScreen(
                     // users look for. The precise mechanic, including the fact
                     // that a non-zero target is a write rather than a reset,
                     // belongs in the dialog body where there is room to explain it.
-                    Text("Reset Counters")
+                    Text(stringResource(R.string.action_reset_counters))
                 }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showWarning = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                    Text("Resetting waste ink counters modifies internal printer firmware values. Use at your own risk.")
+                    Text(stringResource(R.string.dialog_reset_warning))
                     OutlinedTextField(
                         value = targetPercentageText,
                         onValueChange = { input ->
@@ -236,7 +236,7 @@ fun PrinterStatusScreen(
                                 targetPercentageText = input
                             }
                         },
-                        label = { Text("Target percentage") },
+                        label = { Text(stringResource(R.string.field_target_percentage)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -262,7 +262,7 @@ fun PrinterStatusScreen(
     if (showServiceCleaningDialog) {
         PadAlertDialog(
             onDismissRequest = { showServiceCleaningDialog = false },
-            title = { Text("Head cleaning") },
+            title = { Text(stringResource(R.string.dialog_cleaning_title)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -271,17 +271,17 @@ fun PrinterStatusScreen(
                     },
                     enabled = selectedCleaning.isNotBlank(),
                 ) {
-                    Text("Start Cleaning")
+                    Text(stringResource(R.string.action_start_cleaning))
                 }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showServiceCleaningDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                    Text("Head cleaning consumes ink. Choose the cleaning level supported by this printer.")
+                    Text(stringResource(R.string.dialog_cleaning_body))
                     cleaningOptions.forEach { option ->
                         SelectableRow(
                             label = option,
@@ -299,14 +299,14 @@ fun PrinterStatusScreen(
 
     if (showGenericCleaningDialog) {
         val cleaningModes = listOf(
-            "Clean all nozzles",
-            "Clean the black ink nozzle",
-            "Clean the color ink nozzles",
-            "Head cleaning (alternative mode)",
+            stringResource(R.string.cleaning_all_nozzles),
+            stringResource(R.string.cleaning_black_nozzle),
+            stringResource(R.string.cleaning_color_nozzles),
+            stringResource(R.string.cleaning_alternative_mode),
         )
         PadAlertDialog(
             onDismissRequest = { showGenericCleaningDialog = false },
-            title = { Text("Head cleaning") },
+            title = { Text(stringResource(R.string.dialog_cleaning_title)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -314,17 +314,17 @@ fun PrinterStatusScreen(
                         onGenericClean(genericCleaningGroup, genericPowerClean, genericCleaningGroup == 3)
                     },
                 ) {
-                    Text("Start Cleaning")
+                    Text(stringResource(R.string.action_start_cleaning))
                 }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showGenericCleaningDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                    Text("This mode sends a generic Epson ESC/P2 maintenance job. Support may vary by model.")
+                    Text(stringResource(R.string.dialog_generic_cleaning_body))
                     cleaningModes.forEachIndexed { index, label ->
                         SelectableRow(
                             label = label,
@@ -336,7 +336,7 @@ fun PrinterStatusScreen(
                         )
                     }
                     SelectableRow(
-                        label = "Power Clean",
+                        label = stringResource(R.string.cleaning_power_clean),
                         selected = genericPowerClean,
                         multi = true,
                         onSelect = { genericPowerClean = it },
@@ -349,7 +349,7 @@ fun PrinterStatusScreen(
     if (showNozzleCheckDialog) {
         PadAlertDialog(
             onDismissRequest = { showNozzleCheckDialog = false },
-            title = { Text("Nozzle check") },
+            title = { Text(stringResource(R.string.dialog_nozzle_check_title)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -357,17 +357,17 @@ fun PrinterStatusScreen(
                         onNozzleCheck(selectedNozzleCheckType)
                     },
                 ) {
-                    Text("Print Test")
+                    Text(stringResource(R.string.action_print_test))
                 }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showNozzleCheckDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                    listOf("Standard nozzle test", "Alternative nozzle test").forEachIndexed { index, label ->
+                    listOf(stringResource(R.string.nozzle_test_standard), stringResource(R.string.nozzle_test_alternative)).forEachIndexed { index, label ->
                         SelectableRow(
                             label = label,
                             selected = selectedNozzleCheckType == index,
@@ -385,11 +385,11 @@ fun PrinterStatusScreen(
     if (showAbout) {
         PadAlertDialog(
             onDismissRequest = { showAbout = false },
-            title = { Text("About") },
+            title = { Text(stringResource(R.string.dialog_about_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                    Text("Android Epson Reset")
-                    Text("GitHub: tekware-it/android-epson-reset")
+                    Text(stringResource(R.string.app_name))
+                    Text(stringResource(R.string.about_repo_label))
                 }
             },
             confirmButton = {
@@ -399,12 +399,12 @@ fun PrinterStatusScreen(
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(REPO_URL)))
                     },
                 ) {
-                    Text("Open Repo")
+                    Text(stringResource(R.string.action_open_repo))
                 }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showAbout = false }) {
-                    Text("Close")
+                    Text(stringResource(R.string.action_close))
                 }
             },
         )
@@ -413,8 +413,8 @@ fun PrinterStatusScreen(
     if (showExitDialog) {
         PadAlertDialog(
             onDismissRequest = { showExitDialog = false },
-            title = { Text("Exit app") },
-            text = { Text("Do you want to exit and close Android Epson Reset?") },
+            title = { Text(stringResource(R.string.dialog_exit_title)) },
+            text = { Text(stringResource(R.string.dialog_exit_body, stringResource(R.string.app_name))) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -422,12 +422,12 @@ fun PrinterStatusScreen(
                         (context as? Activity)?.finish()
                     },
                 ) {
-                    Text("Exit")
+                    Text(stringResource(R.string.action_exit))
                 }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showExitDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
         )
@@ -436,23 +436,23 @@ fun PrinterStatusScreen(
     uiState.actionSuccessMessage?.let { message ->
         PadAlertDialog(
             onDismissRequest = onDismissActionSuccess,
-            title = { Text("Operation completed") },
+            title = { Text(stringResource(R.string.dialog_action_completed_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                     Text(message)
-                    Text("Donate now to support development of this and my other free apps, thank you!")
+                    Text(stringResource(R.string.about_donation))
                     OutlinedButton(
                         onClick = {
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(REPO_URL)))
                         },
                     ) {
-                        Text("Open GitHub Repo")
+                        Text(stringResource(R.string.action_open_github))
                     }
                 }
             },
             confirmButton = {
                 Button(onClick = onDismissActionSuccess) {
-                    Text("OK")
+                    Text(stringResource(R.string.action_ok))
                 }
             },
         )
@@ -510,34 +510,38 @@ private fun StatusHeroCard(
     val status = uiState.status
     val printerError = status?.error?.takeIf { it.isNotBlank() && !it.equals("None", ignoreCase = true) }
 
+    // Resolved up front: stringResource cannot be called from inside the
+    // non-composable ifBlank lambda below.
+    val readyLabel = stringResource(R.string.status_ready)
+
     val label: String
     val detail: String
     val accentColor: Color
     when {
         status == null && uiState.isBusy -> {
-            label = "Working"
-            detail = "Scanning for an Epson printer over USB OTG"
+            label = stringResource(R.string.status_working)
+            detail = stringResource(R.string.status_scanning)
             accentColor = pad.accent
         }
         status == null -> {
-            label = "No printer"
-            detail = "Connect an Epson printer over USB OTG, then tap the refresh button"
+            label = stringResource(R.string.status_no_printer)
+            detail = stringResource(R.string.status_no_printer_hint)
             accentColor = pad.muted
         }
         printerError != null -> {
             label = printerError
-            detail = "The printer reported an error"
+            detail = stringResource(R.string.status_printer_error)
             accentColor = pad.danger
         }
         else -> {
-            label = status.state.ifBlank { "Ready" }
-            detail = "Connected over USB OTG"
+            label = status.state.ifBlank { readyLabel }
+            detail = stringResource(R.string.status_connected)
             accentColor = pad.ok
         }
     }
 
     PadCard {
-        PadSectionLabel("Printer")
+        PadSectionLabel(stringResource(R.string.section_printer))
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -571,13 +575,13 @@ private fun StatusHeroCard(
         if (status != null) {
             Rule()
 
-            PadMetaRow(label = "Model", value = status.modelName)
-            PadMetaRow(label = "Serial", value = status.serialNumber)
+            PadMetaRow(label = stringResource(R.string.label_model), value = status.modelName)
+            PadMetaRow(label = stringResource(R.string.label_serial), value = status.serialNumber)
 
             val worst = status.wasteCounters.maxByOrNull { it.percentage }
             if (worst != null) {
                 PadMetaRow(
-                    label = "Highest pad",
+                    label = stringResource(R.string.label_highest_pad),
                     value = worst.percentage.formatPercent(),
                     valueColor = severityColor(severityFor(worst.percentage), pad),
                 )
@@ -604,7 +608,11 @@ private fun BusyIndicator(modifier: Modifier = Modifier) {
             strokeWidth = 2.5.dp,
             modifier = Modifier.size(18.dp),
         )
-        Text("Working…", style = MaterialTheme.typography.bodyMedium, color = pad.fg)
+        Text(
+            stringResource(R.string.status_busy_indicator),
+            style = MaterialTheme.typography.bodyMedium,
+            color = pad.fg,
+        )
     }
 }
 
@@ -642,7 +650,7 @@ private fun ProtocolLogPanel(logs: List<String>) {
     ) {
         if (logs.isEmpty()) {
             Text(
-                text = "No log entries yet.",
+                text = stringResource(R.string.log_empty),
                 fontFamily = PadMono,
                 fontSize = 12.sp,
                 lineHeight = 17.sp,
@@ -672,6 +680,9 @@ private fun CopyLogButton(logs: List<String>) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val allLogs = logs.joinToString(separator = "\n")
+    // Resolved up front: the click lambda below is not a composable scope, so
+    // stringResource cannot be called from inside it.
+    val copiedMessage = stringResource(R.string.log_copied)
 
     // Icon only, matching the other two circular controls. The description is
     // what carries the meaning for screen readers, so it is not optional here.
@@ -683,7 +694,7 @@ private fun CopyLogButton(logs: List<String>) {
         filled = false,
         onClick = {
             clipboard.setText(AnnotatedString(allLogs))
-            Toast.makeText(context, "Protocol log copied", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
         },
     )
 }
@@ -766,7 +777,7 @@ private fun InkLevelCell(
         )
         Spacer(Modifier.height(PadSpace.xs))
         Text(
-            text = if (connected) "${level.percentage}%" else "—",
+            text = if (connected) stringResource(R.string.percent_value, level.percentage) else "—",
             color = if (connected) inkLevelColor(level.percentage, pad) else pad.muted,
             style = MaterialTheme.typography.labelMedium.withFontSize(valueFontSize),
             maxLines = 1,
@@ -820,17 +831,19 @@ private fun WasteLevelsPanel(
     busy: Boolean,
     onReset: () -> Unit,
 ) {
+    val context = LocalContext.current
+
     val displayCounters = if (counters.isEmpty()) {
         listOf(
-            WasteCounterStatus("Waste ink counter 0", 0, 100),
-            WasteCounterStatus("Waste ink counter 1", 0, 100),
+            WasteCounterStatus(context.getString(R.string.waste_counter_default_name, 0), 0, 100),
+            WasteCounterStatus(context.getString(R.string.waste_counter_default_name, 1), 0, 100),
         )
     } else {
         counters.mapIndexed { index, counter ->
             val normalizedName = counter.name
                 .takeIf { it.isNotBlank() }
                 ?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
-                ?: "Waste ink counter $index"
+                ?: context.getString(R.string.waste_counter_default_name, index)
             counter.copy(name = normalizedName)
         }
     }
@@ -841,14 +854,13 @@ private fun WasteLevelsPanel(
         }
 
         PadCallout(
-            title = "Resetting does not clean the pad",
-            text = "The counter is electronic; the pad is physical. Wash, replace or redirect the " +
-                "waste ink before resetting, or ink will eventually leak inside the printer.",
+            title = stringResource(R.string.pad_warning_title),
+            text = stringResource(R.string.pad_warning_body),
             tone = PadTone.Warn,
         )
 
         PadButton(
-            text = "Reset Counters",
+            text = stringResource(R.string.action_reset_counters),
             variant = PadButtonVariant.Danger,
             enabled = connected && !busy,
             onClick = onReset,
@@ -942,21 +954,21 @@ private fun MaintenancePanel(
     val enabled = connected && !busy
     Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
         PadButton(
-            text = "Head Cleaning",
+            text = stringResource(R.string.maintenance_head_cleaning),
             variant = PadButtonVariant.Secondary,
             enabled = enabled && (cleaningOptions.isNotEmpty() || supportsGenericMaintenanceJobs),
             onClick = onClean,
             modifier = Modifier.fillMaxWidth(),
         )
         PadButton(
-            text = "Nozzle Check",
+            text = stringResource(R.string.maintenance_nozzle_check),
             variant = PadButtonVariant.Secondary,
             enabled = enabled && supportsGenericMaintenanceJobs,
             onClick = onNozzleCheck,
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            text = "Head cleaning consumes ink and adds to the waste ink counters.",
+            text = stringResource(R.string.maintenance_note),
             style = MaterialTheme.typography.bodySmall,
             color = pad.muted,
         )

@@ -1,11 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  User-facing copy for E-Pad Reset.
+
+  Translating the app means adding a values-<locale>/strings.xml with the same
+  keys. Anything not listed here is deliberately not translated:
+
+    - Protocol log lines and exception messages. They are technical diagnostics,
+      and users search for the exact English wording when asking for help.
+    - Values reported by the printer itself, such as the state ("Idle", "Busy")
+      and the error name ("Paper jam"), which are produced by the protocol layer
+      from the printer's own codes. See the note at the bottom of this file.
+    - Ink colour names, which double as matching keys for sorting and for the
+      gauge colour, so translating them would change behaviour.
+    - XML tag names and protocol constants.
+-->
 <resources>
     <string name="app_name">E-Pad Reset</string>
 
-    <!-- Accessibility descriptions for the icon-only controls. Kept in resources
-         so they can be translated; the icons themselves carry the meaning
-         visually for users who do not read the app's language. -->
+    <!-- Accessibility descriptions for the icon-only controls. The icons carry
+         the meaning visually, but screen readers need something to announce. -->
     <string name="action_about">About</string>
     <string name="action_refresh_status">Refresh status</string>
     <string name="action_connect_printer">Connect printer</string>
     <string name="action_copy_log">Copy protocol log</string>
+
+    <!-- Section headings. -->
+    <string name="section_printer">Printer</string>
+    <string name="section_ink_levels">Ink levels</string>
+    <string name="section_waste_levels">Waste levels</string>
+    <string name="section_maintenance">Maintenance</string>
+    <string name="section_protocol_log">Protocol log</string>
+
+    <!-- Printer status block. -->
+    <string name="status_working">Working</string>
+    <string name="status_scanning">Scanning for an Epson printer over USB OTG</string>
+    <string name="status_no_printer">No printer</string>
+    <string name="status_no_printer_hint">Connect an Epson printer over USB OTG, then tap the refresh button</string>
+    <string name="status_printer_error">The printer reported an error</string>
+    <string name="status_ready">Ready</string>
+    <string name="status_connected">Connected over USB OTG</string>
+    <string name="status_busy_indicator">Working…</string>
+
+    <!-- Detail rows inside the printer card. -->
+    <string name="label_model">Model</string>
+    <string name="label_serial">Serial</string>
+    <string name="label_highest_pad">Highest pad</string>
+
+    <!-- Protocol log panel. -->
+    <string name="log_empty">No log entries yet.</string>
+    <string name="log_copied">Protocol log copied</string>
+
+    <!-- Warning shown above the waste counters. -->
+    <string name="pad_warning_title">Resetting does not clean the pad</string>
+    <string name="pad_warning_body">The counter is electronic; the pad is physical. Wash, replace or redirect the waste ink before resetting, or ink will eventually leak inside the printer.</string>
+
+    <!-- Maintenance panel. -->
+    <string name="maintenance_head_cleaning">Head Cleaning</string>
+    <string name="maintenance_nozzle_check">Nozzle Check</string>
+    <string name="maintenance_note">Head cleaning consumes ink and adds to the waste ink counters.</string>
+
+    <!-- Dialog actions shared by more than one dialog. -->
+    <string name="action_cancel">Cancel</string>
+    <string name="action_ok">OK</string>
+    <string name="action_close">Close</string>
+
+    <!-- Reset waste counters dialog. -->
+    <string name="dialog_reset_title">Reset waste counters</string>
+    <string name="dialog_reset_warning">Resetting waste ink counters modifies internal printer firmware values. Use at your own risk.</string>
+    <string name="field_target_percentage">Target percentage</string>
+    <string name="action_reset_counters">Reset Counters</string>
+
+    <!-- Head cleaning dialog, for models that accept service cleaning. -->
+    <string name="dialog_cleaning_title">Head cleaning</string>
+    <string name="dialog_cleaning_body">Head cleaning consumes ink. Choose the cleaning level supported by this printer.</string>
+    <string name="action_start_cleaning">Start Cleaning</string>
+
+    <!-- Generic ESC/P2 cleaning dialog, used when service cleaning is refused. -->
+    <string name="dialog_generic_cleaning_body">This mode sends a generic Epson ESC/P2 maintenance job. Support may vary by model.</string>
+    <string name="cleaning_all_nozzles">Clean all nozzles</string>
+    <string name="cleaning_black_nozzle">Clean the black ink nozzle</string>
+    <string name="cleaning_color_nozzles">Clean the color ink nozzles</string>
+    <string name="cleaning_alternative_mode">Head cleaning (alternative mode)</string>
+    <string name="cleaning_power_clean">Power Clean</string>
+
+    <!-- Nozzle check dialog. -->
+    <string name="dialog_nozzle_check_title">Nozzle check</string>
+    <string name="action_print_test">Print Test</string>
+    <string name="nozzle_test_standard">Standard nozzle test</string>
+    <string name="nozzle_test_alternative">Alternative nozzle test</string>
+
+    <!-- About dialog. The repository label and the donation line still point at
+         the upstream project and are pending the fork's own repository. -->
+    <string name="dialog_about_title">About</string>
+    <string name="about_repo_label">GitHub: tekware-it/android-epson-reset</string>
+    <string name="action_open_repo">Open Repo</string>
+    <string name="about_donation">Donate now to support development of this and my other free apps, thank you!</string>
+    <string name="action_open_github">Open GitHub Repo</string>
+
+    <!-- Exit confirmation. -->
+    <string name="dialog_exit_title">Exit app</string>
+    <string name="dialog_exit_body">Do you want to exit and close %1$s?</string>
+    <string name="action_exit">Exit</string>
+
+    <!-- Dialog shown after an action succeeds. -->
+    <string name="dialog_action_completed_title">Operation completed</string>
+
+    <!-- Error callout. The body text comes from the failure itself. -->
+    <string name="callout_operation_failed">Operation failed</string>
+
+    <!-- Messages raised by the ViewModel. -->
+    <string name="error_printer_not_connected">Printer is not connected</string>
+    <string name="msg_counters_updated">Waste ink counters have been updated. Restart the printer if required by the model.</string>
+    <string name="msg_cleaning_sent_named">Head cleaning \'%1$s\' command has been sent. Wait for the printer to start the routine, then refresh status manually.</string>
+    <string name="msg_cleaning_sent">Head cleaning job has been sent. Wait for the printer to start the routine, then refresh status manually.</string>
+    <string name="msg_nozzle_check_sent">Nozzle check print job has been sent. Wait for the page to print.</string>
+
+    <!-- Readouts. The em dash stands for "no reading yet". -->
+    <string name="percent_value">%1$d%%</string>
+    <string name="waste_counter_default_name">Waste ink counter %1$d</string>
+
+    <!--
+      Not yet translatable, and deliberately left in the protocol layer:
+
+        PrinterStatusSnapshot.state   e.g. "Idle", "Busy", "Paper jam"
+        PrinterStatusSnapshot.error   e.g. "None", "Ink out"
+
+      Those values are produced by EpsonProtocol from the printer's own codes,
+      and the same strings are also written to the diagnostic log. Making them
+      translatable means having the protocol return a code or an enum and
+      mapping it to a resource in the UI, rather than returning display text.
+      Until that refactor happens, the status line stays in English.
+    -->
 </resources>
