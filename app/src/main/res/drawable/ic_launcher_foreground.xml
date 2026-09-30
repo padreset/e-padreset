@@ -1,27 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generado desde el logo de origen. Es un unico color plano con bordes
+     duros, asi que se vectoriza en 15 rectangulos en lugar de rasterizarse. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#24424B"
-        android:pathData="M33,23h42a5,5 0 0 1 5,5v11H28V28a5,5 0 0 1 5,-5z" />
-    <path
-        android:fillColor="#1A2E35"
-        android:pathData="M25,36h58a8,8 0 0 1 8,8v23a8,8 0 0 1 -8,8H25a8,8 0 0 1 -8,-8V44a8,8 0 0 1 8,-8z" />
-    <path
-        android:fillColor="#F6FBFB"
-        android:pathData="M31,47h46v13H31z" />
-    <path
-        android:fillColor="#DCE8EA"
-        android:pathData="M35,28h38v7H35z" />
-    <path
-        android:fillColor="#FFCF33"
-        android:pathData="M69,50a4.6,4.6 0 1 0 0.01,0z" />
-    <path
-        android:fillColor="#12CFE0"
-        android:pathData="M54,83c-4.15,0 -7.5,-3.07 -7.5,-6.85 0,-5.22 6.69,-12.8 6.98,-13.12L54,62.53l0.52,0.5c0.29,0.32 6.98,7.9 6.98,13.12C61.5,79.93 58.15,83 54,83z" />
-    <path
-        android:fillColor="#E84A5F"
-        android:pathData="M67.8,67.2c-1.52,-3.37 -4.91,-5.53 -8.61,-5.53 -1.61,0 -3.14,0.4 -4.49,1.14l-2.22,-2.22c1.97,-1.33 4.32,-2.06 6.71,-2.06 6.09,0 11.32,4.03 12.92,9.85l1.07,-3.45 3.02,0.94 -2.36,7.62 -7.78,-1.86 0.74,-3.05 4.25,1.02c-0.08,-0.15 -0.16,-0.31 -0.25,-0.46z" />
+        android:fillColor="#0B47C1"
+        android:pathData="M48.21,31.62H59.86V38.99H48.21ZM61.71,31.62H73.43V43.27H61.71ZM34.64,31.62H46.37V43.27H34.64ZM48.21,45.19H59.86V48.87H48.21ZM64.14,45.19H73.43V53.08H64.14ZM61.71,53.08H73.43V55.88H61.71ZM34.64,45.19H43.93V56.84H34.64ZM48.21,53.08H59.86V56.84H48.21ZM64.14,55.88H73.43V56.84H64.14ZM61.71,58.68H73.43V70.41H61.71ZM34.64,58.68H46.37V70.41H34.64ZM48.21,63.04H59.86V70.41H48.21ZM38.18,70.41H42.75V76.31H38.18ZM65.32,70.41H69.89V76.31H65.32ZM51.75,70.41H56.32V76.31H51.75Z" />
 </vector>
