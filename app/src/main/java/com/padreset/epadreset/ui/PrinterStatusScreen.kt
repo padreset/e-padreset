@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -672,11 +673,14 @@ private fun CopyLogButton(logs: List<String>) {
     val context = LocalContext.current
     val allLogs = logs.joinToString(separator = "\n")
 
-    PadButton(
-        text = "Copy",
-        variant = PadButtonVariant.Secondary,
+    // Icon only, matching the other two circular controls. The description is
+    // what carries the meaning for screen readers, so it is not optional here.
+    PadIconButton(
+        icon = Icons.Outlined.ContentCopy,
+        contentDescription = stringResource(R.string.action_copy_log),
         enabled = logs.isNotEmpty(),
-        height = 34.dp,
+        size = 40.dp,
+        filled = false,
         onClick = {
             clipboard.setText(AnnotatedString(allLogs))
             Toast.makeText(context, "Protocol log copied", Toast.LENGTH_SHORT).show()

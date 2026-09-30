@@ -7,4 +7,5 @@
     <string name="action_about">About</string>
     <string name="action_refresh_status">Refresh status</string>
     <string name="action_connect_printer">Connect printer</string>
+    <string name="action_copy_log">Copy protocol log</string>
 </resources>
