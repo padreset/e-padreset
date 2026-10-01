@@ -146,6 +146,9 @@
     <string name="error_connect_unsupported_model_named">The Epson model \'%1$s\' is not in the app\'s database, so no maintenance session can be opened. Unlike a printer with a maintenance box, this is not permanent: the model can be supported once its data is added.</string>
     <string name="error_connect_dot4_nak">The printer refused the maintenance session. Turn it off and on again, then retry.</string>
     <string name="msg_counters_updated">Waste ink counters have been updated. Restart the printer if required by the model.</string>
+    <!-- Raised when the counters read back after a write do not match the value
+         that was asked for, which means the printer did not apply it. -->
+    <string name="error_counters_not_applied">The printer did not apply the new values: the counters still read %1$s. Nothing was changed. The write was most likely rejected.</string>
     <string name="msg_cleaning_sent_named">Head cleaning \'%1$s\' command has been sent. Wait for the printer to start the routine, then refresh status manually.</string>
     <string name="msg_cleaning_sent">Head cleaning job has been sent. Wait for the printer to start the routine, then refresh status manually.</string>
     <string name="msg_nozzle_check_sent">Nozzle check print job has been sent. Wait for the page to print.</string>

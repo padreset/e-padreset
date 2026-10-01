@@ -199,23 +199,28 @@ Known realities:
 Two gaps, both on the most dangerous path in the app. They were found by
 comparing against the other open reset tools, which do handle them:
 
-**A rejected write is not noticed.** `sendControlPayload` reads the printer's
-reply and logs it, but nothing inspects it, and `writeWasteCounter` discards the
-return value outright. If the printer rejects a write — the usual reason being a
-key that does not match the model — the app carries on to the next address and
-then reports success. The reference tools treat that rejection as a reason to
-abort the run rather than keep writing.
+**A rejected write is caught late, not as it happens.** `sendControlPayload`
+reads the printer's reply and logs it, but nothing inspects it, and
+`writeWasteCounter` discards the return value outright. A rejection is therefore
+not noticed at the moment it occurs: the app carries on to the next address.
+
+It is caught afterwards, by comparing the counters read back against the value
+that was asked for. A mismatch is reported as a failure rather than a success, so
+a rejected write no longer ends in a "counters updated" message. That covers the
+outcome but not the cause, and the run still writes to every address before
+anything is checked — the reference tools abort on the first rejection instead.
 
 **Nothing is backed up.** `resetWasteCounters` and `writeWasteCounters` write
 straight to the EEPROM. The bytes they are about to overwrite are never saved, so
 there is no way back.
 
-Neither is fixed yet, and deliberately so: a write-abort check has to be built on
-the printer's actual reply format rather than a guessed one. The reply is already
-logged as `CTRL RX: …`, so a single reset run on real hardware reveals the format
-and lets the check be written against evidence.
+The backup is still missing, and deliberately so: a write-abort check has to be
+built on the printer's actual reply format rather than a guessed one. The reply is
+already logged as `CTRL RX: …`, so a single reset run on real hardware reveals the
+format and lets the check be written against evidence.
 
-Until then, treat a reported success as unverified.
+A reported success now means the counters read back at the value asked for. It
+does not yet mean the printer accepted each individual write.
 
 ## Upstream Basis
 

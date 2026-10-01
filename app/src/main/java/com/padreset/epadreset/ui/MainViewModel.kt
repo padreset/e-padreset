@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 data class MainUiState(
     val connectedDeviceName: String? = null,
@@ -52,8 +54,15 @@ private class UserFacingException(val uiMessage: String) : Exception(uiMessage)
 /**
  * Tells [MainViewModel.runJob] which localized line the callout should show for
  * an otherwise technical failure.
+ *
+ * [logMessage] is what reaches the diagnostic log, so the two can differ: the
+ * callout stays translatable while the log keeps the raw detail.
  */
-private class UnhandledJobException(val uiMessage: String, cause: Throwable) : Exception(cause)
+private class UnhandledJobException(
+    val uiMessage: String,
+    logMessage: String,
+    cause: Throwable? = null,
+) : Exception(logMessage, cause)
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val printerService = PrinterService(application, ::appendLog)
@@ -78,7 +87,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runJob("Connecting to ${device.productName ?: device.deviceName}") {
                 connection?.let(printerService::close)
                 connection = runCatching { printerService.connectPrinter(device) }
-                    .getOrElse { throw UnhandledJobException(localizedConnectFailure(it), it) }
+                    .getOrElse {
+                        throw UnhandledJobException(
+                            uiMessage = localizedConnectFailure(it),
+                            logMessage = it.message ?: it.javaClass.simpleName,
+                            cause = it,
+                        )
+                    }
                     .also { appendLog("Connected to ${it.deviceId}") }
                 refreshStatus()
             }
@@ -115,7 +130,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runJob("Resetting waste counters") {
                 val counters = printerService.writeWasteCounters(current, selectedCounterNames, targetPercentage)
-                appendLog("Waste counters written: ${counters.joinToString { "${it.name}=${it.percentage}%" }}")
+                appendLog("Waste counters read back: ${counters.joinToString { "${it.name}=${it.percentage}%" }}")
+
+                // The service already reads the counters back after writing. Until
+                // now nobody looked at them, so a write the printer rejected was
+                // followed by a success message and a log line showing the old
+                // values — the evidence was returned and thrown away.
+                //
+                // The comparison is against the value that was asked for, so it
+                // needs no knowledge of the printer's reply format. The tolerance
+                // absorbs the rounding in value -> percentage: the target is
+                // stored as max * pct / 100 and read back through the inverse.
+                val notApplied = counters.filter { counter ->
+                    counter.name in selectedCounterNames &&
+                        abs(counter.percentage - targetPercentage) > 2.0
+                }
+                if (notApplied.isNotEmpty()) {
+                    val actual = notApplied.joinToString { "${it.name}=${it.percentage.roundToInt()}%" }
+                    throw UnhandledJobException(
+                        uiMessage = str(R.string.error_counters_not_applied, actual),
+                        logMessage = "Counters not applied: asked for $targetPercentage%, read back $actual",
+                    )
+                }
+
                 _uiState.value = _uiState.value.copy(
                     actionSuccessMessage = str(R.string.msg_counters_updated),
                 )

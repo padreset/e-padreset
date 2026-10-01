@@ -137,6 +137,9 @@
     <string name="error_connect_unsupported_model_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. A diferencia de una impresora con caja de mantenimiento, esto no es definitivo: el modelo se puede soportar cuando se añadan sus datos.</string>
     <string name="error_connect_dot4_nak">La impresora ha rechazado la sesión de mantenimiento. Apágala y vuelve a encenderla, y reinténtalo.</string>
     <string name="msg_counters_updated">Los contadores de residuo se han actualizado. Reinicia la impresora si el modelo lo requiere.</string>
+    <!-- Se lanza cuando los contadores leídos tras la escritura no coinciden con
+         el valor pedido, lo que significa que la impresora no lo aplicó. -->
+    <string name="error_counters_not_applied">La impresora no ha aplicado los valores nuevos: los contadores siguen en %1$s. No se ha cambiado nada. Lo más probable es que la escritura fuera rechazada.</string>
     <string name="msg_cleaning_sent_named">Se ha enviado el comando de limpieza de cabezal \'%1$s\'. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>
     <string name="msg_cleaning_sent">Se ha enviado el trabajo de limpieza de cabezal. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>
     <string name="msg_nozzle_check_sent">Se ha enviado el trabajo de comprobación de inyectores. Espera a que se imprima la página.</string>
