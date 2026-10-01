@@ -133,8 +133,8 @@
          el aviso indique la causa real y no un fallo genérico. -->
     <string name="error_connect_permission_denied">Se ha denegado el acceso por USB. Vuelve a conectar la impresora y acepta la solicitud de permiso.</string>
     <string name="error_connect_no_interfaces">Este dispositivo USB no tiene ninguna interfaz que la aplicación pueda usar. Puede que no sea una impresora Epson compatible.</string>
-    <string name="error_connect_unsupported_model">Este modelo de Epson no está en la lista de compatibles, por lo que no se pueden reiniciar sus contadores de residuo.</string>
-    <string name="error_connect_unsupported_model_named">El modelo de Epson \'%1$s\' no está en la lista de compatibles, por lo que no se pueden reiniciar sus contadores de residuo.</string>
+    <string name="error_connect_unsupported_model">Este modelo de Epson no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. A diferencia de una impresora con caja de mantenimiento, esto no es definitivo: el modelo se puede soportar cuando se añadan sus datos.</string>
+    <string name="error_connect_unsupported_model_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. A diferencia de una impresora con caja de mantenimiento, esto no es definitivo: el modelo se puede soportar cuando se añadan sus datos.</string>
     <string name="error_connect_dot4_nak">La impresora ha rechazado la sesión de mantenimiento. Apágala y vuelve a encenderla, y reinténtalo.</string>
     <string name="msg_counters_updated">Los contadores de residuo se han actualizado. Reinicia la impresora si el modelo lo requiere.</string>
     <string name="msg_cleaning_sent_named">Se ha enviado el comando de limpieza de cabezal \'%1$s\'. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>

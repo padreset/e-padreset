@@ -58,10 +58,10 @@
     <string name="pad_warning_body">The counter is electronic; the pad is physical. Wash, replace or redirect the waste ink before resetting, or ink will eventually leak inside the printer.</string>
 
     <!-- Shown in place of the counters when the connected printer keeps its
-         waste ink count somewhere the app cannot write to. Deliberately does not
-         claim to know which of the two causes applies: the catalog can tell that
-         a model has no counter, but not whether that is a maintenance box or a
-         gap in the database. The dialog explains both. -->
+         waste ink counter somewhere the app cannot write to. Deliberately does
+         not claim to know which of the two causes applies: the catalog can tell
+         that a model has no counter, but not whether that is a maintenance box
+         or a gap in the database. The dialog explains both. -->
     <string name="waste_unsupported_title">No counter to reset on this model</string>
     <string name="waste_unsupported_body">This printer does not keep a waste ink counter the app can reset. Nothing is broken: neither the app nor the printer is at fault.</string>
     <string name="action_more_info">More Information</string>
@@ -142,8 +142,8 @@
          callout can name the actual cause instead of a generic failure. -->
     <string name="error_connect_permission_denied">USB access was denied. Reconnect the printer and accept the permission request.</string>
     <string name="error_connect_no_interfaces">This USB device has no interface the app can use. It may not be a supported Epson printer.</string>
-    <string name="error_connect_unsupported_model">This Epson model is not in the supported list, so its waste ink counters cannot be reset.</string>
-    <string name="error_connect_unsupported_model_named">The Epson model \'%1$s\' is not in the supported list, so its waste ink counters cannot be reset.</string>
+    <string name="error_connect_unsupported_model">This Epson model is not in the app\'s database, so no maintenance session can be opened. Unlike a printer with a maintenance box, this is not permanent: the model can be supported once its data is added.</string>
+    <string name="error_connect_unsupported_model_named">The Epson model \'%1$s\' is not in the app\'s database, so no maintenance session can be opened. Unlike a printer with a maintenance box, this is not permanent: the model can be supported once its data is added.</string>
     <string name="error_connect_dot4_nak">The printer refused the maintenance session. Turn it off and on again, then retry.</string>
     <string name="msg_counters_updated">Waste ink counters have been updated. Restart the printer if required by the model.</string>
     <string name="msg_cleaning_sent_named">Head cleaning \'%1$s\' command has been sent. Wait for the printer to start the routine, then refresh status manually.</string>
@@ -161,7 +161,7 @@
     <string name="printer_state_busy">Busy</string>
     <string name="printer_state_waiting">Waiting</string>
     <string name="printer_state_idle">Idle</string>
-    <string name="printer_state_pause">Pause</string>
+    <string name="printer_state_pause">Paused</string>
     <string name="printer_state_cleaning">Cleaning</string>
     <string name="printer_state_error">Error</string>
 
