@@ -7,10 +7,8 @@
 
     - Protocol log lines and exception messages. They are technical diagnostics,
       and users search for the exact English wording when asking for help.
-    - Values reported by the printer itself, such as the state ("Idle", "Busy")
-      and the error name ("Paper jam"), which are produced by the protocol layer
-      from the printer's own codes. See the note at the bottom of this file.
-    - Ink colour names, which double as matching keys for sorting and for the
+    - Ink colour names, which are never displayed: the gauges show short labels
+      derived from them, and they double as matching keys for sorting and for the
       gauge colour, so translating them would change behaviour.
     - XML tag names and protocol constants.
 -->
@@ -119,16 +117,32 @@
     <string name="percent_value">%1$d%%</string>
     <string name="waste_counter_default_name">Waste ink counter %1$d</string>
 
+    <!-- Printer state, resolved from the code the printer reports. EpsonProtocol
+         still produces English text for the diagnostic log; the UI maps the code
+         to these labels, so the status line is translatable. -->
+    <string name="printer_state_self_printing">Self printing</string>
+    <string name="printer_state_busy">Busy</string>
+    <string name="printer_state_waiting">Waiting</string>
+    <string name="printer_state_idle">Idle</string>
+    <string name="printer_state_pause">Pause</string>
+    <string name="printer_state_cleaning">Cleaning</string>
+    <string name="printer_state_error">Error</string>
+
+    <!-- Printer error, resolved from the code the printer reports. -->
+    <string name="printer_error_interface">Interface error</string>
+    <string name="printer_error_paper_jam">Paper jam</string>
+    <string name="printer_error_ink_out">Ink out</string>
+    <string name="printer_error_service_required">Service required</string>
+    <string name="printer_error_cover_open">Cover open</string>
+
     <!--
-      Not yet translatable, and deliberately left in the protocol layer:
+      Still not translatable, and deliberately left in the protocol layer:
 
-        PrinterStatusSnapshot.state   e.g. "Idle", "Busy", "Paper jam"
-        PrinterStatusSnapshot.error   e.g. "None", "Ink out"
+        Ink colour names (InkLevel.color), e.g. "Black", "Light Cyan".
 
-      Those values are produced by EpsonProtocol from the printer's own codes,
-      and the same strings are also written to the diagnostic log. Making them
-      translatable means having the protocol return a code or an enum and
-      mapping it to a resource in the UI, rather than returning display text.
-      Until that refactor happens, the status line stays in English.
+      They are never shown to the user. The gauges display short labels derived
+      from them, and the same strings double as matching keys for the sort order
+      and for the gauge colour, so translating them would change behaviour
+      rather than just wording.
     -->
 </resources>

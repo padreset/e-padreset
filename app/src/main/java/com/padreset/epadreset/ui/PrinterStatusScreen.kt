@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.padreset.epadreset.R
 import com.padreset.epadreset.data.InkLevel
+import com.padreset.epadreset.data.PrinterStatusSnapshot
 import com.padreset.epadreset.data.WasteCounterStatus
 import com.padreset.epadreset.ui.components.PadAlertDialog
 import com.padreset.epadreset.ui.components.PadButton
@@ -508,7 +509,10 @@ private fun StatusHeroCard(
 ) {
     val pad = PadTheme.colors
     val status = uiState.status
-    val printerError = status?.error?.takeIf { it.isNotBlank() && !it.equals("None", ignoreCase = true) }
+    // Compared by code, not by text. The old check tested the English word
+    // "None" against a value the printer reported, which would have broken the
+    // moment that label was translated.
+    val hasPrinterError = status != null && status.errorCode != PrinterStatusSnapshot.ERROR_NONE
 
     // Resolved up front: stringResource cannot be called from inside the
     // non-composable ifBlank lambda below.
@@ -528,13 +532,13 @@ private fun StatusHeroCard(
             detail = stringResource(R.string.status_no_printer_hint)
             accentColor = pad.muted
         }
-        printerError != null -> {
-            label = printerError
+        hasPrinterError -> {
+            label = printerErrorLabel(status.errorCode, status.error)
             detail = stringResource(R.string.status_printer_error)
             accentColor = pad.danger
         }
         else -> {
-            label = status.state.ifBlank { readyLabel }
+            label = printerStateLabel(status.stateCode, status.state).ifBlank { readyLabel }
             detail = stringResource(R.string.status_connected)
             accentColor = pad.ok
         }
@@ -1019,6 +1023,38 @@ private fun SelectableRow(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Maps the printer's own status code to a label.
+ *
+ * The mapping mirrors the code set in EpsonProtocol, so a code added there needs
+ * adding here too. An unmapped code falls back to the protocol's English text
+ * rather than showing something wrong.
+ */
+@Composable
+private fun printerStateLabel(code: Int, fallback: String): String {
+    val errorLabel = stringResource(R.string.printer_state_error)
+    return when (code) {
+        0x01 -> stringResource(R.string.printer_state_self_printing)
+        0x02 -> stringResource(R.string.printer_state_busy)
+        0x03 -> stringResource(R.string.printer_state_waiting)
+        0x04 -> stringResource(R.string.printer_state_idle)
+        0x05 -> stringResource(R.string.printer_state_pause)
+        0x07 -> stringResource(R.string.printer_state_cleaning)
+        else -> fallback.ifBlank { errorLabel }
+    }
+}
+
+/** Same idea as [printerStateLabel], for the printer's error code. */
+@Composable
+private fun printerErrorLabel(code: Int, fallback: String): String = when (code) {
+    0x01 -> stringResource(R.string.printer_error_interface)
+    0x04 -> stringResource(R.string.printer_error_paper_jam)
+    0x05 -> stringResource(R.string.printer_error_ink_out)
+    0x10 -> stringResource(R.string.printer_error_service_required)
+    0x25 -> stringResource(R.string.printer_error_cover_open)
+    else -> fallback
+}
 
 /** Colour for a single headline value, such as the highest pad reading. */
 private fun severityColor(severity: PadSeverity, pad: PadColors): Color = when (severity) {

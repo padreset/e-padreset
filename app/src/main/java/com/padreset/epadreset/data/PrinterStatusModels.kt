@@ -17,8 +17,23 @@ data class WasteCounterStatus(
 data class PrinterStatusSnapshot(
     val modelName: String,
     val serialNumber: String,
+    /**
+     * Raw status code from the printer.
+     *
+     * [state] carries the same information as English text, which is what the
+     * diagnostic log uses. The UI resolves [stateCode] to a translatable label
+     * instead, so the two never drift: both come from the same code.
+     */
+    val stateCode: Int,
+    /** Raw error code from the printer. [ERROR_NONE] means no error. */
+    val errorCode: Int,
     val state: String,
     val error: String,
     val inkLevels: List<InkLevel>,
     val wasteCounters: List<WasteCounterStatus>,
-)
+) {
+    companion object {
+        /** The printer reports this when there is no error. */
+        const val ERROR_NONE = -1
+    }
+}

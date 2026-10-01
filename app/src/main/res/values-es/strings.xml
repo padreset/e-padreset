@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Traducción al español de E-Pad Reset.
+
+  Debe contener exactamente las mismas claves que values/strings.xml. Las que
+  falten caen al inglés automáticamente, así que una traducción parcial no rompe
+  nada, pero deja la interfaz mezclada.
+
+  No se incluye about_repo_label: es el identificador del repositorio, no texto
+  que deba traducirse.
+-->
+<resources>
+    <string name="app_name">E-Pad Reset</string>
+
+    <!-- Descripciones accesibles de los controles que solo llevan icono. -->
+    <string name="action_about">Acerca de</string>
+    <string name="action_refresh_status">Actualizar estado</string>
+    <string name="action_connect_printer">Conectar impresora</string>
+    <string name="action_copy_log">Copiar registro de protocolo</string>
+
+    <!-- Encabezados de sección. -->
+    <string name="section_printer">Impresora</string>
+    <string name="section_ink_levels">Niveles de tinta</string>
+    <string name="section_waste_levels">Niveles de residuo</string>
+    <string name="section_maintenance">Mantenimiento</string>
+    <string name="section_protocol_log">Registro de protocolo</string>
+
+    <!-- Bloque de estado de la impresora. -->
+    <string name="status_working">Trabajando</string>
+    <string name="status_scanning">Buscando una impresora Epson por USB OTG</string>
+    <string name="status_no_printer">Sin impresora</string>
+    <string name="status_no_printer_hint">Conecta una impresora Epson por USB OTG y pulsa el botón de actualizar</string>
+    <string name="status_printer_error">La impresora ha reportado un error</string>
+    <string name="status_ready">Lista</string>
+    <string name="status_connected">Conectada por USB OTG</string>
+    <string name="status_busy_indicator">Trabajando…</string>
+
+    <!-- Filas de detalle dentro de la tarjeta de impresora. -->
+    <string name="label_model">Modelo</string>
+    <string name="label_serial">Número de serie</string>
+    <string name="label_highest_pad">Almohadilla más alta</string>
+
+    <!-- Panel del registro de protocolo. -->
+    <string name="log_empty">Todavía no hay entradas en el registro.</string>
+    <string name="log_copied">Registro de protocolo copiado</string>
+
+    <!-- Aviso mostrado sobre los contadores de residuo. -->
+    <string name="pad_warning_title">Reiniciar no limpia la almohadilla</string>
+    <string name="pad_warning_body">El contador es electrónico; la almohadilla es física. Lava, sustituye o redirige la tinta residual antes de reiniciar, o la tinta acabará goteando dentro de la impresora.</string>
+
+    <!-- Panel de mantenimiento. -->
+    <string name="maintenance_head_cleaning">Limpieza de cabezal</string>
+    <string name="maintenance_nozzle_check">Comprobación de inyectores</string>
+    <string name="maintenance_note">La limpieza de cabezal consume tinta y suma a los contadores de residuo.</string>
+
+    <!-- Acciones compartidas por varios diálogos. -->
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_ok">Aceptar</string>
+    <string name="action_close">Cerrar</string>
+
+    <!-- Diálogo de reinicio de contadores. -->
+    <string name="dialog_reset_title">Reiniciar contadores de residuo</string>
+    <string name="dialog_reset_warning">Reiniciar los contadores de residuo modifica valores internos del firmware de la impresora. Úsalo bajo tu propia responsabilidad.</string>
+    <string name="field_target_percentage">Porcentaje objetivo</string>
+    <string name="action_reset_counters">Reiniciar contadores</string>
+
+    <!-- Diálogo de limpieza de cabezal, para modelos que la aceptan. -->
+    <string name="dialog_cleaning_title">Limpieza de cabezal</string>
+    <string name="dialog_cleaning_body">La limpieza de cabezal consume tinta. Elige el nivel de limpieza que admita esta impresora.</string>
+    <string name="action_start_cleaning">Iniciar limpieza</string>
+
+    <!-- Diálogo de limpieza ESC/P2 genérica, cuando se rechaza la del servicio. -->
+    <string name="dialog_generic_cleaning_body">Este modo envía un trabajo de mantenimiento ESC/P2 genérico de Epson. La compatibilidad puede variar según el modelo.</string>
+    <string name="cleaning_all_nozzles">Limpiar todos los inyectores</string>
+    <string name="cleaning_black_nozzle">Limpiar el inyector de tinta negra</string>
+    <string name="cleaning_color_nozzles">Limpiar los inyectores de color</string>
+    <string name="cleaning_alternative_mode">Limpieza de cabezal (modo alternativo)</string>
+    <string name="cleaning_power_clean">Limpieza intensiva</string>
+
+    <!-- Diálogo de comprobación de inyectores. -->
+    <string name="dialog_nozzle_check_title">Comprobación de inyectores</string>
+    <string name="action_print_test">Imprimir prueba</string>
+    <string name="nozzle_test_standard">Prueba de inyectores estándar</string>
+    <string name="nozzle_test_alternative">Prueba de inyectores alternativa</string>
+
+    <!-- Diálogo Acerca de. -->
+    <string name="dialog_about_title">Acerca de</string>
+    <string name="action_open_repo">Abrir repositorio</string>
+    <string name="about_donation">Dona para apoyar el desarrollo de esta y mis otras aplicaciones gratuitas, ¡gracias!</string>
+    <string name="action_open_github">Abrir repositorio en GitHub</string>
+
+    <!-- Confirmación de salida. -->
+    <string name="dialog_exit_title">Salir de la aplicación</string>
+    <string name="dialog_exit_body">¿Quieres salir y cerrar %1$s?</string>
+    <string name="action_exit">Salir</string>
+
+    <!-- Diálogo mostrado cuando una acción termina bien. -->
+    <string name="dialog_action_completed_title">Operación completada</string>
+
+    <!-- Aviso de error. El cuerpo del mensaje viene del propio fallo. -->
+    <string name="callout_operation_failed">La operación ha fallado</string>
+
+    <!-- Mensajes que emite el ViewModel. -->
+    <string name="error_printer_not_connected">La impresora no está conectada</string>
+    <string name="msg_counters_updated">Los contadores de residuo se han actualizado. Reinicia la impresora si el modelo lo requiere.</string>
+    <string name="msg_cleaning_sent_named">Se ha enviado el comando de limpieza de cabezal \'%1$s\'. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>
+    <string name="msg_cleaning_sent">Se ha enviado el trabajo de limpieza de cabezal. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>
+    <string name="msg_nozzle_check_sent">Se ha enviado el trabajo de comprobación de inyectores. Espera a que se imprima la página.</string>
+
+    <!-- Lecturas. El guion largo significa "todavía sin lectura". -->
+    <string name="percent_value">%1$d%%</string>
+    <string name="waste_counter_default_name">Contador de residuo %1$d</string>
+
+    <!-- Estado de la impresora, resuelto a partir del código que reporta. -->
+    <string name="printer_state_self_printing">Autoimpresión</string>
+    <string name="printer_state_busy">Ocupada</string>
+    <string name="printer_state_waiting">En espera</string>
+    <string name="printer_state_idle">En reposo</string>
+    <string name="printer_state_pause">En pausa</string>
+    <string name="printer_state_cleaning">Limpiando</string>
+    <string name="printer_state_error">Error</string>
+
+    <!-- Error de la impresora, resuelto a partir del código que reporta. -->
+    <string name="printer_error_interface">Error de interfaz</string>
+    <string name="printer_error_paper_jam">Atasco de papel</string>
+    <string name="printer_error_ink_out">Sin tinta</string>
+    <string name="printer_error_service_required">Requiere servicio técnico</string>
+    <string name="printer_error_cover_open">Cubierta abierta</string>
+</resources>

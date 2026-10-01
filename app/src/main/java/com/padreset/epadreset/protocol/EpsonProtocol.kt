@@ -194,8 +194,9 @@ class EpsonProtocol(private val spec: PrinterSpec) {
         val statusPayload = payload.copyOfRange(expectedHeader.size, payload.size)
         val parameters = parseStatusParameters(statusPayload)
 
-        val state = statusCodeToText(parameters[0x01]?.firstOrNull()?.toInt()?.and(0xFF) ?: 0x00)
-        val error = errorCodeToText(parameters[0x02]?.firstOrNull()?.toInt()?.and(0xFF) ?: -1)
+        val stateCode = parameters[0x01]?.firstOrNull()?.toInt()?.and(0xFF) ?: 0x00
+        val errorCode = parameters[0x02]?.firstOrNull()?.toInt()?.and(0xFF)
+            ?: PrinterStatusSnapshot.ERROR_NONE
         val serial = parameters[0x40]?.decodeToString().orEmpty()
         val inkLevels = parseInkLevels(parameters[0x0F])
         val wasteCounters = emptyList<WasteCounterStatus>()
@@ -204,8 +205,11 @@ class EpsonProtocol(private val spec: PrinterSpec) {
         return PrinterStatusSnapshot(
             modelName = parsedId["MDL"] ?: spec.modelName,
             serialNumber = serial.ifBlank { parsedId["SN"] ?: "" },
-            state = state,
-            error = error,
+            stateCode = stateCode,
+            errorCode = errorCode,
+            // Text kept for the diagnostic log; the UI maps the codes above.
+            state = statusCodeToText(stateCode),
+            error = errorCodeToText(errorCode),
             inkLevels = inkLevels,
             wasteCounters = wasteCounters,
         )
