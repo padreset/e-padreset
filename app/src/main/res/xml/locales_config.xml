@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Idiomas que incluye la app.
+
+  Sin este fichero, Android 13+ no ofrece el selector de idioma por aplicación
+  en Ajustes, aunque las traducciones existan. Al añadir un values-<locale>/
+  nuevo, hay que añadir también su entrada aquí.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="es" />
+</locale-config>
