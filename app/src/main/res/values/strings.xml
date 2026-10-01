@@ -63,14 +63,14 @@
          a model has no counter, but not whether that is a maintenance box or a
          gap in the database. The dialog explains both. -->
     <string name="waste_unsupported_title">No counter to reset on this model</string>
-    <string name="waste_unsupported_body">This printer does not keep its waste ink count where the app can reset it. Nothing is broken: neither the app nor the printer is at fault.</string>
-    <string name="action_more_info">More information</string>
+    <string name="waste_unsupported_body">This printer does not keep a waste ink counter the app can reset. Nothing is broken: neither the app nor the printer is at fault.</string>
+    <string name="action_more_info">More Information</string>
 
     <!-- Shown when the model is on the curated maintenance-box list, so the
          cause is known rather than guessed. The dialog that follows is the
          tailored one below, not the two-cause one. -->
     <string name="waste_box_title">This printer uses a maintenance box</string>
-    <string name="waste_box_body">The waste ink goes into a box, and the box records the level on its own chip. There is no counter in the printer for the app to reset.</string>
+    <string name="waste_box_body">The waste ink goes into a box, and the box records the level on its own chip. There is no counter in the printer for the app to reset — when the box fills, it is replaced.</string>
     <string name="waste_box_dialog_title">Your printer uses a maintenance box</string>
     <string name="waste_box_dialog_body">The waste ink from head cleaning collects in a maintenance box rather than in pads inside the printer. The box carries its own chip that records how full it is, and the printer keeps no counter of its own — so there is nothing here for any reset utility to clear.\n\nWhen the box is full it is replaced, or its chip is reset with a dedicated tool. Neither is something an app can do over USB.\n\nYou can confirm this on the printer itself: its status panel names the maintenance box, and warns you when the box needs changing.\n\nHead cleaning and the nozzle check still work on this printer. They are on the Maintenance page.</string>
 
