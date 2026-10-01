@@ -97,11 +97,15 @@
     <!-- Diálogo mostrado cuando una acción termina bien. -->
     <string name="dialog_action_completed_title">Operación completada</string>
 
-    <!-- Aviso de error. El cuerpo del mensaje viene del propio fallo. -->
+    <!-- Aviso de error. El título es fijo; el cuerpo es o bien un mensaje ya
+         traducido que emite el ViewModel, o bien esta línea genérica cuando el
+         fallo ha sido técnico y no tiene texto propio traducido. -->
     <string name="callout_operation_failed">La operación ha fallado</string>
 
     <!-- Mensajes que emite el ViewModel. -->
     <string name="error_printer_not_connected">La impresora no está conectada</string>
+    <string name="error_no_printer_detected">No se ha detectado ninguna impresora Epson por USB OTG</string>
+    <string name="error_connect_failed">No se ha podido abrir una sesión de mantenimiento con la impresora</string>
     <string name="msg_counters_updated">Los contadores de residuo se han actualizado. Reinicia la impresora si el modelo lo requiere.</string>
     <string name="msg_cleaning_sent_named">Se ha enviado el comando de limpieza de cabezal \'%1$s\'. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>
     <string name="msg_cleaning_sent">Se ha enviado el trabajo de limpieza de cabezal. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>

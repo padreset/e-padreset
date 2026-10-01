@@ -19,10 +19,29 @@ data class MainUiState(
     val cleaningOptions: List<String> = emptyList(),
     val supportsGenericMaintenanceJobs: Boolean = false,
     val isBusy: Boolean = false,
+    /**
+     * Already localized. Shown in the error callout, so anything written here
+     * must go through [MainViewModel.str].
+     */
     val error: String? = null,
     val logs: List<String> = emptyList(),
     val actionSuccessMessage: String? = null,
 )
+
+/**
+ * A failure that already carries a localized message destined for the UI.
+ *
+ * Anything else thrown inside [MainViewModel.runJob] is treated as a technical
+ * fault: its exception message goes to the diagnostic log only, and the callout
+ * shows the generic "operation failed" line instead of untranslated English.
+ */
+private class UserFacingException(val uiMessage: String) : Exception(uiMessage)
+
+/**
+ * Tells [MainViewModel.runJob] which localized line the callout should show for
+ * an otherwise technical failure.
+ */
+private class UnhandledJobException(val uiMessage: String, cause: Throwable) : Exception(cause)
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val printerService = PrinterService(application, ::appendLog)
@@ -35,7 +54,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun discoverAndConnect() {
         viewModelScope.launch {
             runJob("Scanning for Epson USB printers") {
-                val device = printerService.detectPrinters().firstOrNull() ?: error("No Epson printer detected over USB OTG")
+                val device = printerService.detectPrinters().firstOrNull()
+                    ?: throw UserFacingException(str(R.string.error_no_printer_detected))
                 connect(device)
             }
         }
@@ -45,8 +65,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runJob("Connecting to ${device.productName ?: device.deviceName}") {
                 connection?.let(printerService::close)
-                connection = printerService.connectPrinter(device)
-                appendLog("Connected to ${connection?.deviceId}")
+                connection = runCatching { printerService.connectPrinter(device) }
+                    .getOrElse { throw UnhandledJobException(str(R.string.error_connect_failed), it) }
+                    .also { appendLog("Connected to ${it.deviceId}") }
                 refreshStatus()
             }
         }
@@ -155,7 +176,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(isBusy = true, error = null)
         appendLog(message)
         runCatching { block() }
-            .onFailure { appendError(it.message ?: it.javaClass.simpleName) }
+            .onFailure { failure ->
+                // The log always keeps the raw, English diagnostic detail; the
+                // callout only ever shows a string resource.
+                val logged = failure.message ?: failure.javaClass.simpleName
+                appendLog("Error: $logged")
+                val uiMessage = when (failure) {
+                    is UserFacingException -> failure.uiMessage
+                    is UnhandledJobException -> failure.uiMessage
+                    else -> str(R.string.callout_operation_failed)
+                }
+                _uiState.value = _uiState.value.copy(error = uiMessage)
+            }
         _uiState.value = _uiState.value.copy(isBusy = false)
     }
 
