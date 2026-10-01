@@ -273,18 +273,21 @@ private fun MaintenancePanel(
     val pad = PadTheme.colors
     val enabled = connected && !busy
     Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-        PadButton(
-            text = stringResource(R.string.maintenance_head_cleaning),
-            variant = PadButtonVariant.Secondary,
-            enabled = enabled && (cleaningOptions.isNotEmpty() || supportsGenericMaintenanceJobs),
-            onClick = onClean,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        // Nozzle check first: it is the diagnostic, and it costs almost no ink.
+        // Head cleaning is the remedy, and it consumes ink and adds to the waste
+        // counters, so it comes second — check before you clean.
         PadButton(
             text = stringResource(R.string.maintenance_nozzle_check),
             variant = PadButtonVariant.Secondary,
             enabled = enabled && supportsGenericMaintenanceJobs,
             onClick = onNozzleCheck,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        PadButton(
+            text = stringResource(R.string.maintenance_head_cleaning),
+            variant = PadButtonVariant.Secondary,
+            enabled = enabled && (cleaningOptions.isNotEmpty() || supportsGenericMaintenanceJobs),
+            onClick = onClean,
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
