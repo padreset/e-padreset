@@ -115,6 +115,14 @@
     <string name="error_printer_not_connected">Printer is not connected</string>
     <string name="error_no_printer_detected">No Epson printer detected over USB OTG</string>
     <string name="error_connect_failed">Could not open a maintenance session with the printer</string>
+
+    <!-- Connection failures, resolved from PrinterService.ConnectFailure so the
+         callout can name the actual cause instead of a generic failure. -->
+    <string name="error_connect_permission_denied">USB access was denied. Reconnect the printer and accept the permission request.</string>
+    <string name="error_connect_no_interfaces">This USB device has no interface the app can use. It may not be a supported Epson printer.</string>
+    <string name="error_connect_unsupported_model">This Epson model is not in the supported list, so its waste ink counters cannot be reset.</string>
+    <string name="error_connect_unsupported_model_named">The Epson model \'%1$s\' is not in the supported list, so its waste ink counters cannot be reset.</string>
+    <string name="error_connect_dot4_nak">The printer refused the maintenance session. Turn it off and on again, then retry.</string>
     <string name="msg_counters_updated">Waste ink counters have been updated. Restart the printer if required by the model.</string>
     <string name="msg_cleaning_sent_named">Head cleaning \'%1$s\' command has been sent. Wait for the printer to start the routine, then refresh status manually.</string>
     <string name="msg_cleaning_sent">Head cleaning job has been sent. Wait for the printer to start the routine, then refresh status manually.</string>

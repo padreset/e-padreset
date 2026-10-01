@@ -19,6 +19,38 @@ class PrinterService(
     context: Context,
     private val log: (String) -> Unit = {},
 ) {
+    /**
+     * Why a connection attempt failed, in terms the user can act on.
+     *
+     * [detail] carries the variable part (the model name, the interface id) so
+     * the UI can build a localized message; [english] is the diagnostic text for
+     * the protocol log. Keeping the two apart is what lets the callout stay
+     * translated without losing the reason.
+     */
+    enum class ConnectFailure(val english: String) {
+        PERMISSION_DENIED("USB permission denied"),
+        NO_INTERFACES("No USB interfaces with bulk IN/OUT endpoints found"),
+        UNSUPPORTED_MODEL("Unsupported Epson model"),
+        DOT4_NAK("Printer rejected IEEE 1284.4 enter sequence with NAK (0x15)"),
+        UNKNOWN("Unable to connect to printer"),
+    }
+
+    /**
+     * A connection failure carrying a cause the UI can translate.
+     *
+     * [detail] is not user-facing on its own: it is interpolated into a string
+     * resource, and for [ConnectFailure.UNSUPPORTED_MODEL] it is the raw IEEE
+     * 1284 device ID, from which the model name is extracted for display.
+     */
+    class ConnectException(
+        val failure: ConnectFailure,
+        val detail: String? = null,
+        cause: Throwable? = null,
+    ) : Exception(
+        if (detail.isNullOrBlank()) failure.english else "${failure.english}: $detail",
+        cause,
+    )
+
     private val appContext = context.applicationContext
 
     data class ConnectionState(
@@ -40,7 +72,9 @@ class PrinterService(
 
     suspend fun connectPrinter(device: UsbDevice): ConnectionState = withContext(Dispatchers.IO) {
         log("USB device detected: vendor=0x${device.vendorId.toString(16)} product=0x${device.productId.toString(16)} name=${device.productName ?: device.deviceName}")
-        require(transport.ensurePermission(device)) { "USB permission denied" }
+        if (!transport.ensurePermission(device)) {
+            throw ConnectException(ConnectFailure.PERMISSION_DENIED)
+        }
         transport.listInterfaces(device).forEach { info ->
             log(
                 "USB interface ${info.id}: class=0x${info.interfaceClass.toString(16)} " +
@@ -51,7 +85,9 @@ class PrinterService(
             }
         }
         val candidates = transport.candidateInterfaces(device)
-        require(candidates.isNotEmpty()) { "No USB interfaces with bulk IN/OUT endpoints found" }
+        if (candidates.isEmpty()) {
+            throw ConnectException(ConnectFailure.NO_INTERFACES)
+        }
 
         var lastError: Throwable? = null
         candidates.forEachIndexed { index, usbInterface ->
@@ -64,7 +100,16 @@ class PrinterService(
             }
 
             val firstError = firstAttempt.exceptionOrNull()
-            if (firstError?.message?.contains("Printer rejected IEEE 1284.4 enter sequence") == true) {
+
+            // A model the catalog does not know about cannot be fixed by trying
+            // another USB interface, so stop here rather than letting the next
+            // attempt overwrite the one error that actually explains the failure.
+            if (firstError.unresolvedModel()) {
+                log("Model is not in the catalog, no point trying the remaining interfaces")
+                throw firstError!!
+            }
+
+            if (firstError?.message?.contains(ConnectFailure.DOT4_NAK.english) == true) {
                 log("1284.4 enter was rejected after Android soft reset on interface ${usbInterface.id}, retrying without soft reset")
                 val secondAttempt = runCatching { connectOnce(device, usbInterface.id, performSoftReset = false) }
                 secondAttempt.getOrNull()?.let {
@@ -73,6 +118,10 @@ class PrinterService(
                 }
 
                 val secondError = secondAttempt.exceptionOrNull()
+                if (secondError.unresolvedModel()) {
+                    log("Model is not in the catalog, no point trying the remaining interfaces")
+                    throw secondError!!
+                }
                 lastError = secondError
                 log("D4 failed on interface ${usbInterface.id}: ${lastError?.message}")
                 return@forEachIndexed
@@ -82,8 +131,12 @@ class PrinterService(
             log("Interface ${usbInterface.id} failed before D4 fallback: ${lastError?.message}")
         }
 
-        throw lastError ?: error("Unable to connect to printer")
+        throw lastError ?: ConnectException(ConnectFailure.UNKNOWN)
     }
+
+    /** True when the failure is an unknown model, which no retry can resolve. */
+    private fun Throwable?.unresolvedModel(): Boolean =
+        (this as? ConnectException)?.failure == ConnectFailure.UNSUPPORTED_MODEL
 
     suspend fun readPrinterStatus(connection: ConnectionState): PrinterStatusSnapshot = withContext(Dispatchers.IO) {
         log("Requesting printer status")
@@ -227,7 +280,7 @@ class PrinterService(
             val deviceId = transport.getDeviceId(session)
             log("IEEE1284 device ID: $deviceId")
             val spec = EpsonPrinterCatalog.resolve(appContext, deviceId)
-                ?: error("Unsupported Epson model: $deviceId")
+                ?: throw ConnectException(ConnectFailure.UNSUPPORTED_MODEL, detail = deviceId)
             log(
                 "Resolved model spec: ${spec.modelName}, counters=${spec.wasteCounters.size}, " +
                     "resetEntries=${spec.resetMap.size}, cleanings=${spec.cleaningOptions.size}",
@@ -236,7 +289,7 @@ class PrinterService(
 
             val enterReply = enterDot4(session, protocol)
             if (enterReply.contentEquals(byteArrayOf(0x15))) {
-                error("Printer rejected IEEE 1284.4 enter sequence with NAK (0x15)")
+                throw ConnectException(ConnectFailure.DOT4_NAK)
             }
             log("Entered IEEE 1284.4 mode")
 

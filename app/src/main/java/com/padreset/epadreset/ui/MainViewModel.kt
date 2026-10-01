@@ -66,7 +66,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runJob("Connecting to ${device.productName ?: device.deviceName}") {
                 connection?.let(printerService::close)
                 connection = runCatching { printerService.connectPrinter(device) }
-                    .getOrElse { throw UnhandledJobException(str(R.string.error_connect_failed), it) }
+                    .getOrElse { throw UnhandledJobException(localizedConnectFailure(it), it) }
                     .also { appendLog("Connected to ${it.deviceId}") }
                 refreshStatus()
             }
@@ -171,6 +171,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Resolves a user-facing string. The log stays in English on purpose. */
     private fun str(@StringRes id: Int, vararg args: Any): String =
         getApplication<Application>().getString(id, *args)
+
+    /**
+     * Turns a connection failure into a message that names the cause.
+     *
+     * The callout used to say only "the operation failed", which told the user
+     * nothing about whether the app, the cable or the printer was at fault. Each
+     * known cause now gets its own line; anything unrecognised keeps the generic
+     * wording, and the English detail still goes to the log.
+     */
+    private fun localizedConnectFailure(failure: Throwable): String {
+        val connect = failure as? PrinterService.ConnectException
+            ?: return str(R.string.error_connect_failed)
+        return when (connect.failure) {
+            PrinterService.ConnectFailure.PERMISSION_DENIED ->
+                str(R.string.error_connect_permission_denied)
+
+            PrinterService.ConnectFailure.NO_INTERFACES ->
+                str(R.string.error_connect_no_interfaces)
+
+            PrinterService.ConnectFailure.UNSUPPORTED_MODEL -> {
+                val model = connect.detail?.let(::modelNameFromDeviceId)
+                if (model.isNullOrBlank()) {
+                    str(R.string.error_connect_unsupported_model)
+                } else {
+                    str(R.string.error_connect_unsupported_model_named, model)
+                }
+            }
+
+            PrinterService.ConnectFailure.DOT4_NAK ->
+                str(R.string.error_connect_dot4_nak)
+
+            PrinterService.ConnectFailure.UNKNOWN ->
+                str(R.string.error_connect_failed)
+        }
+    }
+
+    /**
+     * Pulls the human-readable model out of an IEEE 1284 device ID such as
+     * "MFG:EPSON;CMD:ESCPL2,BDC;MDL:XP-420 Series;CLS:PRINTER;".
+     *
+     * The raw ID is a long semicolon-separated blob, so showing it whole in the
+     * callout would be noise; the MDL field is the part a user recognises.
+     */
+    private fun modelNameFromDeviceId(deviceId: String): String? =
+        deviceId.split(';')
+            .firstOrNull { it.substringBefore(':').trim().equals("MDL", ignoreCase = true) }
+            ?.substringAfter(':', "")
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
 
     private suspend fun runJob(message: String, block: suspend () -> Unit) {
         _uiState.value = _uiState.value.copy(isBusy = true, error = null)

@@ -106,6 +106,14 @@
     <string name="error_printer_not_connected">La impresora no está conectada</string>
     <string name="error_no_printer_detected">No se ha detectado ninguna impresora Epson por USB OTG</string>
     <string name="error_connect_failed">No se ha podido abrir una sesión de mantenimiento con la impresora</string>
+
+    <!-- Fallos de conexión, resueltos desde PrinterService.ConnectFailure para que
+         el aviso indique la causa real y no un fallo genérico. -->
+    <string name="error_connect_permission_denied">Se ha denegado el acceso por USB. Vuelve a conectar la impresora y acepta la solicitud de permiso.</string>
+    <string name="error_connect_no_interfaces">Este dispositivo USB no tiene ninguna interfaz que la aplicación pueda usar. Puede que no sea una impresora Epson compatible.</string>
+    <string name="error_connect_unsupported_model">Este modelo de Epson no está en la lista de compatibles, por lo que no se pueden reiniciar sus contadores de residuo.</string>
+    <string name="error_connect_unsupported_model_named">El modelo de Epson \'%1$s\' no está en la lista de compatibles, por lo que no se pueden reiniciar sus contadores de residuo.</string>
+    <string name="error_connect_dot4_nak">La impresora ha rechazado la sesión de mantenimiento. Apágala y vuelve a encenderla, y reinténtalo.</string>
     <string name="msg_counters_updated">Los contadores de residuo se han actualizado. Reinicia la impresora si el modelo lo requiere.</string>
     <string name="msg_cleaning_sent_named">Se ha enviado el comando de limpieza de cabezal \'%1$s\'. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>
     <string name="msg_cleaning_sent">Se ha enviado el trabajo de limpieza de cabezal. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>
