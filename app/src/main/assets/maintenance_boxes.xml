@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Epson models that collect waste ink in a user-replaceable maintenance box or
+  tank instead of an internal absorbent pad.
+
+  WHY THIS LIST EXISTS
+
+  On these models the fill level is kept on the box's own chip, so the printer
+  holds no counter for this app to reset. That makes them permanently
+  unsupported for counter resets, which is a different situation from a model
+  that is merely missing from devices.xml and could still be added.
+
+  The catalog cannot work this out on its own. Three candidate signals were
+  measured against a known classification and all three failed:
+
+    the printer class attribute, identical ("epson.printer.dd4.standard")
+      across maintenance-box models and models absent from the database
+    the EPxx spec, mixed (EP10: 56 without a box, 112 with one)
+    the presence of a waste node, absent in 275 of the 276 affected models
+      and split 159 / 116 between the two causes
+
+  So the distinction has to be carried as data.
+
+  COVERAGE
+
+  This file is a seed, not a complete list. Epson has shipped maintenance boxes
+  across hundreds of models, including consumer ones. A model missing here is
+  not mislabelled: it falls back to the neutral explanation, which names both
+  possible causes rather than guessing. Adding entries only ever makes the
+  message more specific.
+
+  PROVENANCE
+
+  Every entry records where the claim came from, so it can be re-checked against
+  Epson later. Only Epson's own pages are used as sources here: a claim taken
+  from a retailer listing is only as good as that retailer.
+
+  NOTE: XML comments may not contain a double hyphen, so no dash underlines.
+-->
+<maintenanceBoxes>
+
+    <!-- Source: epson.com.au product page 12267, which names the compatible
+         printers for this tank verbatim. -->
+    <box part="C12C934591" source="https://www.epson.com.au/products/options-accessories/12267">
+        <model>ET-8550</model>
+        <model>ET-8500</model>
+        <model>ET-5800</model>
+        <model>ET-16600</model>
+        <model>WF-7830</model>
+        <model>WF-7840</model>
+        <model>WF-7845</model>
+        <model>D560</model>
+    </box>
+
+</maintenanceBoxes>

@@ -66,6 +66,11 @@
     <string name="waste_unsupported_body">This printer does not keep its waste ink count where the app can reset it. Nothing is broken: neither the app nor the printer is at fault.</string>
     <string name="action_more_info">More information</string>
 
+    <!-- Shown when the model is on the curated maintenance-box list, so the
+         cause is known rather than guessed. -->
+    <string name="waste_box_title">This printer uses a maintenance box</string>
+    <string name="waste_box_body">The waste ink goes into a box, and the box records the level on its own chip. There is no counter in the printer for the app to reset.</string>
+
     <string name="waste_unsupported_dialog_title">Where the waste ink count lives</string>
     <string name="waste_unsupported_dialog_body">Epson stores the waste ink count in one of two places.\n\nInternal pad: the ink is absorbed by pads inside the printer and the fill level is kept in the printer\'s own memory. This is the case this app can reset.\n\nMaintenance box: the ink collects in a box you can remove, and the box carries its own chip that records the fill level. The printer\'s memory holds no counter, so no software can clear it. The box is replaced, or its chip is reset with a dedicated tool.\n\nTo find out which one you have, check the printer\'s own status panel. If it reports a maintenance box, no reset utility can help.\n\nIf your printer uses an internal pad and you still see this, the model is simply missing from the app\'s database. That one is fixable, and we would like to hear about it.\n\nHead cleaning and the nozzle check still work on this printer. They are on the Maintenance page.</string>
 

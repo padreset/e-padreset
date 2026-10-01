@@ -59,6 +59,11 @@
     <string name="waste_unsupported_body">Esta impresora no guarda el contador de residuo donde la aplicación pueda reiniciarlo. No hay nada averiado: ni la aplicación ni la impresora tienen un problema.</string>
     <string name="action_more_info">Más información</string>
 
+    <!-- Se muestra cuando el modelo está en la lista curada de cajas de
+         mantenimiento, así que la causa se conoce en vez de suponerse. -->
+    <string name="waste_box_title">Esta impresora usa una caja de mantenimiento</string>
+    <string name="waste_box_body">La tinta residual va a una caja, y la caja registra el nivel en su propio chip. La impresora no tiene ningún contador que la aplicación pueda reiniciar.</string>
+
     <string name="waste_unsupported_dialog_title">Dónde se guarda el contador de residuo</string>
     <string name="waste_unsupported_dialog_body">Epson guarda el contador de residuo en uno de dos sitios.\n\nAlmohadilla interna: la tinta la absorben unas almohadillas dentro de la impresora, y el nivel se guarda en la memoria de la propia impresora. Es el caso que esta aplicación puede reiniciar.\n\nCaja de mantenimiento: la tinta se recoge en una caja extraíble, y la caja lleva su propio chip que registra el nivel. La memoria de la impresora no tiene ningún contador, así que ningún programa puede borrarlo. La caja se sustituye, o se reinicia su chip con una herramienta específica.\n\nPara saber cuál tienes, mira el panel de estado de la propia impresora. Si indica caja de mantenimiento, ninguna utilidad de reinicio puede ayudar.\n\nSi tu impresora usa almohadilla interna y aun así ves este mensaje, es que el modelo falta en la base de datos de la aplicación. Ese caso sí tiene solución, y nos gustaría conocerlo.\n\nLa limpieza de cabezal y la comprobación de inyectores siguen funcionando en esta impresora. Están en la página de Mantenimiento.</string>
 

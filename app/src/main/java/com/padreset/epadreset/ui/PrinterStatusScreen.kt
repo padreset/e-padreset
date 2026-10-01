@@ -187,6 +187,7 @@ fun PrinterStatusScreen(
                     counters = uiState.status?.wasteCounters.orEmpty(),
                     connected = uiState.status != null,
                     supportsWasteReset = uiState.supportsWasteReset,
+                    usesMaintenanceBox = uiState.usesMaintenanceBox,
                     busy = uiState.isBusy,
                     onReset = { showWarning = true },
                     onExplainUnsupported = { showWasteUnsupported = true },
@@ -637,6 +638,7 @@ private fun WasteLevelsPanel(
     counters: List<WasteCounterStatus>,
     connected: Boolean,
     supportsWasteReset: Boolean,
+    usesMaintenanceBox: Boolean,
     busy: Boolean,
     onReset: () -> Unit,
     onExplainUnsupported: () -> Unit,
@@ -651,8 +653,14 @@ private fun WasteLevelsPanel(
     if (connected && !supportsWasteReset) {
         Column(verticalArrangement = Arrangement.spacedBy(PadSpace.md)) {
             PadCallout(
-                title = stringResource(R.string.waste_unsupported_title),
-                text = stringResource(R.string.waste_unsupported_body),
+                // The curated list knows the cause for some models; for the rest
+                // the wording names both possibilities rather than guessing.
+                title = stringResource(
+                    if (usesMaintenanceBox) R.string.waste_box_title else R.string.waste_unsupported_title,
+                ),
+                text = stringResource(
+                    if (usesMaintenanceBox) R.string.waste_box_body else R.string.waste_unsupported_body,
+                ),
                 tone = PadTone.Info,
             )
             PadButton(

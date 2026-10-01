@@ -25,6 +25,11 @@ data class MainUiState(
      * drawing empty counters.
      */
     val supportsWasteReset: Boolean = false,
+    /**
+     * True when the connected model is known to use a maintenance box, so the
+     * explanation can name the cause instead of listing the possibilities.
+     */
+    val usesMaintenanceBox: Boolean = false,
     val isBusy: Boolean = false,
     /**
      * Already localized. Shown in the error callout, so anything written here
@@ -94,6 +99,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     cleaningOptions = current.spec.cleaningOptions.map { it.name },
                     supportsGenericMaintenanceJobs = true,
                     supportsWasteReset = current.spec.supportsWasteReset,
+                    usesMaintenanceBox = current.spec.usesMaintenanceBox,
                     error = null,
                 )
                 appendLog("Status read: ${status.state}, ${status.error}")

@@ -25,6 +25,15 @@ data class PrinterSpec(
     val wasteCounters: List<WasteCounterSpec>,
     val resetMap: Map<Int, Int>,
     val cleaningOptions: List<CleaningSpec>,
+    /**
+     * True when this model is known to collect waste ink in a user-replaceable
+     * maintenance box, so the count lives on the box's chip.
+     *
+     * Set from assets/maintenance_boxes.xml, which carries the provenance for
+     * each claim. False means "not known to use one", not "known not to": the
+     * list is a seed and only ever makes the explanation more specific.
+     */
+    val usesMaintenanceBox: Boolean = false,
 ) {
     /**
      * Whether this model exposes waste ink counters the app can read and reset.
@@ -67,14 +76,19 @@ object EpsonPrinterCatalog {
         synchronized(this) {
             cachedSpecs?.let { return it }
             logger?.invoke("Loading Epson model database from assets/devices.xml")
-            val parsed = context.assets.open("devices.xml").use(::parseDevicesXml)
-            logger?.invoke("Loaded ${parsed.size} Epson printer specs with waste reset data")
+            val maintenanceBoxModels = loadMaintenanceBoxModels(context)
+            logger?.invoke("Loaded ${maintenanceBoxModels.size} known maintenance box models")
+            val parsed = context.assets.open("devices.xml").use { parseDevicesXml(it, maintenanceBoxModels) }
+            logger?.invoke("Loaded ${parsed.size} Epson printer specs")
             cachedSpecs = parsed
             return parsed
         }
     }
 
-    private fun parseDevicesXml(input: InputStream): List<PrinterSpec> {
+    private fun parseDevicesXml(
+        input: InputStream,
+        maintenanceBoxModels: Set<String>,
+    ): List<PrinterSpec> {
         val builder = DocumentBuilderFactory.newInstance().apply {
             isIgnoringComments = true
             isNamespaceAware = false
@@ -191,7 +205,20 @@ object EpsonPrinterCatalog {
                 }
             }
 
-            if (controlModel.isNotEmpty() && keyword.isNotEmpty() && wasteCounters.isNotEmpty() && resetMap.isNotEmpty()) {
+            // A model is worth keeping if we can open a session with it and then
+            // do something useful. Waste counters are NOT required: models that
+            // collect waste ink in a maintenance box carry no counter, but they
+            // do carry the control model, the keyword and their cleaning jobs,
+            // and head cleaning and the nozzle check still work on them.
+            //
+            // Requiring counters here is what made those models answer
+            // "Unsupported Epson model" instead of connecting — the spec was
+            // dropped before it ever reached the catalog.
+            val canOpenSession = controlModel.isNotEmpty() && keyword.isNotEmpty()
+            val hasWasteJobs = wasteCounters.isNotEmpty() && resetMap.isNotEmpty()
+            val hasCleaningJobs = cleaningOptions.isNotEmpty()
+
+            if (canOpenSession && (hasWasteJobs || hasCleaningJobs)) {
                 printers += PrinterSpec(
                     modelName = modelName,
                     controlModel = controlModel,
@@ -199,12 +226,45 @@ object EpsonPrinterCatalog {
                     wasteCounters = wasteCounters.distinctBy { it.name to it.addresses },
                     resetMap = resetMap,
                     cleaningOptions = cleaningOptions.distinctBy { it.name to it.payload.contentHashCode() },
+                    usesMaintenanceBox = maintenanceBoxModels.contains(normalizeModelName(modelName)),
                 )
             }
         }
 
         return printers.distinctBy { it.modelName }
     }
+
+    /**
+     * Reads the curated list of maintenance-box models.
+     *
+     * Kept apart from devices.xml on purpose: it carries claims with their
+     * provenance, and it grows by hand rather than from the upstream database.
+     */
+    private fun loadMaintenanceBoxModels(context: Context): Set<String> {
+        return runCatching {
+            context.assets.open("maintenance_boxes.xml").use { input ->
+                val document = DocumentBuilderFactory.newInstance().apply {
+                    isIgnoringComments = true
+                    isNamespaceAware = false
+                }.newDocumentBuilder().parse(input)
+                document.getElementsByTagName("model")
+                    .let { nodes -> (0 until nodes.length).map { nodes.item(it).textContent } }
+                    .map(::normalizeModelName)
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }
+        }.getOrElse {
+            logger?.invoke("No maintenance box list available: ${it.message}")
+            emptySet()
+        }
+    }
+
+    /**
+     * Model names in the catalog carry a " Series" suffix that the curated list
+     * does not, so both sides are compared without it.
+     */
+    private fun normalizeModelName(name: String): String =
+        name.trim().uppercase().removeSuffix(" SERIES").trim()
 
     private fun parseDeviceId(deviceId: String): Map<String, String> {
         return deviceId.split(';')
