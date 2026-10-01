@@ -112,7 +112,7 @@ model" instead of connecting.
 
 ### Models with a maintenance box
 
-`assets/maintenance_boxes.xml` lists the models known to use a maintenance box
+`assets/maintenance_boxes.xml` lists the models that use a maintenance box
 rather than an internal pad. On those, the fill level lives on the box's own
 chip, so the printer holds no counter for this app to reset.
 
@@ -125,19 +125,24 @@ against a known classification and all three failed:
 | `EPxx` spec | mixed — EP10 is 56 without a box and 112 with one |
 | a `<waste>` node | absent in 275 of the 276 affected models, splitting 159 / 116 |
 
-So the distinction is carried as data. Each entry records its source, and only
-Epson's own pages are used: a claim taken from a retailer listing is only as
-good as that retailer. To add a model, add a `<model>` line under the right
-`<box>` and keep the `source` attribute accurate.
+So the distinction is carried as data, and the source is the
+[reinkpy](https://codeberg.org/atufi/reinkpy) project (AGPL-3.0). reinkpy's
+database records, per model, whether the counter lives in the printer
+("Waste counter") or on the box's chip ("Platen pad counters"); the file holds
+its complete platen-only classification, 311 models. Only models also present
+in `devices.xml` will ever match a connected printer — the rest are kept so the
+file stays a faithful, regenerable copy of the source rather than a one-off
+intersection.
 
-The list is a seed, not a complete one. A model missing from it is not
-mislabelled — it falls back to the neutral wording that names both possible
-causes, and adding entries only ever makes the message more specific.
+A connected model with no counter that is **not** on the list is not
+mislabelled either: it falls back to the neutral wording that names both
+possible causes. The list only ever makes the message more specific.
 
-One trap worth knowing: **XML comments may not contain a double hyphen.** A dash
-underline in the file header broke the parse once, and because the loader is
-wrapped in `runCatching` the list came back empty with nothing the user could
-see. The header of the file says so as well.
+To regenerate the file, re-extract the platen-only models from reinkpy's
+`epson.toml` and write them out in the same shape. One trap worth knowing when
+editing by hand: **XML comments may not contain a double hyphen.** A dash
+underline in the header broke the parse once, and because the loader is wrapped
+in `runCatching` the list came back empty with nothing the user could see.
 
 ## Project Structure
 
@@ -233,8 +238,23 @@ This port was reverse-engineered primarily from:
 - `upstream-ez-reset/src/ez_reset/devices.py`
 - `upstream-ez-reset/src/ez_reset/devices.xml`
 
+Data sources:
+
+- Model database (`assets/devices.xml`): derived from `ez-reset`
+- Maintenance-box classification (`assets/maintenance_boxes.xml`): derived from
+  the [reinkpy](https://codeberg.org/atufi/reinkpy) model database
+
 ## License Note
 
-This repository is currently distributed under `GPL-2.0-or-later` as a conservative compatibility choice.
+This repository is distributed under `GPL-3.0`.
 
-However, the upstream `ez-reset` repository does not currently expose a clear top-level project license in its repository metadata. The upstream licensing situation should therefore still be confirmed with the original author or maintainer.
+It was previously offered under `GPL-2.0-or-later`. The move to `GPL-3.0` is
+what makes the maintenance-box classification possible: the list in
+`assets/maintenance_boxes.xml` is derived from the
+[reinkpy](https://codeberg.org/atufi/reinkpy) model database, which is
+AGPL-3.0, and section 13 of GPL-3.0 permits combining a covered work with a
+work licensed under AGPL-3.0.
+
+The upstream `ez-reset` repository does not currently expose a clear top-level
+project license in its repository metadata. The upstream licensing situation
+should therefore still be confirmed with the original author or maintainer.

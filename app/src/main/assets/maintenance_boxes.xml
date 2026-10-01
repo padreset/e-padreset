@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Epson models that collect waste ink in a user-replaceable maintenance box or
-  tank instead of an internal absorbent pad.
+  Epson models whose waste ink is collected in a user-replaceable maintenance
+  box or tank rather than in an internal absorbent pad.
 
   WHY THIS LIST EXISTS
 
@@ -13,43 +13,347 @@
   The catalog cannot work this out on its own. Three candidate signals were
   measured against a known classification and all three failed:
 
-    the printer class attribute, identical ("epson.printer.dd4.standard")
-      across maintenance-box models and models absent from the database
+    the printer class attribute, identical across both groups
     the EPxx spec, mixed (EP10: 56 without a box, 112 with one)
     the presence of a waste node, absent in 275 of the 276 affected models
       and split 159 / 116 between the two causes
 
   So the distinction has to be carried as data.
 
+  SOURCE
+
+  Derived from the reinkpy project's model database, which records per model
+  whether the counter lives in the printer ("Waste counter") or on the
+  maintenance box's chip ("Platen pad counters"). The models listed here are
+  the ones reinkpy classifies as having only platen pad counters.
+
+    reinkpy: https://codeberg.org/atufi/reinkpy
+    licence: GNU Affero General Public License v3.0 (AGPL-3.0)
+
+  This project is distributed under GPL-3.0. Section 13 of GPL-3.0 permits
+  combining a covered work with a work licensed under AGPL-3.0, which is what
+  makes this file possible. reinkpy retains its own licence and copyright over
+  its database.
+
   COVERAGE
 
-  This file is a seed, not a complete list. Epson has shipped maintenance boxes
-  across hundreds of models, including consumer ones. A model missing here is
-  not mislabelled: it falls back to the neutral explanation, which names both
-  possible causes rather than guessing. Adding entries only ever makes the
-  message more specific.
-
-  PROVENANCE
-
-  Every entry records where the claim came from, so it can be re-checked against
-  Epson later. Only Epson's own pages are used as sources here: a claim taken
-  from a retailer listing is only as good as that retailer.
+  The list below is reinkpy's complete platen-only classification (311 models),
+  not just the intersection with our own catalog. Only models also present in
+  devices.xml will ever match a connected printer; the rest are kept so this
+  file stays a faithful, regenerable copy of the source.
 
   NOTE: XML comments may not contain a double hyphen, so no dash underlines.
 -->
 <maintenanceBoxes>
-
-    <!-- Source: epson.com.au product page 12267, which names the compatible
-         printers for this tank verbatim. -->
-    <box part="C12C934591" source="https://www.epson.com.au/products/options-accessories/12267">
-        <model>ET-8550</model>
-        <model>ET-8500</model>
-        <model>ET-5800</model>
-        <model>ET-16600</model>
-        <model>WF-7830</model>
-        <model>WF-7840</model>
-        <model>WF-7845</model>
-        <model>D560</model>
-    </box>
-
+    <model>EC-4020</model>
+    <model>EC-4030</model>
+    <model>EC-4040</model>
+    <model>EC-C110</model>
+    <model>EC-C7000</model>
+    <model>EP-884A</model>
+    <model>EP-982A3</model>
+    <model>ET-15000</model>
+    <model>ET-16150</model>
+    <model>ET-16600</model>
+    <model>ET-16650</model>
+    <model>ET-16680</model>
+    <model>ET-18100</model>
+    <model>ET-2830</model>
+    <model>ET-2831</model>
+    <model>ET-2832</model>
+    <model>ET-2833</model>
+    <model>ET-2834</model>
+    <model>ET-2835</model>
+    <model>ET-2836</model>
+    <model>ET-2838</model>
+    <model>ET-3700</model>
+    <model>ET-3710</model>
+    <model>ET-3750</model>
+    <model>ET-3760</model>
+    <model>ET-3800</model>
+    <model>ET-3830</model>
+    <model>ET-3850</model>
+    <model>ET-3850U</model>
+    <model>ET-3856</model>
+    <model>ET-4750</model>
+    <model>ET-4760</model>
+    <model>ET-4810</model>
+    <model>ET-4850</model>
+    <model>ET-4850U</model>
+    <model>ET-4856</model>
+    <model>ET-5150</model>
+    <model>ET-5170</model>
+    <model>ET-5800</model>
+    <model>ET-5850</model>
+    <model>ET-5880</model>
+    <model>ET-7700</model>
+    <model>ET-7750</model>
+    <model>ET-8500</model>
+    <model>ET-8550</model>
+    <model>EW-452A</model>
+    <model>EW-456A</model>
+    <model>EW-M530F</model>
+    <model>EW-M5610FT</model>
+    <model>EW-M630T</model>
+    <model>EW-M634T</model>
+    <model>EW-M670FT</model>
+    <model>EW-M674FT</model>
+    <model>EW-M770T</model>
+    <model>EW-M873T</model>
+    <model>EW-M970A3T</model>
+    <model>EW-M973A3T</model>
+    <model>L11050</model>
+    <model>L11058</model>
+    <model>L11160</model>
+    <model>L11168</model>
+    <model>L14150</model>
+    <model>L14158</model>
+    <model>L15150</model>
+    <model>L15158</model>
+    <model>L15160</model>
+    <model>L15168</model>
+    <model>L15180</model>
+    <model>L15188</model>
+    <model>L18050</model>
+    <model>L18058</model>
+    <model>L3550</model>
+    <model>L3556</model>
+    <model>L3558</model>
+    <model>L5590</model>
+    <model>L5596</model>
+    <model>L5598</model>
+    <model>L6160</model>
+    <model>L6161</model>
+    <model>L6166</model>
+    <model>L6168</model>
+    <model>L6170</model>
+    <model>L6171</model>
+    <model>L6176</model>
+    <model>L6178</model>
+    <model>L6190</model>
+    <model>L6191</model>
+    <model>L6196</model>
+    <model>L6198</model>
+    <model>L6260</model>
+    <model>L6266</model>
+    <model>L6268</model>
+    <model>L6269</model>
+    <model>L6270</model>
+    <model>L6276</model>
+    <model>L6278</model>
+    <model>L6279</model>
+    <model>L6290</model>
+    <model>L6296</model>
+    <model>L6298</model>
+    <model>L6299</model>
+    <model>L6460</model>
+    <model>L6466</model>
+    <model>L6468</model>
+    <model>L6469</model>
+    <model>L6490</model>
+    <model>L6496</model>
+    <model>L6498</model>
+    <model>L6499</model>
+    <model>L6550</model>
+    <model>L6551</model>
+    <model>L6558</model>
+    <model>L6570</model>
+    <model>L6571</model>
+    <model>L6578</model>
+    <model>L6580</model>
+    <model>L6581</model>
+    <model>L6588</model>
+    <model>L7160</model>
+    <model>L7168</model>
+    <model>L7180</model>
+    <model>L7188</model>
+    <model>L8050</model>
+    <model>L8058</model>
+    <model>L8160</model>
+    <model>L8168</model>
+    <model>L8180</model>
+    <model>L8188</model>
+    <model>PX-205</model>
+    <model>PX-605F</model>
+    <model>PX-675F</model>
+    <model>PX-M5040F</model>
+    <model>PX-M5041F</model>
+    <model>PX-M5080F</model>
+    <model>PX-M5081F</model>
+    <model>PX-M6010F</model>
+    <model>PX-M6011F</model>
+    <model>PX-M6711FT</model>
+    <model>PX-M6712FT</model>
+    <model>PX-M740F</model>
+    <model>PX-M741F</model>
+    <model>PX-M780F</model>
+    <model>PX-M781F</model>
+    <model>PX-M791FT</model>
+    <model>PX-S06</model>
+    <model>PX-S5040</model>
+    <model>PX-S5080</model>
+    <model>PX-S6710T</model>
+    <model>PX-S730</model>
+    <model>SC-P700</model>
+    <model>SC-P708</model>
+    <model>SC-P900</model>
+    <model>SC-P908</model>
+    <model>SC-PX1V</model>
+    <model>SC-PX1VL</model>
+    <model>ST-C8000</model>
+    <model>ST-C8090</model>
+    <model>WF-110</model>
+    <model>WF-2810</model>
+    <model>WF-2811</model>
+    <model>WF-2815</model>
+    <model>WF-2820</model>
+    <model>WF-2821</model>
+    <model>WF-2825</model>
+    <model>WF-2830</model>
+    <model>WF-2831</model>
+    <model>WF-2835</model>
+    <model>WF-2840</model>
+    <model>WF-2841</model>
+    <model>WF-2845</model>
+    <model>WF-2850</model>
+    <model>WF-2851</model>
+    <model>WF-2855</model>
+    <model>WF-2860</model>
+    <model>WF-2861</model>
+    <model>WF-2865</model>
+    <model>WF-2870</model>
+    <model>WF-2871</model>
+    <model>WF-2875</model>
+    <model>WF-2880</model>
+    <model>WF-2881</model>
+    <model>WF-2885</model>
+    <model>WF-2910</model>
+    <model>WF-2911</model>
+    <model>WF-2915</model>
+    <model>WF-2930</model>
+    <model>WF-2931</model>
+    <model>WF-2935</model>
+    <model>WF-2950</model>
+    <model>WF-2951</model>
+    <model>WF-2955</model>
+    <model>WF-2960</model>
+    <model>WF-2961</model>
+    <model>WF-2965</model>
+    <model>WF-3010</model>
+    <model>WF-3011</model>
+    <model>WF-3012</model>
+    <model>WF-3510</model>
+    <model>WF-3511</model>
+    <model>WF-3512</model>
+    <model>WF-3520</model>
+    <model>WF-3521</model>
+    <model>WF-3522</model>
+    <model>WF-3530</model>
+    <model>WF-3531</model>
+    <model>WF-3532</model>
+    <model>WF-3540</model>
+    <model>WF-3541</model>
+    <model>WF-3542</model>
+    <model>WF-3620</model>
+    <model>WF-3621</model>
+    <model>WF-3622</model>
+    <model>WF-3640</model>
+    <model>WF-3641</model>
+    <model>WF-3642</model>
+    <model>WF-3820</model>
+    <model>WF-3823</model>
+    <model>WF-3824</model>
+    <model>WF-3825</model>
+    <model>WF-4720</model>
+    <model>WF-4723</model>
+    <model>WF-4724</model>
+    <model>WF-4725</model>
+    <model>WF-4730</model>
+    <model>WF-4733</model>
+    <model>WF-4734</model>
+    <model>WF-4735</model>
+    <model>WF-4740</model>
+    <model>WF-4743</model>
+    <model>WF-4744</model>
+    <model>WF-4745</model>
+    <model>WF-4820</model>
+    <model>WF-4823</model>
+    <model>WF-4824</model>
+    <model>WF-4825</model>
+    <model>WF-4830</model>
+    <model>WF-4833</model>
+    <model>WF-4834</model>
+    <model>WF-4835</model>
+    <model>WF-7110</model>
+    <model>WF-7111</model>
+    <model>WF-7115</model>
+    <model>WF-7210</model>
+    <model>WF-7211</model>
+    <model>WF-7215</model>
+    <model>WF-7310</model>
+    <model>WF-7311</model>
+    <model>WF-7315</model>
+    <model>WF-7610</model>
+    <model>WF-7611</model>
+    <model>WF-7615</model>
+    <model>WF-7620</model>
+    <model>WF-7621</model>
+    <model>WF-7625</model>
+    <model>WF-7710</model>
+    <model>WF-7715</model>
+    <model>WF-7720</model>
+    <model>WF-7725</model>
+    <model>WF-7820</model>
+    <model>WF-7825</model>
+    <model>WF-7828</model>
+    <model>WF-7830</model>
+    <model>WF-7835</model>
+    <model>WF-7838</model>
+    <model>WF-7840</model>
+    <model>WF-7845</model>
+    <model>WF-7848</model>
+    <model>WF-C4310</model>
+    <model>WF-C4810</model>
+    <model>WORKFORCE ST-3000</model>
+    <model>WORKFORCE ST-4000</model>
+    <model>WORKFORCE ST-5000</model>
+    <model>WORKFORCE ST-7000</model>
+    <model>WORKFORCE ST-C4100</model>
+    <model>XP-15000</model>
+    <model>XP-15080</model>
+    <model>XP-3100</model>
+    <model>XP-3101</model>
+    <model>XP-3105</model>
+    <model>XP-3150</model>
+    <model>XP-3151</model>
+    <model>XP-3155</model>
+    <model>XP-3200</model>
+    <model>XP-4100</model>
+    <model>XP-4101</model>
+    <model>XP-4105</model>
+    <model>XP-4150</model>
+    <model>XP-4151</model>
+    <model>XP-4155</model>
+    <model>XP-4200</model>
+    <model>XP-4201</model>
+    <model>XP-4205</model>
+    <model>XP-5100</model>
+    <model>XP-5101</model>
+    <model>XP-5105</model>
+    <model>XP-5150</model>
+    <model>XP-5151</model>
+    <model>XP-5155</model>
+    <model>XP-5200</model>
+    <model>XP-5201</model>
+    <model>XP-5205</model>
+    <model>XP-6100</model>
+    <model>XP-6105</model>
+    <model>XP-6106</model>
+    <model>XP-8500</model>
+    <model>XP-8505</model>
+    <model>XP-8506</model>
+    <model>XP-8700</model>
+    <model>XP-8705</model>
+    <model>XP-8706</model>
+    <model>XP-970</model>
 </maintenanceBoxes>
