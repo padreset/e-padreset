@@ -27,15 +27,25 @@ This app is aimed at Epson inkjet printers that expose the same service protocol
 - Runs model-dependent head cleaning commands over Epson service protocol where supported
 - Falls back to USB ESC/P2 maintenance jobs for head cleaning on models that reject service cleaning
 - Prints nozzle check patterns over USB
+- Connects to models that have no resettable counter — maintenance-box printers — so head cleaning and the nozzle check still work, and explains why there is nothing to reset
 - Shows a compact status monitor UI inspired by `ez-reset`
 - Includes an in-app protocol log for debugging USB / D4 traffic
 
 ## Current UI
 
+Two pages, reached from the header.
+
+**Status** — the printer's condition:
+
 - `Ink Levels` panel with adaptive single-row gauges for 4 to 8 inks
-- `Waste Levels` panel with dynamic counter rows
-- Circular `Refresh` and `About` icon buttons, `Reset Counters`, `Head Cleaning`, `Nozzle Check`, and a protocol log copy action
-- Exit confirmation on Android back press
+- `Waste Levels` panel with dynamic counter rows, or an explanation when the model has no counter to reset
+- Protocol log with a copy action
+
+**Maintenance** — acting on the printer:
+
+- `Nozzle Check`, then `Head Cleaning` (check before you clean: the diagnostic costs almost no ink)
+
+The header carries circular icon buttons for maintenance and about, and a refresh button on the status card. Android back returns from Maintenance to Status, and asks for confirmation before exiting.
 
 ## Technical Notes
 
@@ -86,6 +96,49 @@ rather than substituting the variable file.
 The license texts are kept alongside the rest of the project's notices in
 `app/src/main/res/raw/ofl_figtree.txt` and `ofl_space_grotesk.txt`.
 
+## Printer Data
+
+`assets/devices.xml` is the model database. It has two parts: a `<records>`
+section mapping model names to spec names, and a `<devices>` section holding the
+specs themselves. `EpsonPrinterCatalog` joins the two by the `specs` attribute.
+
+A model is kept in the catalog when the app can open a session with it and then
+do something useful: it needs a control model, a keyword, and either waste
+counters or cleaning jobs. Waste counters are **not** required. Models that
+collect waste ink in a maintenance box carry no counter but do carry their
+cleaning jobs, and head cleaning and the nozzle check still work on them.
+Requiring counters is what once made those models answer "Unsupported Epson
+model" instead of connecting.
+
+### Models with a maintenance box
+
+`assets/maintenance_boxes.xml` lists the models known to use a maintenance box
+rather than an internal pad. On those, the fill level lives on the box's own
+chip, so the printer holds no counter for this app to reset.
+
+This cannot be derived from `devices.xml`. Three candidate signals were measured
+against a known classification and all three failed:
+
+| Signal | Result |
+|---|---|
+| `class` attribute | identical (`epson.printer.dd4.standard`) across both groups |
+| `EPxx` spec | mixed — EP10 is 56 without a box and 112 with one |
+| a `<waste>` node | absent in 275 of the 276 affected models, splitting 159 / 116 |
+
+So the distinction is carried as data. Each entry records its source, and only
+Epson's own pages are used: a claim taken from a retailer listing is only as
+good as that retailer. To add a model, add a `<model>` line under the right
+`<box>` and keep the `source` attribute accurate.
+
+The list is a seed, not a complete one. A model missing from it is not
+mislabelled — it falls back to the neutral wording that names both possible
+causes, and adding entries only ever makes the message more specific.
+
+One trap worth knowing: **XML comments may not contain a double hyphen.** A dash
+underline in the file header broke the parse once, and because the loader is
+wrapped in `runCatching` the list came back empty with nothing the user could
+see. The header of the file says so as well.
+
 ## Project Structure
 
 - `app/src/main/java/com/padreset/epadreset/ui`
@@ -100,6 +153,8 @@ The license texts are kept alongside the rest of the project's notices in
   Printer model and status data structures
 - `app/src/main/assets/devices.xml`
   Bundled Epson model database
+- `app/src/main/assets/maintenance_boxes.xml`
+  Curated list of models that use a maintenance box, with provenance
 
 ## Build
 
