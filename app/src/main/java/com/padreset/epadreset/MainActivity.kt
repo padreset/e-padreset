@@ -8,8 +8,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.padreset.epadreset.ui.EPadResetApp
 import com.padreset.epadreset.ui.MainViewModel
-import com.padreset.epadreset.ui.PrinterStatusScreen
 import com.padreset.epadreset.ui.theme.EPadResetTheme
 
 class MainActivity : ComponentActivity() {
@@ -32,7 +32,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             EPadResetTheme {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-                PrinterStatusScreen(
+                EPadResetApp(
                     uiState = uiState,
                     onConnect = viewModel::discoverAndConnect,
                     onRefresh = viewModel::refreshStatus,

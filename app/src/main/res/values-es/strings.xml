@@ -17,6 +17,8 @@
     <string name="action_refresh_status">Actualizar estado</string>
     <string name="action_connect_printer">Conectar impresora</string>
     <string name="action_copy_log">Copiar registro de protocolo</string>
+    <string name="action_open_maintenance">Abrir mantenimiento</string>
+    <string name="action_back">Atrás</string>
 
     <!-- Encabezados de sección. -->
     <string name="section_printer">Impresora</string>

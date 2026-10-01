@@ -24,6 +24,8 @@
     <string name="action_refresh_status">Refresh status</string>
     <string name="action_connect_printer">Connect printer</string>
     <string name="action_copy_log">Copy protocol log</string>
+    <string name="action_open_maintenance">Open maintenance</string>
+    <string name="action_back">Back</string>
 
     <!-- Section headings. -->
     <string name="section_printer">Printer</string>

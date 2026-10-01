@@ -21,9 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,15 +30,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -68,11 +64,15 @@ import com.padreset.epadreset.data.WasteCounterStatus
 import com.padreset.epadreset.ui.components.PadAlertDialog
 import com.padreset.epadreset.ui.components.PadButton
 import com.padreset.epadreset.ui.components.PadButtonVariant
+import com.padreset.epadreset.ui.components.PadBusyIndicator
 import com.padreset.epadreset.ui.components.PadCallout
 import com.padreset.epadreset.ui.components.PadCard
+import com.padreset.epadreset.ui.components.PadHeaderBar
 import com.padreset.epadreset.ui.components.PadIconButton
 import com.padreset.epadreset.ui.components.PadMetaRow
+import com.padreset.epadreset.ui.components.PadRule
 import com.padreset.epadreset.ui.components.PadSectionLabel
+import com.padreset.epadreset.ui.components.PadSelectableRow
 import com.padreset.epadreset.ui.components.PadStatusDot
 import com.padreset.epadreset.ui.components.PadTone
 import com.padreset.epadreset.ui.theme.PadColors
@@ -84,41 +84,42 @@ import com.padreset.epadreset.ui.theme.PadTheme
 import com.padreset.epadreset.ui.theme.severityFor
 import java.util.Locale
 
-private const val REPO_URL = "https://github.com/tekware-it/android-epson-reset"
+/**
+ * Icon for the maintenance entry point.
+ *
+ * PLACEHOLDER. Waiting on the Epson-style head-cleaning artwork; this is a
+ * stand-in chosen because a wrench is the least ambiguous generic symbol. Swapping
+ * it is a one-line change here.
+ */
+private val MaintenanceIcon = Icons.Outlined.Build
 
+/**
+ * The status page: what the printer is and how it is doing.
+ *
+ * Maintenance jobs live on [MaintenanceScreen], reached from the header. Only
+ * the cleaning block moved there — the printer info and the ink levels stay
+ * here, because they describe the printer's condition rather than act on it.
+ */
 @Composable
 fun PrinterStatusScreen(
     uiState: MainUiState,
     onConnect: () -> Unit,
     onRefresh: () -> Unit,
     onReset: (Set<String>, Int) -> Unit,
-    onServiceClean: (String) -> Unit,
-    onGenericClean: (Int, Boolean, Boolean) -> Unit,
-    onNozzleCheck: (Int) -> Unit,
-    onDismissActionSuccess: () -> Unit,
+    onOpenMaintenance: () -> Unit,
 ) {
     val pad = PadTheme.colors
     val context = LocalContext.current
     var showWarning by remember { mutableStateOf(false) }
-    var showServiceCleaningDialog by remember { mutableStateOf(false) }
-    var showGenericCleaningDialog by remember { mutableStateOf(false) }
-    var showNozzleCheckDialog by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showExitDialog by remember { mutableStateOf(false) }
     val availableCounters = uiState.status?.wasteCounters.orEmpty()
-    val cleaningOptions = uiState.cleaningOptions
     var selectedCounters by remember(availableCounters) {
         mutableStateOf(availableCounters.map { it.name }.toSet())
     }
-    var selectedCleaning by remember(cleaningOptions) {
-        mutableStateOf(cleaningOptions.firstOrNull().orEmpty())
-    }
-    var selectedNozzleCheckType by remember { mutableStateOf(0) }
-    var genericCleaningGroup by remember { mutableStateOf(0) }
-    var genericPowerClean by remember { mutableStateOf(false) }
     var targetPercentageText by remember { mutableStateOf("0") }
 
-    BackHandler(enabled = !showWarning && !showServiceCleaningDialog && !showGenericCleaningDialog && !showNozzleCheckDialog && !showAbout && !showExitDialog) {
+    BackHandler(enabled = !showWarning && !showAbout && !showExitDialog) {
         showExitDialog = true
     }
 
@@ -135,7 +136,28 @@ fun PrinterStatusScreen(
                 .padding(horizontal = PadSpace.lg, vertical = PadSpace.md),
             verticalArrangement = Arrangement.spacedBy(PadSpace.md),
         ) {
-            HeaderBar(onAbout = { showAbout = true })
+            PadHeaderBar(
+                title = stringResource(R.string.app_name),
+                trailing = {
+                    PadIconButton(
+                        icon = MaintenanceIcon,
+                        contentDescription = stringResource(R.string.action_open_maintenance),
+                        onClick = onOpenMaintenance,
+                        size = 40.dp,
+                        filled = false,
+                    )
+                    // Icon only, so the control stays recognisable whatever
+                    // language the app is running in. About is not a critical
+                    // path, so mild ambiguity is fine.
+                    PadIconButton(
+                        icon = Icons.Outlined.Info,
+                        contentDescription = stringResource(R.string.action_about),
+                        onClick = { showAbout = true },
+                        size = 40.dp,
+                        filled = false,
+                    )
+                },
+            )
 
             StatusHeroCard(
                 uiState = uiState,
@@ -169,24 +191,6 @@ fun PrinterStatusScreen(
             }
 
             PadCard {
-                PadSectionLabel(stringResource(R.string.section_maintenance))
-                MaintenancePanel(
-                    cleaningOptions = cleaningOptions,
-                    supportsGenericMaintenanceJobs = uiState.supportsGenericMaintenanceJobs,
-                    connected = uiState.status != null,
-                    busy = uiState.isBusy,
-                    onClean = {
-                        if (cleaningOptions.isNotEmpty()) {
-                            showServiceCleaningDialog = true
-                        } else {
-                            showGenericCleaningDialog = true
-                        }
-                    },
-                    onNozzleCheck = { showNozzleCheckDialog = true },
-                )
-            }
-
-            PadCard {
                 PadSectionLabel(
                     text = stringResource(R.string.section_protocol_log),
                     trailing = { CopyLogButton(uiState.logs) },
@@ -198,7 +202,7 @@ fun PrinterStatusScreen(
         }
 
         if (uiState.isBusy) {
-            BusyIndicator(modifier = Modifier.align(Alignment.Center))
+            PadBusyIndicator(modifier = Modifier.align(Alignment.Center))
         }
     }
 
@@ -242,7 +246,7 @@ fun PrinterStatusScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     availableCounters.forEach { counter ->
-                        SelectableRow(
+                        PadSelectableRow(
                             label = counter.name,
                             selected = counter.name in selectedCounters,
                             multi = true,
@@ -252,129 +256,6 @@ fun PrinterStatusScreen(
                                 } else {
                                     selectedCounters - counter.name
                                 }
-                            },
-                        )
-                    }
-                }
-            },
-        )
-    }
-
-    if (showServiceCleaningDialog) {
-        PadAlertDialog(
-            onDismissRequest = { showServiceCleaningDialog = false },
-            title = { Text(stringResource(R.string.dialog_cleaning_title)) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showServiceCleaningDialog = false
-                        onServiceClean(selectedCleaning)
-                    },
-                    enabled = selectedCleaning.isNotBlank(),
-                ) {
-                    Text(stringResource(R.string.action_start_cleaning))
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { showServiceCleaningDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                    Text(stringResource(R.string.dialog_cleaning_body))
-                    cleaningOptions.forEach { option ->
-                        SelectableRow(
-                            label = option,
-                            selected = option == selectedCleaning,
-                            multi = false,
-                            onSelect = { checked ->
-                                if (checked) selectedCleaning = option
-                            },
-                        )
-                    }
-                }
-            },
-        )
-    }
-
-    if (showGenericCleaningDialog) {
-        val cleaningModes = listOf(
-            stringResource(R.string.cleaning_all_nozzles),
-            stringResource(R.string.cleaning_black_nozzle),
-            stringResource(R.string.cleaning_color_nozzles),
-            stringResource(R.string.cleaning_alternative_mode),
-        )
-        PadAlertDialog(
-            onDismissRequest = { showGenericCleaningDialog = false },
-            title = { Text(stringResource(R.string.dialog_cleaning_title)) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showGenericCleaningDialog = false
-                        onGenericClean(genericCleaningGroup, genericPowerClean, genericCleaningGroup == 3)
-                    },
-                ) {
-                    Text(stringResource(R.string.action_start_cleaning))
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { showGenericCleaningDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                    Text(stringResource(R.string.dialog_generic_cleaning_body))
-                    cleaningModes.forEachIndexed { index, label ->
-                        SelectableRow(
-                            label = label,
-                            selected = genericCleaningGroup == index,
-                            multi = false,
-                            onSelect = { checked ->
-                                if (checked) genericCleaningGroup = index
-                            },
-                        )
-                    }
-                    SelectableRow(
-                        label = stringResource(R.string.cleaning_power_clean),
-                        selected = genericPowerClean,
-                        multi = true,
-                        onSelect = { genericPowerClean = it },
-                    )
-                }
-            },
-        )
-    }
-
-    if (showNozzleCheckDialog) {
-        PadAlertDialog(
-            onDismissRequest = { showNozzleCheckDialog = false },
-            title = { Text(stringResource(R.string.dialog_nozzle_check_title)) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showNozzleCheckDialog = false
-                        onNozzleCheck(selectedNozzleCheckType)
-                    },
-                ) {
-                    Text(stringResource(R.string.action_print_test))
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { showNozzleCheckDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                    listOf(stringResource(R.string.nozzle_test_standard), stringResource(R.string.nozzle_test_alternative)).forEachIndexed { index, label ->
-                        SelectableRow(
-                            label = label,
-                            selected = selectedNozzleCheckType == index,
-                            multi = false,
-                            onSelect = { checked ->
-                                if (checked) selectedNozzleCheckType = index
                             },
                         )
                     }
@@ -434,67 +315,11 @@ fun PrinterStatusScreen(
         )
     }
 
-    uiState.actionSuccessMessage?.let { message ->
-        PadAlertDialog(
-            onDismissRequest = onDismissActionSuccess,
-            title = { Text(stringResource(R.string.dialog_action_completed_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                    Text(message)
-                    Text(stringResource(R.string.about_donation))
-                    OutlinedButton(
-                        onClick = {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(REPO_URL)))
-                        },
-                    ) {
-                        Text(stringResource(R.string.action_open_github))
-                    }
-                }
-            },
-            confirmButton = {
-                Button(onClick = onDismissActionSuccess) {
-                    Text(stringResource(R.string.action_ok))
-                }
-            },
-        )
-    }
 }
 
 // ---------------------------------------------------------------------------
 // Layout blocks
 // ---------------------------------------------------------------------------
-
-@Composable
-private fun HeaderBar(onAbout: () -> Unit) {
-    val pad = PadTheme.colors
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.headlineSmall,
-            color = pad.fg,
-            modifier = Modifier.weight(1f),
-        )
-        Spacer(Modifier.width(PadSpace.sm))
-        // Icon only, so the control stays recognisable whatever language the app
-        // is running in. About is not a critical path, so mild ambiguity is fine.
-        //
-        // Sits flush with the page margin so the header reads as balanced against
-        // the title. That means it does not share a column with Refresh, which
-        // lives one card inset further in. Tried matching them; the header ended
-        // up looking off-centre, and balance won over the column match.
-        PadIconButton(
-            icon = Icons.Outlined.Info,
-            contentDescription = stringResource(R.string.action_about),
-            onClick = onAbout,
-            size = 40.dp,
-            filled = false,
-        )
-    }
-}
 
 /**
  * The headline status block, echoing the site's "Current status" panel.
@@ -577,7 +402,7 @@ private fun StatusHeroCard(
         )
 
         if (status != null) {
-            Rule()
+            PadRule()
 
             PadMetaRow(label = stringResource(R.string.label_model), value = status.modelName)
             PadMetaRow(label = stringResource(R.string.label_serial), value = status.serialNumber)
@@ -592,43 +417,6 @@ private fun StatusHeroCard(
             }
         }
     }
-}
-
-@Composable
-private fun BusyIndicator(modifier: Modifier = Modifier) {
-    val pad = PadTheme.colors
-    val shape = RoundedCornerShape(PadRadius.m)
-    Row(
-        modifier = modifier
-            .clip(shape)
-            .background(pad.card)
-            .border(1.dp, pad.border, shape)
-            .padding(horizontal = PadSpace.lg, vertical = PadSpace.md),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(PadSpace.sm),
-    ) {
-        CircularProgressIndicator(
-            color = pad.accent,
-            strokeWidth = 2.5.dp,
-            modifier = Modifier.size(18.dp),
-        )
-        Text(
-            stringResource(R.string.status_busy_indicator),
-            style = MaterialTheme.typography.bodyMedium,
-            color = pad.fg,
-        )
-    }
-}
-
-@Composable
-private fun Rule() {
-    val pad = PadTheme.colors
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(pad.rule),
-    )
 }
 
 /**
@@ -942,83 +730,8 @@ private fun HorizontalGauge(percentage: Double, fillColor: Color) {
 }
 
 // ---------------------------------------------------------------------------
-// Maintenance
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun MaintenancePanel(
-    cleaningOptions: List<String>,
-    supportsGenericMaintenanceJobs: Boolean,
-    connected: Boolean,
-    busy: Boolean,
-    onClean: () -> Unit,
-    onNozzleCheck: () -> Unit,
-) {
-    val pad = PadTheme.colors
-    val enabled = connected && !busy
-    Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-        PadButton(
-            text = stringResource(R.string.maintenance_head_cleaning),
-            variant = PadButtonVariant.Secondary,
-            enabled = enabled && (cleaningOptions.isNotEmpty() || supportsGenericMaintenanceJobs),
-            onClick = onClean,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        PadButton(
-            text = stringResource(R.string.maintenance_nozzle_check),
-            variant = PadButtonVariant.Secondary,
-            enabled = enabled && supportsGenericMaintenanceJobs,
-            onClick = onNozzleCheck,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            text = stringResource(R.string.maintenance_note),
-            style = MaterialTheme.typography.bodySmall,
-            color = pad.muted,
-        )
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Dialogs helpers
 // ---------------------------------------------------------------------------
-
-/**
- * A full-width selectable row.
- *
- * The original used a checkbox for every group, including the ones that are
- * single-choice. Radio buttons now carry that meaning, checkboxes are kept only
- * where multiple selections are genuinely allowed.
- */
-@Composable
-private fun SelectableRow(
-    label: String,
-    selected: Boolean,
-    multi: Boolean,
-    onSelect: (Boolean) -> Unit,
-) {
-    val pad = PadTheme.colors
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = label,
-            color = pad.fg,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-        )
-        Spacer(Modifier.width(PadSpace.sm))
-        if (multi) {
-            Checkbox(checked = selected, onCheckedChange = onSelect)
-        } else {
-            RadioButton(selected = selected, onClick = { onSelect(!selected) })
-        }
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
