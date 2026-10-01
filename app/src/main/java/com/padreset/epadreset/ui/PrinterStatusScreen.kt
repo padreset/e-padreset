@@ -271,8 +271,25 @@ fun PrinterStatusScreen(
     if (showWasteUnsupported) {
         PadAlertDialog(
             onDismissRequest = { showWasteUnsupported = false },
-            title = { Text(stringResource(R.string.waste_unsupported_dialog_title)) },
-            text = { Text(stringResource(R.string.waste_unsupported_dialog_body)) },
+            // Matches the callout that opened it. When the curated list knows the
+            // cause, the dialog must not fall back to listing both possibilities:
+            // the user would read a confident statement and then a hedged one.
+            title = {
+                Text(
+                    stringResource(
+                        if (uiState.usesMaintenanceBox) R.string.waste_box_dialog_title
+                        else R.string.waste_unsupported_dialog_title,
+                    ),
+                )
+            },
+            text = {
+                Text(
+                    stringResource(
+                        if (uiState.usesMaintenanceBox) R.string.waste_box_dialog_body
+                        else R.string.waste_unsupported_dialog_body,
+                    ),
+                )
+            },
             confirmButton = {
                 Button(onClick = { showWasteUnsupported = false }) {
                     Text(stringResource(R.string.action_close))
