@@ -194,6 +194,29 @@ Known realities:
 - Some models need different maintenance paths for status/reset versus cleaning/nozzle jobs
 - Hardware validation is still essential before trusting resets on a new model
 
+### The write path does not confirm itself
+
+Two gaps, both on the most dangerous path in the app. They were found by
+comparing against the other open reset tools, which do handle them:
+
+**A rejected write is not noticed.** `sendControlPayload` reads the printer's
+reply and logs it, but nothing inspects it, and `writeWasteCounter` discards the
+return value outright. If the printer rejects a write — the usual reason being a
+key that does not match the model — the app carries on to the next address and
+then reports success. The reference tools treat that rejection as a reason to
+abort the run rather than keep writing.
+
+**Nothing is backed up.** `resetWasteCounters` and `writeWasteCounters` write
+straight to the EEPROM. The bytes they are about to overwrite are never saved, so
+there is no way back.
+
+Neither is fixed yet, and deliberately so: a write-abort check has to be built on
+the printer's actual reply format rather than a guessed one. The reply is already
+logged as `CTRL RX: …`, so a single reset run on real hardware reveals the format
+and lets the check be written against evidence.
+
+Until then, treat a reported success as unverified.
+
 ## Upstream Basis
 
 This port was reverse-engineered primarily from:
