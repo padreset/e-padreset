@@ -50,6 +50,18 @@
     <string name="pad_warning_title">Reiniciar no limpia la almohadilla</string>
     <string name="pad_warning_body">El contador es electrónico; la almohadilla es física. Lava, sustituye o redirige la tinta residual antes de reiniciar, o la tinta acabará goteando dentro de la impresora.</string>
 
+    <!-- Se muestra en lugar de los contadores cuando la impresora conectada
+         guarda el contador de residuo donde la aplicación no puede escribir. No
+         afirma cuál de las dos causas es: el catálogo sabe que el modelo no
+         tiene contador, pero no si se debe a una caja de mantenimiento o a un
+         hueco en la base de datos. El diálogo explica ambas. -->
+    <string name="waste_unsupported_title">Este modelo no tiene contador que reiniciar</string>
+    <string name="waste_unsupported_body">Esta impresora no guarda el contador de residuo donde la aplicación pueda reiniciarlo. No hay nada averiado: ni la aplicación ni la impresora tienen un problema.</string>
+    <string name="action_more_info">Más información</string>
+
+    <string name="waste_unsupported_dialog_title">Dónde se guarda el contador de residuo</string>
+    <string name="waste_unsupported_dialog_body">Epson guarda el contador de residuo en uno de dos sitios.\n\nAlmohadilla interna: la tinta la absorben unas almohadillas dentro de la impresora, y el nivel se guarda en la memoria de la propia impresora. Es el caso que esta aplicación puede reiniciar.\n\nCaja de mantenimiento: la tinta se recoge en una caja extraíble, y la caja lleva su propio chip que registra el nivel. La memoria de la impresora no tiene ningún contador, así que ningún programa puede borrarlo. La caja se sustituye, o se reinicia su chip con una herramienta específica.\n\nPara saber cuál tienes, mira el panel de estado de la propia impresora. Si indica caja de mantenimiento, ninguna utilidad de reinicio puede ayudar.\n\nSi tu impresora usa almohadilla interna y aun así ves este mensaje, es que el modelo falta en la base de datos de la aplicación. Ese caso sí tiene solución, y nos gustaría conocerlo.\n\nLa limpieza de cabezal y la comprobación de inyectores siguen funcionando en esta impresora. Están en la página de Mantenimiento.</string>
+
     <!-- Panel de mantenimiento. -->
     <string name="maintenance_head_cleaning">Limpieza de cabezal</string>
     <string name="maintenance_nozzle_check">Comprobación de inyectores</string>

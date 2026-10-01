@@ -25,7 +25,22 @@ data class PrinterSpec(
     val wasteCounters: List<WasteCounterSpec>,
     val resetMap: Map<Int, Int>,
     val cleaningOptions: List<CleaningSpec>,
-)
+) {
+    /**
+     * Whether this model exposes waste ink counters the app can read and reset.
+     *
+     * False means the count is not in the printer's own memory. Epson collects
+     * waste ink in one of two ways: on models with an internal absorbent pad the
+     * fill level lives in the printer's EEPROM and can be rewritten, while on
+     * models with a maintenance box the ink goes into the box and the level is
+     * kept on the box's own chip, so there is nothing in the printer to reset.
+     *
+     * A model without counters can still be connected to for head cleaning and
+     * the nozzle check — the control model and the cleaning jobs are present in
+     * the catalog either way.
+     */
+    val supportsWasteReset: Boolean get() = wasteCounters.isNotEmpty() && resetMap.isNotEmpty()
+}
 
 object EpsonPrinterCatalog {
     const val EPSON_VENDOR_ID: Int = 0x04B8

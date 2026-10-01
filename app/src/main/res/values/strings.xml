@@ -57,6 +57,18 @@
     <string name="pad_warning_title">Resetting does not clean the pad</string>
     <string name="pad_warning_body">The counter is electronic; the pad is physical. Wash, replace or redirect the waste ink before resetting, or ink will eventually leak inside the printer.</string>
 
+    <!-- Shown in place of the counters when the connected printer keeps its
+         waste ink count somewhere the app cannot write to. Deliberately does not
+         claim to know which of the two causes applies: the catalog can tell that
+         a model has no counter, but not whether that is a maintenance box or a
+         gap in the database. The dialog explains both. -->
+    <string name="waste_unsupported_title">No counter to reset on this model</string>
+    <string name="waste_unsupported_body">This printer does not keep its waste ink count where the app can reset it. Nothing is broken: neither the app nor the printer is at fault.</string>
+    <string name="action_more_info">More information</string>
+
+    <string name="waste_unsupported_dialog_title">Where the waste ink count lives</string>
+    <string name="waste_unsupported_dialog_body">Epson stores the waste ink count in one of two places.\n\nInternal pad: the ink is absorbed by pads inside the printer and the fill level is kept in the printer\'s own memory. This is the case this app can reset.\n\nMaintenance box: the ink collects in a box you can remove, and the box carries its own chip that records the fill level. The printer\'s memory holds no counter, so no software can clear it. The box is replaced, or its chip is reset with a dedicated tool.\n\nTo find out which one you have, check the printer\'s own status panel. If it reports a maintenance box, no reset utility can help.\n\nIf your printer uses an internal pad and you still see this, the model is simply missing from the app\'s database. That one is fixable, and we would like to hear about it.\n\nHead cleaning and the nozzle check still work on this printer. They are on the Maintenance page.</string>
+
     <!-- Maintenance panel. -->
     <string name="maintenance_head_cleaning">Head Cleaning</string>
     <string name="maintenance_nozzle_check">Nozzle Check</string>

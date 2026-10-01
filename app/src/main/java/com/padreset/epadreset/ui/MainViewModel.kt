@@ -18,6 +18,13 @@ data class MainUiState(
     val status: PrinterStatusSnapshot? = null,
     val cleaningOptions: List<String> = emptyList(),
     val supportsGenericMaintenanceJobs: Boolean = false,
+    /**
+     * False when the connected printer keeps its waste ink count somewhere the
+     * app cannot write to — a maintenance box chip rather than the printer's own
+     * memory. The status page uses it to explain the situation instead of
+     * drawing empty counters.
+     */
+    val supportsWasteReset: Boolean = false,
     val isBusy: Boolean = false,
     /**
      * Already localized. Shown in the error callout, so anything written here
@@ -86,6 +93,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     status = status,
                     cleaningOptions = current.spec.cleaningOptions.map { it.name },
                     supportsGenericMaintenanceJobs = true,
+                    supportsWasteReset = current.spec.supportsWasteReset,
                     error = null,
                 )
                 appendLog("Status read: ${status.state}, ${status.error}")

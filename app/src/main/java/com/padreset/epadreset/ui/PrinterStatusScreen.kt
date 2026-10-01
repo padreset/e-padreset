@@ -113,13 +113,14 @@ fun PrinterStatusScreen(
     var showWarning by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showExitDialog by remember { mutableStateOf(false) }
+    var showWasteUnsupported by remember { mutableStateOf(false) }
     val availableCounters = uiState.status?.wasteCounters.orEmpty()
     var selectedCounters by remember(availableCounters) {
         mutableStateOf(availableCounters.map { it.name }.toSet())
     }
     var targetPercentageText by remember { mutableStateOf("0") }
 
-    BackHandler(enabled = !showWarning && !showAbout && !showExitDialog) {
+    BackHandler(enabled = !showWarning && !showAbout && !showExitDialog && !showWasteUnsupported) {
         showExitDialog = true
     }
 
@@ -185,8 +186,10 @@ fun PrinterStatusScreen(
                 WasteLevelsPanel(
                     counters = uiState.status?.wasteCounters.orEmpty(),
                     connected = uiState.status != null,
+                    supportsWasteReset = uiState.supportsWasteReset,
                     busy = uiState.isBusy,
                     onReset = { showWarning = true },
+                    onExplainUnsupported = { showWasteUnsupported = true },
                 )
             }
 
@@ -259,6 +262,19 @@ fun PrinterStatusScreen(
                             },
                         )
                     }
+                }
+            },
+        )
+    }
+
+    if (showWasteUnsupported) {
+        PadAlertDialog(
+            onDismissRequest = { showWasteUnsupported = false },
+            title = { Text(stringResource(R.string.waste_unsupported_dialog_title)) },
+            text = { Text(stringResource(R.string.waste_unsupported_dialog_body)) },
+            confirmButton = {
+                Button(onClick = { showWasteUnsupported = false }) {
+                    Text(stringResource(R.string.action_close))
                 }
             },
         )
@@ -620,10 +636,34 @@ private fun VerticalInkGauge(
 private fun WasteLevelsPanel(
     counters: List<WasteCounterStatus>,
     connected: Boolean,
+    supportsWasteReset: Boolean,
     busy: Boolean,
     onReset: () -> Unit,
+    onExplainUnsupported: () -> Unit,
 ) {
     val context = LocalContext.current
+
+    // Three states, not two. An empty list used to always draw the placeholders
+    // that are meant for "no printer yet", so a connected model with no counter
+    // of its own showed two counters reading 0% next to an armed reset button —
+    // a false all-clear for a printer whose maintenance box may well be full.
+    // "Connected but nothing to reset" is a different thing and now says so.
+    if (connected && !supportsWasteReset) {
+        Column(verticalArrangement = Arrangement.spacedBy(PadSpace.md)) {
+            PadCallout(
+                title = stringResource(R.string.waste_unsupported_title),
+                text = stringResource(R.string.waste_unsupported_body),
+                tone = PadTone.Info,
+            )
+            PadButton(
+                text = stringResource(R.string.action_more_info),
+                variant = PadButtonVariant.Secondary,
+                onClick = onExplainUnsupported,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        return
+    }
 
     val displayCounters = if (counters.isEmpty()) {
         listOf(
