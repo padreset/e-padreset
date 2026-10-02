@@ -163,7 +163,19 @@
 
     <!-- Messages raised by the ViewModel. -->
     <string name="error_printer_not_connected">Printer is not connected</string>
-    <string name="error_no_printer_detected">No Epson printer detected over USB OTG</string>
+    <!-- Shown in the red callout when a forced rescan comes up empty. The Wi-Fi
+         clause lives here and not in the "No printer" hint on purpose: the hint
+         is ambient, seen by everyone on every launch, and a reader who does not
+         have the language should not meet a wall of text there. This one only
+         appears after the user asked for a rescan, which is when the question
+         "why can it not see mine?" is actually being asked.
+
+         "Note:" is load-bearing, not decoration. Without it the two sentences
+         sit side by side and read as a diagnosis — as if the app had worked out
+         that the user was reaching for the printer over Wi-Fi, which may have
+         nothing to do with why the scan came up empty. Marked as a note it is
+         what it is: an aside about what this app does. -->
+    <string name="error_no_printer_detected">No Epson printer detected over USB OTG. Note: this app does not work over Wi-Fi.</string>
     <!-- Raised when a USB printer is attached but its vendor is not Epson. The
          generic line above reads as a fault to someone holding a printer, so
          this one names the real reason: the app is Epson-only. -->

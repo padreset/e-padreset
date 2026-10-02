@@ -155,7 +155,19 @@
 
     <!-- Mensajes que emite el ViewModel. -->
     <string name="error_printer_not_connected">La impresora no está conectada</string>
-    <string name="error_no_printer_detected">No se ha detectado ninguna impresora Epson por USB OTG</string>
+    <!-- Se muestra en el aviso rojo cuando un reescaneo forzado no encuentra
+         nada. La mención al Wi-Fi va aquí y no en la pista de "Sin impresora" a
+         propósito: la pista es ambiental, la ve todo el mundo en cada arranque,
+         y quien no tenga el idioma no debería encontrarse ahí un muro de texto.
+         Esta solo aparece después de que el usuario pida reescanear, que es
+         cuando de verdad se está preguntando "¿por qué no ve la mía?".
+
+         "Nota:" sostiene el sentido, no es adorno. Sin él las dos frases quedan
+         seguidas y se leen como un diagnóstico: como si la aplicación hubiera
+         deducido que el usuario va por Wi-Fi, cuando puede no tener nada que ver
+         con que el escaneo saliera vacío. Marcado como nota es lo que es: un
+         apunte sobre lo que hace esta aplicación. -->
+    <string name="error_no_printer_detected">No se ha detectado ninguna impresora Epson por USB OTG. Nota: esta aplicación no funciona por Wi-Fi.</string>
     <!-- Se lanza cuando hay una impresora USB conectada pero su fabricante no es
          Epson. La línea genérica de arriba se lee como una avería para quien
          tiene una impresora delante, así que esta nombra el motivo real: la
