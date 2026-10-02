@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
@@ -51,7 +52,23 @@ class UsbTransport(private val context: Context) {
 
     private val usbManager: UsbManager =
         context.getSystemService(Context.USB_SERVICE) as UsbManager
-    private val preferredInterfaceByDeviceKey = mutableMapOf<String, Int>()
+
+    /**
+     * Which USB interface last worked for a given printer, kept across runs.
+     *
+     * A printer exposes more than one interface with bulk endpoints, and which
+     * one carries D4 varies by model: an L365 answers on its printer-class
+     * interface and ignores the vendor-specific one that the default order
+     * tries first. Getting it wrong is not fatal, because the next candidate is
+     * tried, but the failed attempt has to run into its read timeouts before
+     * that happens, and the user spends those seconds watching a spinner.
+     *
+     * Keyed on vendor and product id rather than on the device path, which
+     * changes every time the printer is unplugged and plugged back in. A
+     * preference keyed on the path would never be found again.
+     */
+    private val interfacePreference: SharedPreferences =
+        context.getSharedPreferences(PREFERENCE_FILE, Context.MODE_PRIVATE)
 
     fun findEpsonDevices(): List<UsbDevice> {
         return usbManager.deviceList.values.filter { it.vendorId == EpsonPrinterCatalog.EPSON_VENDOR_ID }
@@ -257,7 +274,7 @@ class UsbTransport(private val context: Context) {
                 candidates += usbInterface
             }
         }
-        val preferredId = preferredInterfaceByDeviceKey[deviceKey(device)]
+        val preferredId = preferredInterfaceFor(device)
         return candidates.sortedWith(
             compareBy<UsbInterface> {
                 when {
@@ -274,7 +291,9 @@ class UsbTransport(private val context: Context) {
     }
 
     fun rememberPreferredInterface(device: UsbDevice, interfaceId: Int) {
-        preferredInterfaceByDeviceKey[deviceKey(device)] = interfaceId
+        interfacePreference.edit()
+            .putInt(preferenceKey(device.vendorId, device.productId), interfaceId)
+            .apply()
     }
 
     fun findPrintInterface(device: UsbDevice): UsbInterface? {
@@ -493,14 +512,22 @@ class UsbTransport(private val context: Context) {
         return candidateInterfaces(device).firstOrNull()
     }
 
-    private fun deviceKey(device: UsbDevice): String {
-        return listOf(device.vendorId, device.productId, device.deviceName).joinToString(":")
-    }
+    private fun preferredInterfaceFor(device: UsbDevice): Int? =
+        interfacePreference.getInt(preferenceKey(device.vendorId, device.productId), NO_PREFERENCE)
+            .takeIf { it != NO_PREFERENCE }
+
+    private fun preferenceKey(vendorId: Int, productId: Int): String = "$vendorId:$productId"
 
     private companion object {
         const val USB_RECIPIENT_INTERFACE = 0x01
         const val REQUEST_GET_DEVICE_ID = 0
         const val REQUEST_SOFT_RESET = 2
+
+        /** Where [interfacePreference] is stored. */
+        const val PREFERENCE_FILE = "usb_interface_preference"
+
+        /** Returned by [SharedPreferences.getInt] when nothing is stored yet. */
+        const val NO_PREFERENCE = -1
 
         /**
          * A backstop, not the usual path: a detached device is caught by

@@ -61,6 +61,25 @@ The header carries circular icon buttons for maintenance and about, and a refres
 - Protocol: Epson `st` / `||` commands over D4 / IEEE 1284.4, plus USB ESC/P2 maintenance print jobs where needed
 - Model database: bundled `devices.xml` from the upstream `ez-reset` project, extended by `reinkpy_models.xml`
 
+### Which USB interface to use
+
+A printer exposes more than one interface with bulk endpoints, and which one
+carries D4 differs by model. An L365 answers on its printer-class interface and
+ignores the vendor-specific one, which is the order the app would otherwise try
+first.
+
+Getting it wrong is not fatal, because the remaining candidates are tried, but
+the failed attempt has to run into its read timeouts before the fallback — the
+IEEE 1284.4 reply window plus the 8 s D4 header read. That is several seconds of
+spinner on every launch, which is what the user sees as a slow read.
+
+So the interface that worked is written to `SharedPreferences` and tried first
+next time. It is keyed on vendor and product id, not on the device path, which
+changes on every replug and would make the preference unreachable.
+
+The first connect to a printer is still slow, because there is nothing to
+remember yet. Every one after it is not.
+
 ## Fonts
 
 The UI uses two typefaces from the [Google Fonts](https://github.com/google/fonts) repository, both
