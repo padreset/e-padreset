@@ -326,6 +326,18 @@ A reported success still means the counters read back at the value asked for. It
 does not yet mean the printer confirmed each individual write — only that none of
 them was refused.
 
+Both rules are covered by `WasteWriterTest`, which drives them against a scripted
+fake printer. The rules live in `WasteWriter` rather than in `PrinterService` for
+exactly that reason: with the transport reduced to two functions they can be run
+without one. The fake records every read and write in order, so the assertions are
+about the sequence — that the backup ran before the first write, that a refusal
+left the addresses after it untouched — and not only the end state, which a backup
+taken too late would also produce.
+
+What that does not settle: the replies are scripted, not observed. The tests prove
+the app behaves correctly *given* an answer. Which answer a real printer gives is
+still the open question, and the `Unknown` branch is where that lands.
+
 ## Upstream Basis
 
 This port was reverse-engineered primarily from:

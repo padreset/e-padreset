@@ -234,25 +234,7 @@ class PrinterService(
         require(plan.isNotEmpty()) { "This model publishes no reset values" }
         log("Resetting waste counters: ${plan.size} EEPROM writes")
 
-        // Everything about to be overwritten is read first. Without this a reset
-        // is one way: the bytes are gone, and no later read can tell what they
-        // were. A read that fails stops the run here, before any write.
-        val backup = readBackup(connection, plan.keys.toList())
-
-        var written = 0
-        for ((address, value) in plan) {
-            if (writeEeprom(connection, address, value) == EpsonProtocol.WriteReply.Rejected) {
-                throw WasteWriteException(
-                    reason = WasteWriteException.Reason.REJECTED,
-                    address = address,
-                    writtenBefore = written,
-                    backup = backup,
-                )
-            }
-            written++
-        }
-        log("Reset complete: $written addresses written")
-
+        val backup = applyWritePlan(connection, plan)
         WasteWriteOutcome(readPrinterStatus(connection).wasteCounters, backup)
     }
 
@@ -275,58 +257,39 @@ class PrinterService(
         log(
             "Writing waste counters ${selectedCounters.joinToString { it.name }} to $targetPercentage%",
         )
-        val backup = readBackup(connection, selectedCounters.flatMap { it.addresses })
-
-        var written = 0
+        // One plan for the whole run, so the backup covers exactly the addresses
+        // that are about to change and nothing else.
+        val plan = linkedMapOf<Int, Int>()
         for (counter in selectedCounters) {
             val targetValue = ((counter.max.toLong() * targetPercentage.toLong()) / 100L).toInt()
-            for ((position, address) in counter.addresses.withIndex()) {
-                val value = (targetValue shr (position * 8)) and 0xFF
-                if (writeEeprom(connection, address, value) == EpsonProtocol.WriteReply.Rejected) {
-                    throw WasteWriteException(
-                        reason = WasteWriteException.Reason.REJECTED,
-                        address = address,
-                        writtenBefore = written,
-                        backup = backup,
-                    )
-                }
-                written++
+            counter.addresses.forEachIndexed { position, address ->
+                plan[address] = (targetValue shr (position * 8)) and 0xFF
             }
         }
 
+        val backup = applyWritePlan(connection, plan)
         WasteWriteOutcome(readPrinterStatus(connection).wasteCounters, backup)
     }
+
+    /**
+     * Hands [plan] to the write path's rules, with this connection behind them.
+     *
+     * The rules live in [WasteWriter] so they can be exercised without a
+     * printer; this binds them to the transport and nothing more.
+     */
+    private fun applyWritePlan(
+        connection: ConnectionState,
+        plan: Map<Int, Int>,
+    ): Map<Int, Byte> = WasteWriter(
+        readByte = { address -> readEepromByte(connection, address) },
+        writeByte = { address, value -> writeEeprom(connection, address, value) },
+        log = { line -> log(line) },
+    ).write(plan)
 
     /** Reads one EEPROM byte. */
     private fun readEepromByte(connection: ConnectionState, address: Int): Byte {
         val response = sendControlPayload(connection, connection.protocol.buildReadEepromCommand(address))
         return parseEepromReadByte(response)
-    }
-
-    /**
-     * Reads the bytes at [addresses], keyed by address.
-     *
-     * Throws rather than returning a partial map: a backup covering only some of
-     * what is about to be written is worse than none, because it reads as a way
-     * back and is not one.
-     */
-    private fun readBackup(connection: ConnectionState, addresses: List<Int>): Map<Int, Byte> {
-        val backup = linkedMapOf<Int, Byte>()
-        for (address in addresses.distinct().sorted()) {
-            val value = try {
-                readEepromByte(connection, address)
-            } catch (t: Throwable) {
-                throw WasteWriteException(
-                    reason = WasteWriteException.Reason.BACKUP_FAILED,
-                    address = address,
-                    cause = t,
-                )
-            }
-            backup[address] = value
-            log("Backup 0x${"%04X".format(address)} = 0x${"%02X".format(value.toInt() and 0xFF)}")
-        }
-        log("Backup taken: ${backup.size} bytes, before any write")
-        return backup
     }
 
     /**
@@ -348,26 +311,23 @@ class PrinterService(
             connection,
             connection.protocol.buildWriteEepromCommand(address, value),
         )
-        val label = "0x${"%04X".format(address)} = 0x${"%02X".format(value and 0xFF)}"
-        return when (val verdict = connection.protocol.classifyWriteReply(reply)) {
-            EpsonProtocol.WriteReply.Applied -> {
-                log("Write $label applied")
-                verdict
-            }
+        val verdict = connection.protocol.classifyWriteReply(reply)
 
-            EpsonProtocol.WriteReply.Rejected -> {
-                log("Write $label rejected: ${reply.decodeToString().trim()}")
-                verdict
-            }
+        // Only the raw answer is logged here, because this is where the bytes
+        // are. What the verdict means for the run is [WasteWriter]'s business.
+        when (verdict) {
+            EpsonProtocol.WriteReply.Applied -> Unit
 
-            EpsonProtocol.WriteReply.Unknown -> {
-                log(
-                    "Write $label: unrecognised reply " +
-                        "${reply.joinToString(" ") { "%02X".format(it) }}, continuing",
-                )
-                verdict
-            }
+            EpsonProtocol.WriteReply.Rejected -> log(
+                "Write 0x${"%04X".format(address)} answered: ${reply.decodeToString().trim()}",
+            )
+
+            EpsonProtocol.WriteReply.Unknown -> log(
+                "Write 0x${"%04X".format(address)} answered " +
+                    "${reply.joinToString(" ") { "%02X".format(it) }}, which is not a marker this app knows",
+            )
         }
+        return verdict
     }
 
     suspend fun runHeadCleaning(
