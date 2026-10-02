@@ -48,6 +48,24 @@ internal const val REPO_URL = "https://github.com/tekware-it/android-epson-reset
  */
 internal val REPORT_REPO_URL: String? = null
 
+/**
+ * Where releases are published, or null while there is nowhere to publish them.
+ *
+ * The app cannot check for updates on its own. Comparing its version against a
+ * published one needs the INTERNET permission, which this app does not hold and
+ * is not going to: it is offline by design, its privacy policy says it
+ * transmits nothing, and in a category full of utilities that phone home, not
+ * holding the permission is worth more than the feature.
+ *
+ * What it can do is hand the address to the browser. That is what every
+ * sideloaded app does, and it is honest — the user watches a browser open,
+ * rather than a spinner that decided something on its own.
+ *
+ * Null until this fork publishes releases of its own. While it is null the About
+ * dialog shows the version and nothing else.
+ */
+internal val RELEASES_URL: String? = null
+
 /** The pages the app can show. There are two, so a navigation library would be overkill. */
 private enum class AppPage { Status, Maintenance }
 

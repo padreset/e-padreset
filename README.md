@@ -31,6 +31,7 @@ This app is aimed at Epson inkjet printers that expose the same service protocol
 - Connects to models that have no resettable counter — maintenance-box printers — so head cleaning and the nozzle check still work, and explains why there is nothing to reset
 - Names the reason a connection failed instead of reporting a generic error, and offers a prefilled report when the model is missing from the database and could be added
 - Distinguishes "no Epson printer attached" from "a printer is attached, but it is not an Epson"
+- Shows its own version in About, and can open a releases page once the fork publishes one — the app holds no network permission and never checks by itself
 - Shows a compact status monitor UI inspired by `ez-reset`
 - Includes an in-app protocol log for debugging USB / D4 traffic
 

@@ -63,6 +63,14 @@ data class MainUiState(
      * been overwritten and this is the only record of what was there.
      */
     val wasteBackup: String? = null,
+    /**
+     * The build's version name, shown in About.
+     *
+     * Read once at construction so About and a model report can never disagree
+     * about which build produced them — a bug report that names a version the
+     * user cannot see is worse than one that names none.
+     */
+    val appVersion: String = "",
     val logs: List<String> = emptyList(),
     val actionSuccessMessage: String? = null,
 )
@@ -97,7 +105,16 @@ private class UnhandledJobException(
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val printerService = PrinterService(application, ::appendLog)
 
-    private val _uiState = MutableStateFlow(MainUiState())
+    /**
+     * Read once, from the package manager rather than from `BuildConfig`: the
+     * module does not enable `buildConfig`, and adding a generated class for a
+     * single string is not worth the build setting.
+     */
+    private val appVersion: String = runCatching {
+        application.packageManager.getPackageInfo(application.packageName, 0).versionName
+    }.getOrNull().orEmpty()
+
+    private val _uiState = MutableStateFlow(MainUiState(appVersion = appVersion))
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     private var connection: PrinterService.ConnectionState? = null
@@ -368,14 +385,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val safeId = redactDeviceId(deviceId)
         val log = _uiState.value.logs.takeLast(REPORT_LOG_LINES).joinToString("\n")
         val app = getApplication<Application>()
-        val version = runCatching {
-            app.packageManager.getPackageInfo(app.packageName, 0).versionName
-        }.getOrNull().orEmpty()
 
         val body = buildString {
             appendLine("Printer model: $model")
             appendLine("Device ID: $safeId")
-            appendLine("App: ${app.getString(R.string.app_name)} $version (Android ${Build.VERSION.RELEASE})")
+            appendLine("App: ${app.getString(R.string.app_name)} $appVersion (Android ${Build.VERSION.RELEASE})")
             appendLine()
             appendLine("What happened")
             appendLine("The app could not find this model in its database, so it could not open a")

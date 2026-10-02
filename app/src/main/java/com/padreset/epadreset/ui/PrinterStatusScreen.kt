@@ -363,8 +363,37 @@ fun PrinterStatusScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                     Text(stringResource(R.string.app_name))
+                    // Guarded rather than always shown: if the package lookup
+                    // ever fails this would otherwise render "Version " with
+                    // nothing after it.
+                    if (uiState.appVersion.isNotBlank()) {
+                        Text(stringResource(R.string.about_version, uiState.appVersion))
+                    }
                     Text(stringResource(R.string.about_epson_only))
                     Text(stringResource(R.string.about_repo_label))
+
+                    // Only when there is somewhere to send them. The app has no
+                    // way to compare versions itself — that needs the INTERNET
+                    // permission it does not hold — so this hands the address to
+                    // the browser and says so, instead of pretending to check.
+                    if (RELEASES_URL != null) {
+                        PadButton(
+                            text = stringResource(R.string.action_check_updates),
+                            variant = PadButtonVariant.Secondary,
+                            onClick = {
+                                showAbout = false
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(RELEASES_URL)),
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            text = stringResource(R.string.about_updates_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = pad.muted,
+                        )
+                    }
                 }
             },
             confirmButton = {

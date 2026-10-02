@@ -130,7 +130,12 @@
 
     <!-- Diálogo Acerca de. -->
     <string name="dialog_about_title">Acerca de</string>
+    <string name="about_version">Versión %1$s</string>
     <string name="about_epson_only">Funciona solo con impresoras de inyección Epson.</string>
+    <!-- Se muestra solo cuando el fork publique versiones propias. La aplicación
+         no tiene permiso de red, así que abre la página en vez de comprobar. -->
+    <string name="action_check_updates">Buscar actualizaciones</string>
+    <string name="about_updates_note">Abre la página de versiones en tu navegador. La aplicación no se conecta nunca.</string>
     <string name="action_open_repo">Abrir repositorio</string>
     <string name="about_donation">Dona para apoyar el desarrollo de esta y mis otras aplicaciones gratuitas, ¡gracias!</string>
     <string name="action_open_github">Abrir repositorio en GitHub</string>

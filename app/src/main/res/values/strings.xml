@@ -137,7 +137,12 @@
     <!-- About dialog. The repository label and the donation line still point at
          the upstream project and are pending the fork's own repository. -->
     <string name="dialog_about_title">About</string>
+    <string name="about_version">Version %1$s</string>
     <string name="about_epson_only">Works with Epson inkjet printers only.</string>
+    <!-- Shown only once the fork publishes releases of its own. The app holds no
+         network permission, so this opens the page rather than checking. -->
+    <string name="action_check_updates">Check for updates</string>
+    <string name="about_updates_note">Opens the releases page in your browser. The app itself never goes online.</string>
     <string name="about_repo_label">GitHub: tekware-it/android-epson-reset</string>
     <string name="action_open_repo">Open Repo</string>
     <string name="about_donation">Donate now to support development of this and my other free apps, thank you!</string>
