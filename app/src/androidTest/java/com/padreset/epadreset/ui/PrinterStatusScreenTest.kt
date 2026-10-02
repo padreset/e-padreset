@@ -184,6 +184,27 @@ class PrinterStatusScreenTest {
         compose.onNodeWithText(string(R.string.waste_scale_unknown)).assertDoesNotExist()
     }
 
+    // -- disconnection ------------------------------------------------------
+
+    @Test
+    fun aDisconnectedPrinterSaysSoInsteadOfShowingStaleReadings() {
+        // The state the detach broadcast produces: no status, and a note that
+        // says why. What must not happen is counters left on screen from a
+        // printer that is no longer plugged in.
+        render(
+            MainUiState(
+                status = null,
+                notice = string(R.string.notice_printer_disconnected),
+            ),
+        )
+
+        compose.onNodeWithText(string(R.string.notice_printer_disconnected))
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.label_highest_pad)).assertDoesNotExist()
+        compose.onNodeWithText("50.00%").assertDoesNotExist()
+    }
+
     // -- about --------------------------------------------------------------
 
     @Test

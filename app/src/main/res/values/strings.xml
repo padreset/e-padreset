@@ -170,6 +170,10 @@
     <string name="error_non_epson_printer_detected">A printer is connected over USB, but it is not an Epson. This app works with Epson inkjet printers only.</string>
     <string name="error_connect_failed">Could not open a maintenance session with the printer</string>
 
+    <!-- Shown when the printer is unplugged while the app is open. A statement
+         rather than a failure: nothing the user did went wrong. -->
+    <string name="notice_printer_disconnected">The printer was disconnected. Plug it back in and tap refresh to read it again.</string>
+
     <!-- Connection failures, resolved from PrinterService.ConnectFailure so the
          callout can name the actual cause instead of a generic failure. -->
     <string name="error_connect_permission_denied">USB access was denied. Reconnect the printer and accept the permission request.</string>

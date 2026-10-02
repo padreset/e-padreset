@@ -170,6 +170,13 @@ fun PrinterStatusScreen(
                 onRefresh = if (uiState.status == null) onConnect else onRefresh,
             )
 
+            // A statement, not a failure: the printer was unplugged, which is
+            // not an operation that went wrong. Sits above the error callout
+            // because it explains the state the error would be read against.
+            uiState.notice?.let { notice ->
+                PadCallout(text = notice, tone = PadTone.Info)
+            }
+
             if (!uiState.error.isNullOrBlank()) {
                 Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                     PadCallout(

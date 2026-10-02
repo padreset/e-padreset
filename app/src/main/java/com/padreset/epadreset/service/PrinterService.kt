@@ -88,6 +88,17 @@ class PrinterService(
      */
     fun detectNonEpsonPrinters(): List<UsbDevice> = transport.findPrintersFromOtherVendors()
 
+    /**
+     * Whether the device behind an open connection is still on the bus.
+     *
+     * The connection object stays usable-looking after the cable is pulled, so
+     * this is the only way to tell a live session from a dead one before
+     * starting a job that will fail in whatever way the transport happens to
+     * fail that day.
+     */
+    fun isStillAttached(connection: ConnectionState): Boolean =
+        transport.isAttached(connection.session.device)
+
     suspend fun connectPrinter(device: UsbDevice): ConnectionState = withContext(Dispatchers.IO) {
         log("USB device detected: vendor=0x${device.vendorId.toString(16)} product=0x${device.productId.toString(16)} name=${device.productName ?: device.deviceName}")
         if (!transport.ensurePermission(device)) {

@@ -31,6 +31,7 @@ This app is aimed at Epson inkjet printers that expose the same service protocol
 - Connects to models that have no resettable counter — maintenance-box printers — so head cleaning and the nozzle check still work, and explains why there is nothing to reset
 - Names the reason a connection failed instead of reporting a generic error, and offers a prefilled report when the model is missing from the database and could be added
 - Distinguishes "no Epson printer attached" from "a printer is attached, but it is not an Epson"
+- Scans for a printer on launch instead of waiting for the refresh button, and drops the connection when it is unplugged
 - Shows its own version in About, and can open a releases page once the fork publishes one — the app holds no network permission and never checks by itself
 - Shows a compact status monitor UI inspired by `ez-reset`
 - Includes an in-app protocol log for debugging USB / D4 traffic
@@ -268,11 +269,14 @@ Key identifiers:
 
 1. Connect an Epson printer through USB OTG.
 2. Grant USB permission when Android asks.
-3. Open the app.
-4. Tap the refresh button to read printer status.
-5. Review ink and waste counter values.
-6. Use `Reset Counters` only if you understand the maintenance implications.
-7. Use `Head Cleaning` or `Nozzle Check` for supported maintenance operations.
+3. Open the app. It scans for a printer on launch and connects to the first one it
+   finds; the refresh button is for a rescan afterwards.
+4. Review ink and waste counter values.
+5. Use `Reset Counters` only if you understand the maintenance implications.
+6. Use `Head Cleaning` or `Nozzle Check` for supported maintenance operations.
+
+Unplugging the printer drops the connection and clears the readings, so what is
+on screen always belongs to a printer that is actually there.
 
 ## Warning
 

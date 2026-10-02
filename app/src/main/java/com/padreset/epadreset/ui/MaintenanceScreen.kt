@@ -97,6 +97,10 @@ fun MaintenanceScreen(
             // shared state. Without this block the user would press a button and
             // see nothing happen, because the callout only existed on the status
             // page.
+            uiState.notice?.let { notice ->
+                PadCallout(text = notice, tone = PadTone.Info)
+            }
+
             if (!uiState.error.isNullOrBlank()) {
                 PadCallout(
                     title = stringResource(R.string.callout_operation_failed),

@@ -71,6 +71,13 @@ data class MainUiState(
      * user cannot see is worse than one that names none.
      */
     val appVersion: String = "",
+    /**
+     * A statement rather than a failure, shown in its own callout.
+     *
+     * Kept apart from [error] because the tone is different and so is the
+     * meaning: a printer that was unplugged is not an operation that went wrong.
+     */
+    val notice: String? = null,
     val logs: List<String> = emptyList(),
     val actionSuccessMessage: String? = null,
 )
@@ -118,6 +125,80 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     private var connection: PrinterService.ConnectionState? = null
+
+    /**
+     * Whether the launch scan has already run.
+     *
+     * The ViewModel outlives a rotation, so this is what keeps it to one scan
+     * per session rather than one per recreation.
+     */
+    private var autoScanDone = false
+
+    /**
+     * Scans once, when the app opens.
+     *
+     * The app used to sit on its empty state until the refresh button was
+     * pressed, which reads as "this does not work" to anyone who does not
+     * already know that the button is the way in. The button stays for a manual
+     * rescan; what changes is that it is no longer the only way.
+     *
+     * Once per session, not on a timer. Presence is an event Android already
+     * reports — the attach and detach broadcasts — so polling would be a
+     * wake-up loop asking repeatedly for something the system hands over for
+     * free.
+     *
+     * A miss is not reported as a failure here. The manual button does report
+     * one, because there the user asked and deserves an answer; the launch scan
+     * did not ask, and "No printer" with the hint under it is already the
+     * answer.
+     */
+    fun autoScanOnce() {
+        if (autoScanDone) return
+        autoScanDone = true
+        if (connection != null) return
+
+        viewModelScope.launch {
+            runJob("Scanning for an Epson printer on launch") {
+                val device = printerService.detectPrinters().firstOrNull()
+                if (device == null) {
+                    appendLog("No Epson printer on the USB bus")
+                } else {
+                    connect(device)
+                }
+            }
+        }
+    }
+
+    /**
+     * Drops the connection when the printer goes away.
+     *
+     * Called from the detach broadcast. The stale reading matters more than the
+     * missing connection: counters read from a printer that is no longer there
+     * are still on screen, and the next job started against them fails in
+     * whatever way the transport happens to fail — one path throwing, another
+     * waiting on a permission dialog that can never arrive.
+     *
+     * The attachment is re-checked rather than trusted, because the broadcast
+     * says a device was detached, not that it was ours.
+     */
+    fun onPrinterDetached() {
+        val current = connection ?: return
+        if (printerService.isStillAttached(current)) return
+
+        runCatching { printerService.close(current) }
+        connection = null
+        appendLog("Printer detached; connection dropped")
+        _uiState.value = _uiState.value.copy(
+            status = null,
+            connectedDeviceName = null,
+            cleaningOptions = emptyList(),
+            supportsGenericMaintenanceJobs = false,
+            supportsWasteReset = false,
+            usesMaintenanceBox = false,
+            error = null,
+            notice = str(R.string.notice_printer_disconnected),
+        )
+    }
 
     fun discoverAndConnect() {
         viewModelScope.launch {
@@ -478,6 +559,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(
             isBusy = true,
             error = null,
+            // A notice describes the state before this job. Once something is
+            // running it is stale, and leaving it up would put "the printer was
+            // unplugged" above a job that just connected to one.
+            notice = null,
             reportableModel = null,
             modelReportBody = null,
             modelReportUrl = null,

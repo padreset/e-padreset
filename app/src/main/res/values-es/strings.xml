@@ -163,6 +163,10 @@
     <string name="error_non_epson_printer_detected">Hay una impresora conectada por USB, pero no es una Epson. Esta aplicación solo funciona con impresoras de inyección Epson.</string>
     <string name="error_connect_failed">No se ha podido abrir una sesión de mantenimiento con la impresora</string>
 
+    <!-- Se muestra cuando la impresora se desenchufa con la aplicación abierta.
+         Es una constatación, no un fallo: el usuario no ha hecho nada mal. -->
+    <string name="notice_printer_disconnected">La impresora se ha desconectado. Vuelve a conectarla y pulsa actualizar para leerla de nuevo.</string>
+
     <!-- Fallos de conexión, resueltos desde PrinterService.ConnectFailure para que
          el aviso indique la causa real y no un fallo genérico. -->
     <string name="error_connect_permission_denied">Se ha denegado el acceso por USB. Vuelve a conectar la impresora y acepta la solicitud de permiso.</string>
