@@ -24,10 +24,13 @@ This app is aimed at Epson inkjet printers that expose the same service protocol
 - Reads printer status, including ink levels when exposed by the printer
 - Reads waste ink counters from EEPROM
 - Writes or resets waste ink counters using model-specific reset values
+- Reads and keeps the bytes it is about to overwrite before any write, and stops at the first write the printer refuses
 - Runs model-dependent head cleaning commands over Epson service protocol where supported
 - Falls back to USB ESC/P2 maintenance jobs for head cleaning on models that reject service cleaning
 - Prints nozzle check patterns over USB
 - Connects to models that have no resettable counter — maintenance-box printers — so head cleaning and the nozzle check still work, and explains why there is nothing to reset
+- Names the reason a connection failed instead of reporting a generic error, and offers a prefilled report when the model is missing from the database and could be added
+- Distinguishes "no Epson printer attached" from "a printer is attached, but it is not an Epson"
 - Shows a compact status monitor UI inspired by `ez-reset`
 - Includes an in-app protocol log for debugging USB / D4 traffic
 
@@ -54,7 +57,7 @@ The header carries circular icon buttons for maintenance and about, and a refres
 - UI: Jetpack Compose
 - USB stack: `UsbManager`, `UsbDeviceConnection`, bulk endpoints, printer-class control requests
 - Protocol: Epson `st` / `||` commands over D4 / IEEE 1284.4, plus USB ESC/P2 maintenance print jobs where needed
-- Model database: bundled `devices.xml` derived from the upstream `ez-reset` project
+- Model database: bundled `devices.xml` from the upstream `ez-reset` project, extended by `reinkpy_models.xml`
 
 ## Fonts
 
@@ -129,7 +132,7 @@ So the distinction is carried as data, and the source is the
 [reinkpy](https://codeberg.org/atufi/reinkpy) project (AGPL-3.0). reinkpy's
 database records, per model, whether the counter lives in the printer
 ("Waste counter") or on the box's chip ("Platen pad counters"); the file holds
-its complete platen-only classification, 311 models. Only models also present
+its complete platen-only classification, 313 models. Only models also present
 in `devices.xml` will ever match a connected printer — the rest are kept so the
 file stays a faithful, regenerable copy of the source rather than a one-off
 intersection.
@@ -138,11 +141,78 @@ A connected model with no counter that is **not** on the list is not
 mislabelled either: it falls back to the neutral wording that names both
 possible causes. The list only ever makes the message more specific.
 
-To regenerate the file, re-extract the platen-only models from reinkpy's
-`epson.toml` and write them out in the same shape. One trap worth knowing when
-editing by hand: **XML comments may not contain a double hyphen.** A dash
-underline in the header broke the parse once, and because the loader is wrapped
-in `runCatching` the list came back empty with nothing the user could see.
+The list also answers one question the catalog otherwise cannot. When a
+connected printer is **not** in `devices.xml`, resolution fails and the app used
+to say only that the model was missing. It now asks the list first: if the model
+is on it, adding the model would enable head cleaning but never a counter reset,
+and the callout says so instead of promising an outcome the hardware cannot
+deliver. That is why the report action below is not offered for those models —
+there would be nothing for the report to change.
+
+### The models reinkpy has and `devices.xml` does not
+
+`assets/reinkpy_models.xml` is the other half. `devices.xml` comes from ez-reset
+and covers 1080 printers; reinkpy covers 1588. They overlap on 1021, so neither
+is a superset and dropping either one loses printers. The extension holds the 554
+models only reinkpy has, kept in its own file so `devices.xml` stays a byte for
+byte copy of its upstream and can still be diffed against it. A model that
+`devices.xml` already knows keeps its entry, because that one also carries the
+counter ceiling and the cleaning jobs.
+
+These models can read and they can reset: reinkpy publishes the read key, the
+write key, the pad addresses and the reset values. What they cannot do is show a
+percentage, because reinkpy does not publish the counter ceiling — the app shows
+the raw reading instead and says why, rather than printing 0% for a pad that may
+well be full. They also carry no cleaning payloads, so the maintenance page falls
+back to the generic ESC/P2 job it already uses for the models that lack one.
+
+### Regenerating both files
+
+```sh
+node scripts/sync-model-data.mjs           # verify, then regenerate
+node scripts/sync-model-data.mjs --check   # exit 1 if either is stale, for CI
+```
+
+The script reads the parsed mirror of reinkpy published by
+[`yusnel-rojas/epson-reset`](https://github.com/yusnel-rojas/epson-reset)
+(`data/reinkpy/database.json`) rather than parsing reinkpy's `epson.toml`
+itself: parsing the TOML is upstream's job and it already does it. It rewrites a
+file only when its list actually changes, so the prose above survives a run that
+finds nothing new, and it keeps the committed assets when the upstream is
+unreachable instead of failing the build on a network blip.
+
+### The cross-check runs before anything is written
+
+`devices.xml` and reinkpy are independent extractions of the same printers, and
+where they overlap they agree **exactly**. That agreement is the only evidence
+behind the reinkpy-only models, because for those there is nothing to compare
+against — so the script re-runs the comparison first and refuses to write if the
+two ever diverge. Writing first and warning after would ship a catalog built on
+data that no longer matches the one source it can be checked against.
+
+| `devices.xml` | reinkpy | agreement |
+|---|---|---|
+| `<factory>`, two little-endian bytes | `rkey`, a 16-bit integer | 100% |
+| `<keyword>`, eight bytes | `wkey`, an eight-character string | 100% |
+| `<reset>` addresses | `pad_groups[].addresses` | 100% |
+| `<reset>` values | `pad_groups[].reset` | 100% |
+
+### Two guards, from two failures
+
+**XML comments may not contain a double hyphen** — a dash underline in a header
+broke the parse once — so the script refuses to write a comment containing one.
+And a literal NUL is not a legal XML character: one write key is `"ASAP\0\0\0\0"`,
+which renders as trailing spaces in a terminal, and the first version of the
+extension was written with those NULs in it. Keywords are therefore stored as
+explicit bytes, and the script rejects any control character in its output.
+
+Both files load through `runCatching`, so a file that does not parse comes back
+as an empty list with nothing the user can see. The Gradle task
+`verifyPrinterData` parses all three assets on every build, fails when a list is
+empty or truncated, and checks that every extension model carries a readable
+`rkey` and `keyword` — a model without them would resolve, open no session, and
+report the printer as unsupported, which is the exact failure the file exists to
+fix.
 
 ## Project Structure
 
@@ -157,9 +227,13 @@ in `runCatching` the list came back empty with nothing the user could see.
 - `app/src/main/java/com/padreset/epadreset/data`
   Printer model and status data structures
 - `app/src/main/assets/devices.xml`
-  Bundled Epson model database
+  Bundled Epson model database, from ez-reset
 - `app/src/main/assets/maintenance_boxes.xml`
-  Curated list of models that use a maintenance box, with provenance
+  Generated list of models that use a maintenance box, with provenance
+- `app/src/main/assets/reinkpy_models.xml`
+  Generated models that only reinkpy has
+- `scripts/sync-model-data.mjs`
+  Cross-checks the two sources, then regenerates both generated assets
 
 ## Build
 
@@ -199,33 +273,39 @@ Known realities:
 - Some models need different maintenance paths for status/reset versus cleaning/nozzle jobs
 - Hardware validation is still essential before trusting resets on a new model
 
-### The write path does not confirm itself
+### The write path
 
-Two gaps, both on the most dangerous path in the app. They were found by
-comparing against the other open reset tools, which do handle them:
+Both gaps described here were on the most dangerous path in the app. They were
+found by comparing against the other open reset tools, and both are now closed.
 
-**A rejected write is caught late, not as it happens.** `sendControlPayload`
-reads the printer's reply and logs it, but nothing inspects it, and
-`writeWasteCounter` discards the return value outright. A rejection is therefore
-not noticed at the moment it occurs: the app carries on to the next address.
+**A rejected write stops the run.** The service layer answers every write with a
+short ASCII result — `:OK;` when it applied, `:NA;` or `:NG;` when it refused —
+and the app reads it at the moment it happens. A refusal aborts at that address
+and reports how many had already been written, instead of carrying on through the
+rest of the plan and only noticing at the end.
 
-It is caught afterwards, by comparing the counters read back against the value
-that was asked for. A mismatch is reported as a failure rather than a success, so
-a rejected write no longer ends in a "counters updated" message. That covers the
-outcome but not the cause, and the run still writes to every address before
-anything is checked — the reference tools abort on the first rejection instead.
+Those markers come from a sibling implementation that talks to the printer over
+the raw USB pipe rather than over D4, so the framing differs even though the
+service payload should not. A reply the app does not recognise is therefore
+logged and the run continues: `classifyWriteReply` answers `Unknown`, not a
+failure, because stopping a write that may well have worked is the worse
+outcome. One reset run on real hardware, with the protocol log visible, confirms
+the shape here — and the `Unknown` branch is where that evidence would go.
 
-**Nothing is backed up.** `resetWasteCounters` and `writeWasteCounters` write
-straight to the EEPROM. The bytes they are about to overwrite are never saved, so
-there is no way back.
+**Every write is backed up first.** Before anything is written, the app reads
+every address it is about to overwrite and records the bytes; a read that fails
+stops the run before the first write, rather than leaving a partial backup that
+looks like a way back. The backup is shown on the status page under the waste
+counters as copyable text, and it survives failure as well as success — a run the
+printer refused partway through has already overwritten part of what was there,
+which is exactly when it matters.
 
-The backup is still missing, and deliberately so: a write-abort check has to be
-built on the printer's actual reply format rather than a guessed one. The reply is
-already logged as `CTRL RX: …`, so a single reset run on real hardware reveals the
-format and lets the check be written against evidence.
+What a successful run still does not do: restore a backup. The text is there to
+be applied by someone who has decided to, not to be replayed automatically.
 
-A reported success now means the counters read back at the value asked for. It
-does not yet mean the printer accepted each individual write.
+A reported success still means the counters read back at the value asked for. It
+does not yet mean the printer confirmed each individual write — only that none of
+them was refused.
 
 ## Upstream Basis
 
@@ -241,8 +321,10 @@ This port was reverse-engineered primarily from:
 Data sources:
 
 - Model database (`assets/devices.xml`): derived from `ez-reset`
+- Extra models (`assets/reinkpy_models.xml`): derived from the
+  [reinkpy](https://codeberg.org/atufi/reinkpy) model database
 - Maintenance-box classification (`assets/maintenance_boxes.xml`): derived from
-  the [reinkpy](https://codeberg.org/atufi/reinkpy) model database
+  the same reinkpy database
 
 ## License Note
 

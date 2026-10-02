@@ -56,6 +56,26 @@ class UsbTransport(private val context: Context) {
         return usbManager.deviceList.values.filter { it.vendorId == EpsonPrinterCatalog.EPSON_VENDOR_ID }
     }
 
+    /**
+     * USB devices that advertise themselves as printers but are not Epson.
+     *
+     * The Epson side is matched by vendor ID, but a printer from another vendor
+     * cannot be: there is no "other vendor" constant. The USB-IF printer class
+     * is the closest thing to one, so a device carrying a non-Epson vendor ID
+     * and a printer-class interface is what the app has to explain instead of
+     * silently ignoring.
+     */
+    fun findPrintersFromOtherVendors(): List<UsbDevice> {
+        return usbManager.deviceList.values.filter { device ->
+            device.vendorId != EpsonPrinterCatalog.EPSON_VENDOR_ID && device.hasPrinterInterface()
+        }
+    }
+
+    private fun UsbDevice.hasPrinterInterface(): Boolean =
+        (0 until interfaceCount).any { index ->
+            getInterface(index).interfaceClass == UsbConstants.USB_CLASS_PRINTER
+        }
+
     suspend fun requestPermission(device: UsbDevice): Boolean = suspendCancellableCoroutine { continuation ->
         if (usbManager.hasPermission(device)) {
             continuation.resume(true)

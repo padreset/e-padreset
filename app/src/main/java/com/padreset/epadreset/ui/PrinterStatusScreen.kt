@@ -119,6 +119,11 @@ fun PrinterStatusScreen(
         mutableStateOf(availableCounters.map { it.name }.toSet())
     }
     var targetPercentageText by remember { mutableStateOf("0") }
+    // A percentage target needs a ceiling to take a fraction of. When the model
+    // does not publish one — every model that comes from reinkpy rather than
+    // from devices.xml — the reset writes the values that model's own record
+    // publishes, and there is nothing for the user to aim at.
+    val percentageWritable = availableCounters.isNotEmpty() && availableCounters.all { it.scaleKnown }
 
     BackHandler(enabled = !showWarning && !showAbout && !showExitDialog && !showWasteUnsupported) {
         showExitDialog = true
@@ -166,11 +171,19 @@ fun PrinterStatusScreen(
             )
 
             if (!uiState.error.isNullOrBlank()) {
-                PadCallout(
-                    title = stringResource(R.string.callout_operation_failed),
-                    text = uiState.error,
-                    tone = PadTone.Danger,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
+                    PadCallout(
+                        title = stringResource(R.string.callout_operation_failed),
+                        text = uiState.error,
+                        tone = PadTone.Danger,
+                    )
+                    uiState.modelReportBody?.let { report ->
+                        ModelReportActions(
+                            reportBody = report,
+                            reportUrl = uiState.modelReportUrl,
+                        )
+                    }
+                }
             }
 
             PadCard {
@@ -192,6 +205,24 @@ fun PrinterStatusScreen(
                     onReset = { showWarning = true },
                     onExplainUnsupported = { showWasteUnsupported = true },
                 )
+            }
+
+            // Only after a write, and on failure as well as success: a run the
+            // printer refused partway through has already overwritten part of
+            // what was there, and this is the only record of it.
+            uiState.wasteBackup?.let { backup ->
+                PadCard {
+                    PadSectionLabel(
+                        text = stringResource(R.string.section_waste_backup),
+                        trailing = { CopyBackupButton(backup) },
+                    )
+                    Text(
+                        text = stringResource(R.string.waste_backup_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = pad.muted,
+                    )
+                    BackupPanel(backup)
+                }
             }
 
             PadCard {
@@ -218,9 +249,29 @@ fun PrinterStatusScreen(
                 Button(
                     onClick = {
                         showWarning = false
-                        onReset(selectedCounters, targetPercentageText.toIntOrNull()?.coerceIn(0, 100) ?: 0)
+                        // Without a published ceiling the only meaningful write
+                        // is the model's own reset values, which the service
+                        // applies when every counter is selected and the target
+                        // is zero. Passing anything else would compute
+                        // max * pct / 100 with max at zero and write zeros.
+                        onReset(
+                            if (percentageWritable) {
+                                selectedCounters
+                            } else {
+                                availableCounters.map { it.name }.toSet()
+                            },
+                            if (percentageWritable) {
+                                targetPercentageText.toIntOrNull()?.coerceIn(0, 100) ?: 0
+                            } else {
+                                0
+                            },
+                        )
                     },
-                    enabled = selectedCounters.isNotEmpty(),
+                    enabled = if (percentageWritable) {
+                        selectedCounters.isNotEmpty()
+                    } else {
+                        availableCounters.isNotEmpty()
+                    },
                 ) {
                     // "Reset" is the word the whole ecosystem uses (WIC Reset,
                     // Adjustment Program, ez-reset, padreset itself) and the one
@@ -238,30 +289,37 @@ fun PrinterStatusScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                     Text(stringResource(R.string.dialog_reset_warning))
-                    OutlinedTextField(
-                        value = targetPercentageText,
-                        onValueChange = { input ->
-                            if (input.all { it.isDigit() } && input.length <= 3) {
-                                targetPercentageText = input
-                            }
-                        },
-                        label = { Text(stringResource(R.string.field_target_percentage)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    availableCounters.forEach { counter ->
-                        PadSelectableRow(
-                            label = counter.name,
-                            selected = counter.name in selectedCounters,
-                            multi = true,
-                            onSelect = { checked ->
-                                selectedCounters = if (checked) {
-                                    selectedCounters + counter.name
-                                } else {
-                                    selectedCounters - counter.name
+                    if (percentageWritable) {
+                        OutlinedTextField(
+                            value = targetPercentageText,
+                            onValueChange = { input ->
+                                if (input.all { it.isDigit() } && input.length <= 3) {
+                                    targetPercentageText = input
                                 }
                             },
+                            label = { Text(stringResource(R.string.field_target_percentage)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
                         )
+                        availableCounters.forEach { counter ->
+                            PadSelectableRow(
+                                label = counter.name,
+                                selected = counter.name in selectedCounters,
+                                multi = true,
+                                onSelect = { checked ->
+                                    selectedCounters = if (checked) {
+                                        selectedCounters + counter.name
+                                    } else {
+                                        selectedCounters - counter.name
+                                    }
+                                },
+                            )
+                        }
+                    } else {
+                        // No percentage field and no per-counter selection: the
+                        // reset covers every address the model publishes, so a
+                        // choice here would be one the service ignores.
+                        Text(stringResource(R.string.dialog_reset_model_values))
                     }
                 }
             },
@@ -305,6 +363,7 @@ fun PrinterStatusScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                     Text(stringResource(R.string.app_name))
+                    Text(stringResource(R.string.about_epson_only))
                     Text(stringResource(R.string.about_repo_label))
                 }
             },
@@ -441,7 +500,10 @@ private fun StatusHeroCard(
             PadMetaRow(label = stringResource(R.string.label_model), value = status.modelName)
             PadMetaRow(label = stringResource(R.string.label_serial), value = status.serialNumber)
 
-            val worst = status.wasteCounters.maxByOrNull { it.percentage }
+            // Only counters with a published ceiling can be ranked. The rest
+            // report no percentage, and letting one stand in as "highest pad"
+            // would print 0.00% for a printer whose pad may well be full.
+            val worst = status.wasteCounters.filter { it.scaleKnown }.maxByOrNull { it.percentage }
             if (worst != null) {
                 PadMetaRow(
                     label = stringResource(R.string.label_highest_pad),
@@ -523,6 +585,112 @@ private fun CopyLogButton(logs: List<String>) {
             Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
         },
     )
+}
+
+/**
+ * The bytes a write found before it changed anything.
+ *
+ * Plain text rather than a formatted table: it is meant to be copied out and
+ * kept, not read on screen, and the same block is what someone would paste into
+ * an issue when asking why a reset was refused.
+ */
+@Composable
+private fun BackupPanel(backup: String) {
+    val pad = PadTheme.colors
+    val shape = RoundedCornerShape(PadRadius.m)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .clip(shape)
+            .background(pad.sunken)
+            .border(1.dp, pad.border, shape)
+            .padding(PadSpace.md),
+    ) {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            Text(
+                text = backup,
+                fontFamily = PadMono,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                color = pad.note,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CopyBackupButton(backup: String) {
+    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    // Resolved up front: the click lambda below is not a composable scope.
+    val copiedMessage = stringResource(R.string.backup_copied)
+
+    PadIconButton(
+        icon = Icons.Outlined.ContentCopy,
+        contentDescription = stringResource(R.string.action_copy_backup),
+        size = 40.dp,
+        filled = false,
+        onClick = {
+            clipboard.setText(AnnotatedString(backup))
+            Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+        },
+    )
+}
+
+/**
+ * The way out of a "model not in the database" failure.
+ *
+ * The callout above it already says the situation is fixable. This is the part
+ * that makes that true: without a way to hand over the model and the log, "we
+ * would like to hear about it" is a sentence with no address on it.
+ *
+ * The note is shown before either action on purpose. The privacy policy says
+ * the app transmits nothing, and it still does — the text goes to the clipboard
+ * or to the browser, at the user's press, never on its own.
+ */
+@Composable
+private fun ModelReportActions(reportBody: String, reportUrl: String?) {
+    val pad = PadTheme.colors
+    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    // Resolved up front: the click lambdas below are not composable scopes.
+    val copiedMessage = stringResource(R.string.report_copied)
+
+    Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
+        Text(
+            text = stringResource(R.string.report_model_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = pad.muted,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
+            // Offered only when there is somewhere to file it. Until this fork
+            // has a repository of its own there is no destination its maintainer
+            // controls, and filing reports in the upstream's tracker would mean
+            // opening issues about a build that author never made. Copying is
+            // the honest fallback, and it is the whole feature while that holds.
+            if (reportUrl != null) {
+                PadButton(
+                    text = stringResource(R.string.action_report_model),
+                    variant = PadButtonVariant.Primary,
+                    onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(reportUrl)))
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            PadButton(
+                text = stringResource(R.string.action_copy_report),
+                variant = if (reportUrl != null) PadButtonVariant.Secondary else PadButtonVariant.Primary,
+                onClick = {
+                    clipboard.setText(AnnotatedString(reportBody))
+                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -734,7 +902,7 @@ private fun WasteCounterRow(counter: WasteCounterStatus, connected: Boolean) {
     // only once the pad is close enough to the limit to matter.
     val valueColor = when {
         !connected -> pad.muted
-        severityFor(counter.percentage) == PadSeverity.Critical -> pad.danger
+        counter.scaleKnown && severityFor(counter.percentage) == PadSeverity.Critical -> pad.danger
         else -> pad.fg
     }
 
@@ -754,14 +922,30 @@ private fun WasteCounterRow(counter: WasteCounterStatus, connected: Boolean) {
             )
             Spacer(Modifier.width(PadSpace.sm))
             Text(
-                text = if (connected) counter.percentage.formatPercent() else "—",
+                // The raw byte value, not 0%, when the ceiling is unknown: a
+                // zero would read as an empty pad.
+                text = when {
+                    !connected -> "—"
+                    counter.scaleKnown -> counter.percentage.formatPercent()
+                    else -> counter.rawValue.toString()
+                },
                 color = valueColor,
                 style = MaterialTheme.typography.labelMedium,
                 fontFamily = PadMono,
                 fontWeight = FontWeight.SemiBold,
             )
         }
-        HorizontalGauge(percentage = counter.percentage, fillColor = pad.accent)
+        if (counter.scaleKnown) {
+            HorizontalGauge(percentage = counter.percentage, fillColor = pad.accent)
+        } else {
+            // No bar: a bar is a fraction of a ceiling, and there is none to
+            // take a fraction of.
+            Text(
+                text = stringResource(R.string.waste_scale_unknown),
+                style = MaterialTheme.typography.bodySmall,
+                color = pad.muted,
+            )
+        }
     }
 }
 

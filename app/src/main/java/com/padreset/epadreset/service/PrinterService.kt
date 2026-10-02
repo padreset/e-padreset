@@ -8,7 +8,6 @@ import com.padreset.epadreset.data.CleaningSpec
 import com.padreset.epadreset.data.PrinterSpec
 import com.padreset.epadreset.data.PrinterStatusSnapshot
 import com.padreset.epadreset.data.WasteCounterStatus
-import com.padreset.epadreset.data.WasteCounterSpec
 import com.padreset.epadreset.protocol.Escp2MaintenanceProtocol
 import com.padreset.epadreset.protocol.EpsonProtocol
 import com.padreset.epadreset.usb.UsbTransport
@@ -31,6 +30,16 @@ class PrinterService(
         PERMISSION_DENIED("USB permission denied"),
         NO_INTERFACES("No USB interfaces with bulk IN/OUT endpoints found"),
         UNSUPPORTED_MODEL("Unsupported Epson model"),
+
+        /**
+         * The model is not in the catalog and reinkpy classifies it as using a
+         * maintenance box. Kept apart from [UNSUPPORTED_MODEL] because the two
+         * look identical to the user and mean the opposite thing: one is a gap
+         * that can be filled, the other is a counter that lives on the box's
+         * chip and no software can rewrite.
+         */
+        UNSUPPORTED_MODEL_MAINTENANCE_BOX("Unsupported Epson model (maintenance box)"),
+
         DOT4_NAK("Printer rejected IEEE 1284.4 enter sequence with NAK (0x15)"),
         UNKNOWN("Unable to connect to printer"),
     }
@@ -69,6 +78,15 @@ class PrinterService(
     }
 
     fun detectPrinters(): List<UsbDevice> = transport.findEpsonDevices()
+
+    /**
+     * USB printers from any vendor other than Epson.
+     *
+     * Used only to explain a failed scan. Without it the app answers "no
+     * printer detected" to someone who has one plugged in, which reads as a bug
+     * rather than as a brand limitation.
+     */
+    fun detectNonEpsonPrinters(): List<UsbDevice> = transport.findPrintersFromOtherVendors()
 
     suspend fun connectPrinter(device: UsbDevice): ConnectionState = withContext(Dispatchers.IO) {
         log("USB device detected: vendor=0x${device.vendorId.toString(16)} product=0x${device.productId.toString(16)} name=${device.productName ?: device.deviceName}")
@@ -136,7 +154,34 @@ class PrinterService(
 
     /** True when the failure is an unknown model, which no retry can resolve. */
     private fun Throwable?.unresolvedModel(): Boolean =
-        (this as? ConnectException)?.failure == ConnectFailure.UNSUPPORTED_MODEL
+        when ((this as? ConnectException)?.failure) {
+            ConnectFailure.UNSUPPORTED_MODEL,
+            ConnectFailure.UNSUPPORTED_MODEL_MAINTENANCE_BOX,
+            -> true
+
+            else -> false
+        }
+
+    /**
+     * Names the reason an unknown model cannot be used.
+     *
+     * Both outcomes end in no session, but they mean opposite things to the
+     * user: a model missing from the catalog can be added and then reset, while
+     * one that reinkpy classifies as collecting waste in a maintenance box
+     * never will be, because its count lives on the box's chip. Telling them
+     * apart is what lets the UI stop promising a reset that cannot arrive, and
+     * what keeps it from asking for a model report that would change nothing.
+     */
+    private fun unknownModelFailure(deviceId: String): ConnectException {
+        val model = EpsonPrinterCatalog.modelName(deviceId)
+        val failure = if (EpsonPrinterCatalog.usesMaintenanceBox(appContext, model)) {
+            ConnectFailure.UNSUPPORTED_MODEL_MAINTENANCE_BOX
+        } else {
+            ConnectFailure.UNSUPPORTED_MODEL
+        }
+        log("Unknown model '${model ?: "?"}' classified as ${failure.english}")
+        return ConnectException(failure, detail = deviceId)
+    }
 
     suspend fun readPrinterStatus(connection: ConnectionState): PrinterStatusSnapshot = withContext(Dispatchers.IO) {
         log("Requesting printer status")
@@ -144,10 +189,7 @@ class PrinterService(
         val baseSnapshot = connection.protocol.parseStatusResponse(statusResponse, connection.deviceId)
         log("Status response parsed: state=${baseSnapshot.state} error=${baseSnapshot.error} inks=${baseSnapshot.inkLevels.size}")
         val wasteCounters = connection.spec.wasteCounters.map { counter ->
-            val bytes = counter.addresses.map { address ->
-                val response = sendControlPayload(connection, connection.protocol.buildReadEepromCommand(address))
-                parseEepromReadByte(response)
-            }.toByteArray()
+            val bytes = counter.addresses.map { address -> readEepromByte(connection, address) }.toByteArray()
             log(
                 "Waste counter '${counter.name}' addresses=${
                     counter.addresses.joinToString(prefix = "[", postfix = "]") { "0x%X".format(it) }
@@ -158,20 +200,67 @@ class PrinterService(
         baseSnapshot.copy(wasteCounters = wasteCounters)
     }
 
-    suspend fun resetWasteCounters(connection: ConnectionState): List<WasteCounterStatus> = withContext(Dispatchers.IO) {
-        log("Resetting waste counters with ${connection.spec.resetMap.size} EEPROM writes")
-        connection.protocol.buildResetCommand().forEach { command ->
-            log("Reset command: ${command.joinToString(" ") { "%02X".format(it) }}")
-            sendControlPayload(connection, command)
+    /**
+     * What a write did, and the state it found on the way in.
+     *
+     * [backup] holds the bytes that were at those addresses before anything was
+     * written, keyed by address. It is the only record of how to get back.
+     */
+    data class WasteWriteOutcome(
+        val counters: List<WasteCounterStatus>,
+        val backup: Map<Int, Byte>,
+    )
+
+    /**
+     * The write path refusing to go on.
+     *
+     * [writtenBefore] is how many addresses the run had already written when it
+     * stopped, so the message can say how far it got. [backup] is what was at
+     * those addresses beforehand — on a rejection it is the only way back, so it
+     * travels with the failure rather than being thrown away with the run.
+     */
+    class WasteWriteException(
+        val reason: Reason,
+        val address: Int? = null,
+        val writtenBefore: Int = 0,
+        val backup: Map<Int, Byte> = emptyMap(),
+        cause: Throwable? = null,
+    ) : Exception(reason.name, cause) {
+        enum class Reason { BACKUP_FAILED, REJECTED }
+    }
+
+    suspend fun resetWasteCounters(connection: ConnectionState): WasteWriteOutcome = withContext(Dispatchers.IO) {
+        val plan = connection.spec.resetMap.toSortedMap()
+        require(plan.isNotEmpty()) { "This model publishes no reset values" }
+        log("Resetting waste counters: ${plan.size} EEPROM writes")
+
+        // Everything about to be overwritten is read first. Without this a reset
+        // is one way: the bytes are gone, and no later read can tell what they
+        // were. A read that fails stops the run here, before any write.
+        val backup = readBackup(connection, plan.keys.toList())
+
+        var written = 0
+        for ((address, value) in plan) {
+            if (writeEeprom(connection, address, value) == EpsonProtocol.WriteReply.Rejected) {
+                throw WasteWriteException(
+                    reason = WasteWriteException.Reason.REJECTED,
+                    address = address,
+                    writtenBefore = written,
+                    backup = backup,
+                )
+            }
+            written++
         }
-        readPrinterStatus(connection).wasteCounters
+        log("Reset complete: $written addresses written")
+
+        WasteWriteOutcome(readPrinterStatus(connection).wasteCounters, backup)
     }
 
     suspend fun writeWasteCounters(
         connection: ConnectionState,
         selectedCounterNames: Set<String>,
         targetPercentage: Int,
-    ): List<WasteCounterStatus> = withContext(Dispatchers.IO) {
+    ): WasteWriteOutcome = withContext(Dispatchers.IO) {
         require(targetPercentage in 0..100) { "Target percentage must be between 0 and 100" }
         val selectedCounters = connection.spec.wasteCounters.filter { it.name in selectedCounterNames }
         require(selectedCounters.isNotEmpty()) { "No waste counter selected" }
@@ -186,10 +275,99 @@ class PrinterService(
         log(
             "Writing waste counters ${selectedCounters.joinToString { it.name }} to $targetPercentage%",
         )
-        selectedCounters.forEach { counter ->
-            writeWasteCounter(connection, counter, targetPercentage)
+        val backup = readBackup(connection, selectedCounters.flatMap { it.addresses })
+
+        var written = 0
+        for (counter in selectedCounters) {
+            val targetValue = ((counter.max.toLong() * targetPercentage.toLong()) / 100L).toInt()
+            for ((position, address) in counter.addresses.withIndex()) {
+                val value = (targetValue shr (position * 8)) and 0xFF
+                if (writeEeprom(connection, address, value) == EpsonProtocol.WriteReply.Rejected) {
+                    throw WasteWriteException(
+                        reason = WasteWriteException.Reason.REJECTED,
+                        address = address,
+                        writtenBefore = written,
+                        backup = backup,
+                    )
+                }
+                written++
+            }
         }
-        readPrinterStatus(connection).wasteCounters
+
+        WasteWriteOutcome(readPrinterStatus(connection).wasteCounters, backup)
+    }
+
+    /** Reads one EEPROM byte. */
+    private fun readEepromByte(connection: ConnectionState, address: Int): Byte {
+        val response = sendControlPayload(connection, connection.protocol.buildReadEepromCommand(address))
+        return parseEepromReadByte(response)
+    }
+
+    /**
+     * Reads the bytes at [addresses], keyed by address.
+     *
+     * Throws rather than returning a partial map: a backup covering only some of
+     * what is about to be written is worse than none, because it reads as a way
+     * back and is not one.
+     */
+    private fun readBackup(connection: ConnectionState, addresses: List<Int>): Map<Int, Byte> {
+        val backup = linkedMapOf<Int, Byte>()
+        for (address in addresses.distinct().sorted()) {
+            val value = try {
+                readEepromByte(connection, address)
+            } catch (t: Throwable) {
+                throw WasteWriteException(
+                    reason = WasteWriteException.Reason.BACKUP_FAILED,
+                    address = address,
+                    cause = t,
+                )
+            }
+            backup[address] = value
+            log("Backup 0x${"%04X".format(address)} = 0x${"%02X".format(value.toInt() and 0xFF)}")
+        }
+        log("Backup taken: ${backup.size} bytes, before any write")
+        return backup
+    }
+
+    /**
+     * Writes one EEPROM byte and reads the printer's answer.
+     *
+     * The answer is acted on only when it is a recognised rejection. Its shape
+     * comes from a sibling implementation that talks over the raw USB pipe
+     * rather than D4, so the framing differs even if the service payload should
+     * not: an unrecognised answer is logged and the write counts as neither
+     * accepted nor refused, because stopping a write that may well have worked
+     * is the worse failure.
+     */
+    private fun writeEeprom(
+        connection: ConnectionState,
+        address: Int,
+        value: Int,
+    ): EpsonProtocol.WriteReply {
+        val reply = sendControlPayload(
+            connection,
+            connection.protocol.buildWriteEepromCommand(address, value),
+        )
+        val label = "0x${"%04X".format(address)} = 0x${"%02X".format(value and 0xFF)}"
+        return when (val verdict = connection.protocol.classifyWriteReply(reply)) {
+            EpsonProtocol.WriteReply.Applied -> {
+                log("Write $label applied")
+                verdict
+            }
+
+            EpsonProtocol.WriteReply.Rejected -> {
+                log("Write $label rejected: ${reply.decodeToString().trim()}")
+                verdict
+            }
+
+            EpsonProtocol.WriteReply.Unknown -> {
+                log(
+                    "Write $label: unrecognised reply " +
+                        "${reply.joinToString(" ") { "%02X".format(it) }}, continuing",
+                )
+                verdict
+            }
+        }
     }
 
     suspend fun runHeadCleaning(
@@ -280,7 +458,7 @@ class PrinterService(
             val deviceId = transport.getDeviceId(session)
             log("IEEE1284 device ID: $deviceId")
             val spec = EpsonPrinterCatalog.resolve(appContext, deviceId)
-                ?: throw ConnectException(ConnectFailure.UNSUPPORTED_MODEL, detail = deviceId)
+                ?: throw unknownModelFailure(deviceId)
             log(
                 "Resolved model spec: ${spec.modelName}, counters=${spec.wasteCounters.size}, " +
                     "resetEntries=${spec.resetMap.size}, cleanings=${spec.cleaningOptions.size}",
@@ -456,22 +634,5 @@ class PrinterService(
         require(payload.size >= 18 && payload.copyOfRange(0, expected.size).contentEquals(expected)) { "Unexpected EEPROM response" }
         val hex = payload.copyOfRange(16, 18).decodeToString()
         return hex.toInt(16).toByte()
-    }
-
-    private fun writeWasteCounter(
-        connection: ConnectionState,
-        counter: WasteCounterSpec,
-        targetPercentage: Int,
-    ) {
-        val targetValue = ((counter.max.toLong() * targetPercentage.toLong()) / 100L).toInt()
-        val bytes = counter.addresses.mapIndexed { index, address ->
-            val value = (targetValue shr (index * 8)) and 0xFF
-            log(
-                "Waste write '${counter.name}' address=0x${address.toString(16).uppercase()} value=0x${value.toString(16).uppercase().padStart(2, '0')}",
-            )
-            sendControlPayload(connection, connection.protocol.buildWriteEepromCommand(address, value))
-            value
-        }
-        log("Waste counter '${counter.name}' written bytes=${bytes.joinToString(" ") { "%02X".format(it) }}")
     }
 }

@@ -35,9 +35,21 @@
   makes this file possible. reinkpy retains its own licence and copyright over
   its database.
 
+  GENERATED
+
+  Do not edit the list below by hand. Run:
+
+    node scripts/sync-maintenance-boxes.mjs
+
+  The script reads the parsed mirror of reinkpy published by
+  yusnel-rojas/epson-reset and rewrites this file only when the model list
+  changes. The Gradle task verifyPrinterData parses it on every build, because
+  a malformed file here used to load as an empty list with nothing the user
+  could see.
+
   COVERAGE
 
-  The list below is reinkpy's complete platen-only classification (311 models),
+  The list below is reinkpy's complete platen-only classification (313 models),
   not just the intersection with our own catalog. Only models also present in
   devices.xml will ever match a connected printer; the rest are kept so this
   file stays a faithful, regenerable copy of the source.
@@ -173,6 +185,8 @@
     <model>L8168</model>
     <model>L8180</model>
     <model>L8188</model>
+    <model>PP-100</model>
+    <model>PP-50</model>
     <model>PX-205</model>
     <model>PX-605F</model>
     <model>PX-675F</model>
@@ -314,11 +328,11 @@
     <model>WF-7848</model>
     <model>WF-C4310</model>
     <model>WF-C4810</model>
-    <model>WORKFORCE ST-3000</model>
-    <model>WORKFORCE ST-4000</model>
-    <model>WORKFORCE ST-5000</model>
-    <model>WORKFORCE ST-7000</model>
-    <model>WORKFORCE ST-C4100</model>
+    <model>Workforce ST-3000</model>
+    <model>Workforce ST-4000</model>
+    <model>Workforce ST-5000</model>
+    <model>Workforce ST-7000</model>
+    <model>Workforce ST-C4100</model>
     <model>XP-15000</model>
     <model>XP-15080</model>
     <model>XP-3100</model>

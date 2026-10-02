@@ -93,9 +93,31 @@ class EpsonProtocol(private val spec: PrinterSpec) {
 
     fun buildStatusRequest(): ByteArray = buildControlCommand("st".encodeToByteArray(), byteArrayOf(0x01))
 
-    fun buildResetCommand(): List<ByteArray> {
-        return spec.resetMap.entries.map { (address, value) ->
-            buildWriteEepromCommand(address, value)
+    /** What the printer said about an EEPROM write. */
+    enum class WriteReply { Applied, Rejected, Unknown }
+
+    /**
+     * Reads the service layer's answer to a write.
+     *
+     * The printer answers factory commands with a short ASCII result: `:OK;`
+     * when it applied the write, `:NA;` or `:NG;` when it refused. The app
+     * already leaned on `:NA;` to spot a refused cleaning command; this applies
+     * the same convention to the write path, where ignoring it meant a rejected
+     * write was only noticed after the whole run had finished.
+     *
+     * [WriteReply.Unknown] is deliberately not a failure. The two markers come
+     * from a sibling implementation that talks to the printer over the raw USB
+     * pipe rather than over D4, so the framing differs even though the service
+     * payload should not. Until a run on real hardware confirms the shape here,
+     * a reply the app does not recognise must not stop a write that may well
+     * have worked: only a positive rejection aborts.
+     */
+    fun classifyWriteReply(reply: ByteArray): WriteReply {
+        val ascii = reply.decodeToString()
+        return when {
+            ascii.contains(":OK;") -> WriteReply.Applied
+            ascii.contains(":NA;") || ascii.contains(":NG;") -> WriteReply.Rejected
+            else -> WriteReply.Unknown
         }
     }
 

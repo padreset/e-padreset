@@ -59,6 +59,29 @@
     <string name="waste_unsupported_body">Esta impresora no guarda el contador de residuo donde la aplicación pueda reiniciarlo. No hay nada averiado: ni la aplicación ni la impresora tienen un problema.</string>
     <string name="action_more_info">Más información</string>
 
+    <!-- Se muestra junto a un contador cuyo techo no publica el modelo, que es
+         el caso de todos los modelos que vienen de reinkpy. Sin techo no hay
+         porcentaje, y el valor crudo es lo que reporta la impresora. -->
+    <string name="waste_scale_unknown">Sin porcentaje: este modelo no tiene publicado el techo del contador. El valor de arriba es la lectura cruda.</string>
+    <!-- Cuerpo del diálogo de reinicio para esos mismos modelos. No hay campo de
+         porcentaje ni elección por contador, porque el reinicio cubre todas las
+         direcciones que publica el modelo. -->
+    <string name="dialog_reset_model_values">Este modelo no tiene publicado el techo del contador, así que no hay porcentaje al que apuntar. El reinicio escribe los valores publicados para este modelo, en todas las direcciones que lista.</string>
+
+    <!-- La copia de la EEPROM tomada antes de cualquier escritura. Se muestra
+         después de escribir, tanto si fue bien como si la impresora la rechazó a
+         mitad. -->
+    <string name="section_waste_backup">Copia previa a la escritura</string>
+    <string name="waste_backup_note">Los valores que tenían estas direcciones antes de escribir. Consérvala si puede que necesites devolverlos.</string>
+    <string name="action_copy_backup">Copiar copia</string>
+    <string name="backup_copied">Copia copiada</string>
+    <!-- Fallos de la ruta de escritura. Los dos primeros significan que no se
+         escribió nada; los otros dos, que la impresora la rechazó a mitad. -->
+    <string name="error_backup_failed">No se han podido leer los valores actuales, así que no se ha escrito nada. La aplicación hace copia antes de escribir.</string>
+    <string name="error_backup_failed_at">No se ha podido leer el valor actual en %1$s, así que no se ha escrito nada. La aplicación hace copia antes de escribir.</string>
+    <string name="error_write_rejected">La impresora ha rechazado la escritura. No se ha escrito nada más.</string>
+    <string name="error_write_rejected_at">La impresora ha rechazado la escritura en %1$s. Ya se habían escrito %2$d direcciones; no se ha escrito ninguna más. La copia está abajo.</string>
+
     <!-- Se muestra cuando el modelo está en la lista curada de cajas de
          mantenimiento, así que la causa se conoce en vez de suponerse. El
          diálogo que sigue es el específico de abajo, no el de dos causas. -->
@@ -107,6 +130,7 @@
 
     <!-- Diálogo Acerca de. -->
     <string name="dialog_about_title">Acerca de</string>
+    <string name="about_epson_only">Funciona solo con impresoras de inyección Epson.</string>
     <string name="action_open_repo">Abrir repositorio</string>
     <string name="about_donation">Dona para apoyar el desarrollo de esta y mis otras aplicaciones gratuitas, ¡gracias!</string>
     <string name="action_open_github">Abrir repositorio en GitHub</string>
@@ -127,6 +151,11 @@
     <!-- Mensajes que emite el ViewModel. -->
     <string name="error_printer_not_connected">La impresora no está conectada</string>
     <string name="error_no_printer_detected">No se ha detectado ninguna impresora Epson por USB OTG</string>
+    <!-- Se lanza cuando hay una impresora USB conectada pero su fabricante no es
+         Epson. La línea genérica de arriba se lee como una avería para quien
+         tiene una impresora delante, así que esta nombra el motivo real: la
+         aplicación es solo para Epson. -->
+    <string name="error_non_epson_printer_detected">Hay una impresora conectada por USB, pero no es una Epson. Esta aplicación solo funciona con impresoras de inyección Epson.</string>
     <string name="error_connect_failed">No se ha podido abrir una sesión de mantenimiento con la impresora</string>
 
     <!-- Fallos de conexión, resueltos desde PrinterService.ConnectFailure para que
@@ -135,7 +164,24 @@
     <string name="error_connect_no_interfaces">Este dispositivo USB no tiene ninguna interfaz que la aplicación pueda usar. Puede que no sea una impresora Epson compatible.</string>
     <string name="error_connect_unsupported_model">Este modelo de Epson no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. A diferencia de una impresora con caja de mantenimiento, esto no es definitivo: el modelo se puede soportar cuando se añadan sus datos.</string>
     <string name="error_connect_unsupported_model_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. A diferencia de una impresora con caja de mantenimiento, esto no es definitivo: el modelo se puede soportar cuando se añadan sus datos.</string>
+    <!-- El espejo de las dos líneas de arriba. El modelo también falta en la base
+         de datos, pero la base comunitaria lo clasifica como uso de caja de
+         mantenimiento, así que añadirlo nunca habilitaría un reinicio. Se separa
+         para que la aplicación no prometa un resultado que el hardware no puede dar. -->
+    <string name="error_connect_unsupported_model_box">Este modelo de Epson no está en la base de datos de la aplicación, y la base de datos comunitaria lo clasifica como uso de caja de mantenimiento. Añadirlo permitiría la limpieza de cabezal y la comprobación de inyectores, pero nunca reiniciar el contador: el recuento vive en el chip de la propia caja.</string>
+    <string name="error_connect_unsupported_model_box_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación, y la base de datos comunitaria lo clasifica como uso de caja de mantenimiento. Añadirlo permitiría la limpieza de cabezal y la comprobación de inyectores, pero nunca reiniciar el contador: el recuento vive en el chip de la propia caja.</string>
     <string name="error_connect_dot4_nak">La impresora ha rechazado la sesión de mantenimiento. Apágala y vuelve a encenderla, y reinténtalo.</string>
+
+    <!-- Se ofrecen bajo el aviso cuando el modelo falta en la base de datos y no
+         es de caja de mantenimiento: el único caso en el que un informe del
+         usuario es lo que consigue que el modelo acabe soportado.
+         La nota es deliberadamente independiente del destino: el botón de
+         incidencia solo aparece cuando el fork tenga repositorio propio, y hasta
+         entonces el portapapeles es la función entera. -->
+    <string name="action_report_model">Reportar este modelo</string>
+    <string name="action_copy_report">Copiar informe</string>
+    <string name="report_model_note">El informe incluye el modelo, el identificador de dispositivo de la impresora sin su número de serie y las últimas líneas del registro de protocolo. Nada sale de tu dispositivo por sí solo.</string>
+    <string name="report_copied">Informe copiado</string>
     <string name="msg_counters_updated">Los contadores de residuo se han actualizado. Reinicia la impresora si el modelo lo requiere.</string>
     <!-- Se lanza cuando los contadores leídos tras la escritura no coinciden con
          el valor pedido, lo que significa que la impresora no lo aplicó. -->

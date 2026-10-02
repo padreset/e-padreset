@@ -10,8 +10,22 @@ data class WasteCounterStatus(
     val rawValue: Int,
     val maxValue: Int,
 ) {
+    /**
+     * False when the model's counter ceiling is not published.
+     *
+     * That is the case for every model coming from reinkpy rather than from
+     * devices.xml: reinkpy gives the addresses and the reset values but not the
+     * ceiling, and without a ceiling there is no percentage to compute.
+     *
+     * The distinction exists so the UI can show the raw byte value instead of
+     * falling back to 0%. A zero would read as an empty pad, which is the same
+     * false all-clear the waste panel already refuses to give for a printer
+     * whose maintenance box may well be full.
+     */
+    val scaleKnown: Boolean get() = maxValue > 0
+
     val percentage: Double
-        get() = if (maxValue <= 0) 0.0 else ((rawValue.toDouble() * 100.0) / maxValue.toDouble()).coerceIn(0.0, 999.0)
+        get() = if (!scaleKnown) 0.0 else ((rawValue.toDouble() * 100.0) / maxValue.toDouble()).coerceIn(0.0, 999.0)
 }
 
 data class PrinterStatusSnapshot(

@@ -12,6 +12,11 @@ class EpsonProtocolTest {
         keyword = byteArrayOf(0x4E, 0x62, 0x73, 0x6A, 0x63, 0x62, 0x7A, 0x62),
         wasteCounters = emptyList(),
         resetMap = emptyMap(),
+        // Required, and empty here on purpose: this spec exists to exercise
+        // framing, and none of the assertions below touch cleaning. It was left
+        // out when the field was added, which stopped the whole unit test
+        // source set from compiling and took every test in it down with it.
+        cleaningOptions = emptyList(),
     )
     private val protocol = EpsonProtocol(spec)
 
@@ -24,22 +29,62 @@ class EpsonProtocolTest {
     @Test
     fun `factory write command matches service payload format`() {
         val command = protocol.buildWriteEepromCommand(0x30, 0x00)
-        val expectedPrefix = byteArrayOf(
-            0x7C,
-            0x7C,
-            0x0D,
-            0x00,
-            0x4A,
-            0x36,
-            0x42,
-            0xBD.toByte(),
-            0x21,
-            0x30,
-            0x00,
-            0x00,
+
+        // The frame is "||" + little-endian length + body, and the length counts
+        // everything in the body: the control model, the three action-code
+        // bytes, the address, the value and the keyword.
+        //
+        // This used to be a hand-written 12-byte prefix whose length field read
+        // 13 — written back when the action code sat outside the count. Nothing
+        // caught it, because the field was added to PrinterSpec without updating
+        // this file and the whole test source set stopped compiling, so no test
+        // in it had run since. Deriving the frame from its parts is what keeps
+        // the expectation from drifting away from the builder again.
+        val body = spec.controlModel +
+            byteArrayOf(0x42, 0xBD.toByte(), 0x21) +
+            byteArrayOf(0x30, 0x00, 0x00) +
+            spec.keyword
+
+        val expected = "||".encodeToByteArray() +
+            byteArrayOf((body.size and 0xFF).toByte(), ((body.size ushr 8) and 0xFF).toByte()) +
+            body
+
+        assertArrayEquals(expected, command)
+        // Pinned separately so a change in what the body is made of shows up
+        // here as well as in the byte comparison.
+        assertEquals(16, body.size)
+    }
+
+    @Test
+    fun `write replies are classified by their service markers`() {
+        assertEquals(
+            EpsonProtocol.WriteReply.Applied,
+            protocol.classifyWriteReply("@BDC PS\r\n||:42:OK;".encodeToByteArray()),
         )
-        assertArrayEquals(expectedPrefix, command.copyOfRange(0, expectedPrefix.size))
-        assertEquals(spec.keyword.size + expectedPrefix.size, command.size)
+        assertEquals(
+            EpsonProtocol.WriteReply.Rejected,
+            protocol.classifyWriteReply("@BDC PS\r\n||:42:NG;".encodeToByteArray()),
+        )
+        assertEquals(
+            EpsonProtocol.WriteReply.Rejected,
+            protocol.classifyWriteReply("@BDC PS\r\n||:42:NA;".encodeToByteArray()),
+        )
+    }
+
+    @Test
+    fun `an unrecognised write reply is not treated as a rejection`() {
+        // The markers come from a sibling implementation talking over the raw
+        // USB pipe rather than D4. Until a run on real hardware confirms the
+        // shape here, an answer the app does not know must leave the write
+        // alone: aborting on it would break models that work today.
+        assertEquals(
+            EpsonProtocol.WriteReply.Unknown,
+            protocol.classifyWriteReply(byteArrayOf(0x00, 0x01, 0x02)),
+        )
+        assertEquals(
+            EpsonProtocol.WriteReply.Unknown,
+            protocol.classifyWriteReply(ByteArray(0)),
+        )
     }
 
     @Test

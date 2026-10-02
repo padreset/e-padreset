@@ -58,11 +58,13 @@ object EpsonPrinterCatalog {
     private var cachedSpecs: List<PrinterSpec>? = null
 
     @Volatile
+    private var cachedMaintenanceBoxModels: Set<String>? = null
+
+    @Volatile
     var logger: ((String) -> Unit)? = null
 
     fun resolve(context: Context, deviceId: String): PrinterSpec? {
-        val parsedId = parseDeviceId(deviceId)
-        val mdl = parsedId["MDL"]?.trim().orEmpty()
+        val mdl = modelName(deviceId).orEmpty()
         val specs = load(context)
 
         return specs.firstOrNull { it.modelName.equals(mdl, ignoreCase = true) }
@@ -70,20 +72,160 @@ object EpsonPrinterCatalog {
             ?: specs.firstOrNull { deviceId.contains(it.modelName, ignoreCase = true) }
     }
 
+    /**
+     * The printer's own model string, from the MDL field of its IEEE 1284
+     * device ID.
+     *
+     * Public because two callers need it apart from resolution: the service, to
+     * ask the maintenance-box list about a model the catalog does not know, and
+     * the ViewModel, to name the model in a connection failure.
+     */
+    fun modelName(deviceId: String): String? =
+        parseDeviceId(deviceId)["MDL"]?.trim()?.takeIf { it.isNotEmpty() }
+
+    /**
+     * Whether reinkpy classifies this model as collecting waste ink in a
+     * maintenance box.
+     *
+     * This is asked when resolution has already failed, which is the one case
+     * where the answer changes what the user is told. A model that is merely
+     * missing from devices.xml can be added and then reset; a model whose count
+     * lives on the box's chip cannot be reset by any software even after it is
+     * added. The list holds reinkpy's complete classification rather than only
+     * the intersection with our catalog, so it can answer for models
+     * devices.xml has never heard of.
+     *
+     * It is still a classification, not something read from the connected
+     * printer, so callers should say where it comes from instead of asserting
+     * it as fact.
+     */
+    fun usesMaintenanceBox(context: Context, modelName: String?): Boolean {
+        val normalized = modelName?.let(::normalizeModelName).orEmpty()
+        return normalized.isNotEmpty() &&
+            loadMaintenanceBoxModels(context).contains(normalized)
+    }
+
     fun load(context: Context): List<PrinterSpec> {
         cachedSpecs?.let { return it }
 
         synchronized(this) {
             cachedSpecs?.let { return it }
-            logger?.invoke("Loading Epson model database from assets/devices.xml")
             val maintenanceBoxModels = loadMaintenanceBoxModels(context)
             logger?.invoke("Loaded ${maintenanceBoxModels.size} known maintenance box models")
-            val parsed = context.assets.open("devices.xml").use { parseDevicesXml(it, maintenanceBoxModels) }
-            logger?.invoke("Loaded ${parsed.size} Epson printer specs")
+
+            logger?.invoke("Loading Epson model database from assets/devices.xml")
+            val fromDevices = context.assets.open("devices.xml")
+                .use { parseDevicesXml(it, maintenanceBoxModels) }
+            logger?.invoke("Loaded ${fromDevices.size} Epson printer specs from devices.xml")
+
+            // The second file is an extension, never an override: a model that
+            // devices.xml already knows keeps its entry, because that one also
+            // carries the counter ceiling and the cleaning jobs, which reinkpy
+            // does not publish.
+            val known = fromDevices.mapTo(HashSet()) { normalizeModelName(it.modelName) }
+            val fromReinkpy = runCatching {
+                context.assets.open("reinkpy_models.xml")
+                    .use { parseReinkpyModels(it, maintenanceBoxModels) }
+            }.getOrElse {
+                logger?.invoke("No reinkpy model extension available: ${it.message}")
+                emptyList()
+            }.filterNot { normalizeModelName(it.modelName) in known }
+            logger?.invoke("Loaded ${fromReinkpy.size} extra specs from reinkpy_models.xml")
+
+            val parsed = fromDevices + fromReinkpy
             cachedSpecs = parsed
             return parsed
         }
     }
+
+    /**
+     * Parses the models reinkpy knows and devices.xml does not.
+     *
+     * The two files describe the same printers under different names: what
+     * devices.xml spells as a two-byte little-endian `<factory>` and an
+     * eight-byte `<keyword>`, reinkpy publishes as the integer `rkey` and the
+     * `wkey` string. Where the two overlap they agree exactly, which is what
+     * makes the translation below a verified correspondence rather than a guess.
+     *
+     * What these models do not have is the counter ceiling. reinkpy does not
+     * publish it, so `max` stays at zero and the UI shows the raw counter bytes
+     * instead of a percentage, rather than inventing a scale.
+     */
+    internal fun parseReinkpyModels(
+        input: InputStream,
+        maintenanceBoxModels: Set<String>,
+    ): List<PrinterSpec> {
+        val document = DocumentBuilderFactory.newInstance().apply {
+            isIgnoringComments = true
+            isNamespaceAware = false
+        }.newDocumentBuilder().parse(input)
+
+        val nodes = document.getElementsByTagName("model")
+        val printers = mutableListOf<PrinterSpec>()
+
+        for (index in 0 until nodes.length) {
+            val model = nodes.item(index) as? Element ?: continue
+            val modelName = model.getAttribute("name").trim()
+            if (modelName.isEmpty()) continue
+
+            val rkey = model.getAttribute("rkey").trim().toIntOrNull()
+            if (rkey == null) {
+                logger?.invoke("Skipping reinkpy model '$modelName': unreadable rkey")
+                continue
+            }
+            val keyword = parseHexBytes(model.getAttribute("keyword"))
+            if (keyword.isEmpty()) {
+                logger?.invoke("Skipping reinkpy model '$modelName': no keyword")
+                continue
+            }
+
+            val counters = mutableListOf<WasteCounterSpec>()
+            val resetMap = linkedMapOf<Int, Int>()
+            model.childElements("pad").forEachIndexed { padIndex, pad ->
+                val addresses = parseDecimals(pad.getAttribute("addresses"))
+                if (addresses.isEmpty()) return@forEachIndexed
+                val reset = parseDecimals(pad.getAttribute("reset"))
+                addresses.forEachIndexed { position, address ->
+                    reset.getOrNull(position)?.let { resetMap[address] = it }
+                }
+                counters += WasteCounterSpec(
+                    name = counterNameForKind(pad.getAttribute("kind"), padIndex),
+                    addresses = addresses,
+                    // Zero means "not published", not "zero capacity".
+                    max = 0,
+                )
+            }
+
+            printers += PrinterSpec(
+                modelName = modelName,
+                controlModel = byteArrayOf(
+                    (rkey and 0xFF).toByte(),
+                    ((rkey shr 8) and 0xFF).toByte(),
+                ),
+                keyword = keyword,
+                wasteCounters = counters.distinctBy { it.name to it.addresses },
+                resetMap = resetMap,
+                // reinkpy carries no cleaning payloads, so the maintenance page
+                // falls back to the generic ESC/P2 job it already uses for the
+                // models devices.xml leaves without one.
+                cleaningOptions = emptyList(),
+                usesMaintenanceBox = maintenanceBoxModels.contains(normalizeModelName(modelName)),
+            )
+        }
+
+        return printers.distinctBy { it.modelName }
+    }
+
+    private fun parseDecimals(text: String): List<Int> =
+        text.split(Regex("\\s+")).filter { it.isNotBlank() }.mapNotNull { it.toIntOrNull() }
+
+    private fun counterNameForKind(kind: String, index: Int): String =
+        when (kind.trim().lowercase()) {
+            "main" -> "Main pad"
+            "platen" -> "Platen pad"
+            "borderless" -> "Borderless pad"
+            else -> defaultCounterName(index)
+        }
 
     private fun parseDevicesXml(
         input: InputStream,
@@ -235,28 +377,53 @@ object EpsonPrinterCatalog {
     }
 
     /**
-     * Reads the curated list of maintenance-box models.
+     * Reads the curated list of maintenance-box models, once per process.
      *
      * Kept apart from devices.xml on purpose: it carries claims with their
-     * provenance, and it grows by hand rather than from the upstream database.
+     * provenance, and it is regenerated from reinkpy's database by
+     * `scripts/sync-maintenance-boxes.mjs` rather than from the upstream
+     * devices.xml.
+     *
+     * The `runCatching` below is the reason the build runs `verifyPrinterData`.
+     * A file that does not parse becomes an empty list here, and the only
+     * symptom is that every maintenance-box model quietly falls back to the
+     * hedged two-cause wording. Nothing reaches the user, so the failure has to
+     * be caught before the asset ships.
      */
     private fun loadMaintenanceBoxModels(context: Context): Set<String> {
-        return runCatching {
-            context.assets.open("maintenance_boxes.xml").use { input ->
-                val document = DocumentBuilderFactory.newInstance().apply {
-                    isIgnoringComments = true
-                    isNamespaceAware = false
-                }.newDocumentBuilder().parse(input)
-                document.getElementsByTagName("model")
-                    .let { nodes -> (0 until nodes.length).map { nodes.item(it).textContent } }
-                    .map(::normalizeModelName)
-                    .filter { it.isNotEmpty() }
-                    .toSet()
+        cachedMaintenanceBoxModels?.let { return it }
+
+        synchronized(this) {
+            cachedMaintenanceBoxModels?.let { return it }
+            val models = runCatching {
+                context.assets.open("maintenance_boxes.xml").use(::parseMaintenanceBoxModels)
+            }.getOrElse {
+                logger?.invoke("No maintenance box list available: ${it.message}")
+                emptySet()
             }
-        }.getOrElse {
-            logger?.invoke("No maintenance box list available: ${it.message}")
-            emptySet()
+            cachedMaintenanceBoxModels = models
+            return models
         }
+    }
+
+    /**
+     * Parses the curated list.
+     *
+     * Separate from the asset lookup so the shape of the file can be exercised
+     * without an Android Context, and so the one place that understands the
+     * document stands on its own.
+     */
+    internal fun parseMaintenanceBoxModels(input: InputStream): Set<String> {
+        val document = DocumentBuilderFactory.newInstance().apply {
+            isIgnoringComments = true
+            isNamespaceAware = false
+        }.newDocumentBuilder().parse(input)
+        val nodes = document.getElementsByTagName("model")
+        return (0 until nodes.length)
+            .map { nodes.item(it).textContent }
+            .map(::normalizeModelName)
+            .filter { it.isNotEmpty() }
+            .toSet()
     }
 
     /**

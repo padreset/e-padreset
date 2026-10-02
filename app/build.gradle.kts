@@ -81,3 +81,76 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }
+
+/**
+ * Fails the build when the bundled printer data is unreadable or empty.
+ *
+ * Why this exists: both assets are loaded through `runCatching`, so a file that
+ * does not parse degrades to an empty list and the app carries on. A malformed
+ * maintenance_boxes.xml therefore does not crash and does not log anything the
+ * user can see — it just quietly stops recognising maintenance-box models, and
+ * every one of them goes back to answering with the hedged two-cause wording.
+ * The same failure mode cost a debugging session once already, which is why the
+ * header of that file warns about the double hyphen.
+ *
+ * Parsing here moves the failure to build time, where it is loud, and gives the
+ * model lists a floor so a truncated file cannot ship either.
+ */
+val verifyPrinterData by tasks.registering {
+    group = "verification"
+    description = "Parses the bundled printer assets and checks they are not empty."
+    val assetsDir = layout.projectDirectory.dir("src/main/assets")
+    inputs.files(
+        assetsDir.file("devices.xml"),
+        assetsDir.file("maintenance_boxes.xml"),
+        assetsDir.file("reinkpy_models.xml"),
+    )
+    doLast {
+        fun parse(file: java.io.File): org.w3c.dom.Document =
+            javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                .apply { isNamespaceAware = false }
+                .newDocumentBuilder()
+                .parse(file)
+
+        val boxes = assetsDir.file("maintenance_boxes.xml").asFile
+        val boxCount = parse(boxes).getElementsByTagName("model").length
+        check(boxCount >= 100) {
+            "maintenance_boxes.xml lists $boxCount models; expected at least 100. " +
+                "Regenerate it with: node scripts/sync-model-data.mjs"
+        }
+
+        val devices = assetsDir.file("devices.xml").asFile
+        val printerCount = parse(devices).getElementsByTagName("printer").length
+        check(printerCount >= 500) {
+            "devices.xml lists $printerCount printers; expected at least 500."
+        }
+
+        // The extension carries models with nothing to cross-check them against,
+        // so the shape check matters more here than anywhere: a model without a
+        // readable key would resolve, open no session, and report the printer as
+        // unsupported — the exact failure this file exists to fix.
+        val extra = parse(assetsDir.file("reinkpy_models.xml").asFile)
+        val extraModels = extra.getElementsByTagName("model")
+        check(extraModels.length >= 100) {
+            "reinkpy_models.xml lists ${extraModels.length} models; expected at least 100. " +
+                "Regenerate it with: node scripts/sync-model-data.mjs"
+        }
+        var incomplete = 0
+        for (i in 0 until extraModels.length) {
+            val model = extraModels.item(i) as? org.w3c.dom.Element ?: continue
+            val rkey = model.getAttribute("rkey").toIntOrNull()
+            val keyword = model.getAttribute("keyword")
+            if (rkey == null || keyword.isBlank()) incomplete++
+        }
+        check(incomplete == 0) {
+            "reinkpy_models.xml has $incomplete models without a usable rkey or keyword"
+        }
+
+        logger.lifecycle(
+            "printer data ok: $printerCount printers, $boxCount maintenance-box models, " +
+                "${extraModels.length} reinkpy-only models",
+        )
+    }
+}
+
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(verifyPrinterData) }

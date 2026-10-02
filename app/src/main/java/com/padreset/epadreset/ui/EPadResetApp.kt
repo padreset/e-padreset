@@ -27,6 +27,27 @@ import com.padreset.epadreset.ui.theme.PadSpace
  */
 internal const val REPO_URL = "https://github.com/tekware-it/android-epson-reset"
 
+/**
+ * Where a model report is filed, or null when there is nowhere to file it.
+ *
+ * Kept apart from [REPO_URL] on purpose. Linking to the upstream repository from
+ * the About dialog is a display choice, and it is documented as temporary. Sending
+ * a user there to *open an issue* is a different act: the report would land in a
+ * third party's tracker, describing a build that author never made — this fork's
+ * GPL-3.0 relicensing, its 313-model maintenance-box list, its report button.
+ * That is noise for them and a dead end for the user.
+ *
+ * Null until this fork has a repository of its own. While it is null the report
+ * block offers only the clipboard: the text is assembled and handed to the user,
+ * and nothing is addressed anywhere. Set this to the fork's own repository and
+ * the prefilled-issue button appears on its own.
+ *
+ * Not a `const`: a nullable constant is not something Kotlin allows, and an
+ * empty string standing in for "no destination" would be a trap of exactly the
+ * kind this file is trying to avoid.
+ */
+internal val REPORT_REPO_URL: String? = null
+
 /** The pages the app can show. There are two, so a navigation library would be overkill. */
 private enum class AppPage { Status, Maintenance }
 
