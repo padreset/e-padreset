@@ -190,9 +190,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val current = connection ?: return
         if (printerService.isStillAttached(current)) return
 
+        appendLog("Printer detached; connection dropped")
+        dropConnection()
+    }
+
+    /**
+     * Called when the app comes back to the foreground.
+     *
+     * The detach broadcast is only heard while the app is started: the receiver
+     * is registered in onStart and removed in onStop, so unplugging the printer
+     * while the app sat in the background was never reported at all. The app
+     * then came back showing a printer that was gone, and every operation
+     * against it failed. Checking on the way back is what turns that into the
+     * state it should have been in already.
+     */
+    fun onReturnedToForeground() {
+        val current = connection ?: return
+        if (printerService.isStillAttached(current)) return
+
+        appendLog("Printer is no longer attached; dropping the session")
+        dropConnection()
+    }
+
+    /**
+     * Drops the session and puts the UI back to "no printer".
+     *
+     * Shared by every way the app can learn the printer is gone, so they cannot
+     * drift into resetting different parts of the state.
+     */
+    private fun dropConnection() {
+        val current = connection ?: return
         runCatching { printerService.close(current) }
         connection = null
-        appendLog("Printer detached; connection dropped")
         _uiState.value = _uiState.value.copy(
             status = null,
             connectedDeviceName = null,
@@ -591,6 +620,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         appendLog(message)
         runCatching { block() }
             .onFailure { failure ->
+                // The printer may have gone away while the job was running. That
+                // is not a failure the user can act on, and leaving the session
+                // in place is what made every later operation fail against a
+                // handle that reaches nothing: the refresh button kept re-reading
+                // a dead connection instead of letting the app fall back to "no
+                // printer" and offer to connect again.
+                if (connection?.let { !printerService.isStillAttached(it) } == true) {
+                    appendLog("Job failed and the printer is no longer attached; dropping the session")
+                    dropConnection()
+                    return@onFailure
+                }
+
                 // The log always keeps the raw, English diagnostic detail; the
                 // callout only ever shows a string resource.
                 val logged = failure.message ?: failure.javaClass.simpleName

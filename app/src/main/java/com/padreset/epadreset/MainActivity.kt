@@ -80,6 +80,10 @@ class MainActivity : ComponentActivity() {
             @Suppress("DEPRECATION")
             registerReceiver(detachReceiver, filter)
         }
+        // The receiver above was not listening while the app sat in the
+        // background, so a printer unplugged then was never reported. Ask now
+        // rather than keep offering operations against a session that is gone.
+        viewModel.onReturnedToForeground()
     }
 
     override fun onStop() {
