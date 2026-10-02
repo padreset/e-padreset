@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
 class UsbTransport(private val context: Context) {
@@ -76,7 +77,37 @@ class UsbTransport(private val context: Context) {
             getInterface(index).interfaceClass == UsbConstants.USB_CLASS_PRINTER
         }
 
-    suspend fun requestPermission(device: UsbDevice): Boolean = suspendCancellableCoroutine { continuation ->
+    /**
+     * Whether the device is still on the bus.
+     *
+     * A detached `UsbDevice` is still a usable-looking object — it can be passed
+     * around and asked for its fields — but nothing it is asked to do will ever
+     * answer. Bulk transfers return -1, and the permission broadcast never
+     * arrives. Asking the manager for the current list is the only reliable way
+     * to tell, and it is what stops a detached printer from becoming a spinner
+     * that never stops.
+     */
+    fun isAttached(device: UsbDevice): Boolean =
+        usbManager.deviceList.values.any { it.deviceName == device.deviceName }
+
+    /**
+     * Asks for permission to open the device, giving up if nothing answers.
+     *
+     * The wait is bounded because the broadcast that would end it is only sent
+     * while the device is attached. Unbounded, unplugging the printer while a
+     * job was starting left the app waiting for a dialog that could never
+     * arrive — which is exactly what a nozzle check did.
+     */
+    suspend fun requestPermission(
+        device: UsbDevice,
+        timeoutMs: Long = PERMISSION_TIMEOUT_MS,
+    ): Boolean {
+        if (usbManager.hasPermission(device)) return true
+        if (!isAttached(device)) return false
+        return withTimeoutOrNull(timeoutMs) { awaitPermission(device) } ?: false
+    }
+
+    private suspend fun awaitPermission(device: UsbDevice): Boolean = suspendCancellableCoroutine { continuation ->
         if (usbManager.hasPermission(device)) {
             continuation.resume(true)
             return@suspendCancellableCoroutine
@@ -114,6 +145,9 @@ class UsbTransport(private val context: Context) {
         if (usbManager.hasPermission(device)) {
             return true
         }
+        if (!isAttached(device)) {
+            return false
+        }
 
         val granted = requestPermission(device)
         if (granted && usbManager.hasPermission(device)) {
@@ -122,6 +156,9 @@ class UsbTransport(private val context: Context) {
 
         repeat(4) {
             delay(settleDelayMs)
+            if (!isAttached(device)) {
+                return false
+            }
             if (usbManager.hasPermission(device)) {
                 return true
             }
@@ -130,14 +167,25 @@ class UsbTransport(private val context: Context) {
         return usbManager.hasPermission(device)
     }
 
+    /**
+     * Fails with the reason permission was not granted.
+     *
+     * The two cases read the same to `ensurePermission` and mean opposite things
+     * to the user, so the message has to tell them apart: one is a dialog they
+     * have to accept, the other is a printer that is no longer there.
+     */
+    private fun permissionFailure(device: UsbDevice): Nothing = throw IllegalStateException(
+        if (isAttached(device)) "USB permission denied" else "Printer is no longer connected",
+    )
+
     suspend fun open(device: UsbDevice): Session = withContext(Dispatchers.IO) {
-        require(ensurePermission(device)) { "USB permission denied" }
+        if (!ensurePermission(device)) permissionFailure(device)
         val usbInterface = findPrinterInterface(device) ?: error("Printer interface not found")
         openOnInterface(device, usbInterface, permissionAlreadyGranted = true)
     }
 
     suspend fun openPrintSession(device: UsbDevice): Session = withContext(Dispatchers.IO) {
-        require(ensurePermission(device)) { "USB permission denied" }
+        if (!ensurePermission(device)) permissionFailure(device)
         val usbInterface = findPrintInterface(device) ?: error("Printer bulk OUT interface not found")
         openOnInterface(device, usbInterface, permissionAlreadyGranted = true)
     }
@@ -148,7 +196,7 @@ class UsbTransport(private val context: Context) {
         permissionAlreadyGranted: Boolean = false,
     ): Session = withContext(Dispatchers.IO) {
         if (!permissionAlreadyGranted) {
-            require(ensurePermission(device)) { "USB permission denied" }
+            if (!ensurePermission(device)) permissionFailure(device)
         }
         val connection = usbManager.openDevice(device) ?: error("Unable to open USB device")
         require(connection.claimInterface(usbInterface, true)) { "Unable to claim interface" }
@@ -453,5 +501,12 @@ class UsbTransport(private val context: Context) {
         const val USB_RECIPIENT_INTERFACE = 0x01
         const val REQUEST_GET_DEVICE_ID = 0
         const val REQUEST_SOFT_RESET = 2
+
+        /**
+         * A backstop, not the usual path: a detached device is caught by
+         * [isAttached] before the wait begins. This only covers a permission
+         * dialog that was opened and then ignored.
+         */
+        const val PERMISSION_TIMEOUT_MS = 60_000L
     }
 }
