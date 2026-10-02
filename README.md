@@ -44,7 +44,7 @@ Two pages, reached from the header.
 
 - `Ink Levels` panel with adaptive single-row gauges for 4 to 8 inks
 - `Waste Levels` panel with dynamic counter rows, or an explanation when the model has no counter to reset
-- Protocol log with a copy action, newest entry first
+- Protocol log with a copy action, read top to bottom: first event at the top, latest at the bottom, anchored on the latest
 
 The log scrolls inside a page that also scrolls, which is two scrollables in one
 gesture. By default Compose hands the scroll the log did not use up to the page,

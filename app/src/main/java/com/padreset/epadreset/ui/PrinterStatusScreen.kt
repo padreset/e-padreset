@@ -623,6 +623,14 @@ private fun ProtocolLogPanel(logs: List<String>) {
         } else {
             LazyColumn(
                 state = listState,
+                // A log reads top to bottom: the first event at the top, the
+                // last one at the bottom. The data arrives oldest first, so it
+                // is reversed to put the newest item at index 0, and the layout
+                // is reversed to draw index 0 at the bottom. Together they give
+                // the reading order, and the list stays anchored at the newest
+                // line, so a new entry appears where the eye already is instead
+                // of pushing the whole panel down.
+                reverseLayout = true,
                 modifier = Modifier
                     .fillMaxSize()
                     .nestedScroll(holdScroll),
