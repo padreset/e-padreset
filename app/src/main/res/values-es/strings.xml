@@ -77,21 +77,28 @@
          direcciones que publica el modelo. -->
     <string name="dialog_reset_model_values">Este modelo no tiene publicado el techo del contador, así que no hay porcentaje al que apuntar. El reinicio escribe los valores publicados para este modelo, en todas las direcciones que lista.</string>
 
-    <!-- La copia de la EEPROM tomada antes de cualquier escritura. Se muestra
+    <!-- El respaldo de la EEPROM tomado antes de cualquier escritura. Se muestra
          después de escribir, tanto si fue bien como si la impresora la rechazó a
-         mitad. -->
-    <string name="section_waste_backup">Copia previa a la escritura</string>
-    <string name="waste_backup_note">Los valores que tenían estas direcciones antes de escribir. Guarda una copia para poder devolverlos si algo sale mal.</string>
-    <string name="action_copy_backup">Copiar copia</string>
-    <!-- Forma impersonal, como la del propio Android: el aviso confirma la
-         acción y no deja ningún pronombre al que se le pueda preguntar qué. -->
-    <string name="backup_copied">Copiado al portapapeles</string>
+         mitad.
+
+         Se llama "respaldo" y no "copia" a propósito. La acción de esta pantalla
+         se llama copiar ("Copiar informe", "Copiar registro de protocolo"), y
+         llamar "copia" a la cosa producía frases como "Copiar copia" y "Copia
+         copiada", donde el sustantivo y el participio son la misma palabra. En
+         inglés no pasa porque separa "backup" de "copy". -->
+    <string name="section_waste_backup">Respaldo previo a la escritura</string>
+    <string name="waste_backup_note">Los valores que tenían estas direcciones antes de escribir. Guarda el respaldo para poder devolverlos si algo sale mal.</string>
+    <string name="action_copy_backup">Copiar respaldo</string>
+    <!-- Vuelve al patrón de sus hermanos ("Informe copiado", "Registro de
+         protocolo copiado"), que ahora funciona porque el sustantivo y el
+         participio ya son palabras distintas. -->
+    <string name="backup_copied">Respaldo copiado</string>
     <!-- Fallos de la ruta de escritura. Los dos primeros significan que no se
          escribió nada; los otros dos, que la impresora la rechazó a mitad. -->
-    <string name="error_backup_failed">No se han podido leer los valores actuales, así que no se ha escrito nada. La aplicación hace copia antes de escribir.</string>
-    <string name="error_backup_failed_at">No se ha podido leer el valor actual en %1$s, así que no se ha escrito nada. La aplicación hace copia antes de escribir.</string>
+    <string name="error_backup_failed">No se han podido leer los valores actuales, así que no se ha escrito nada. La aplicación hace respaldo antes de escribir.</string>
+    <string name="error_backup_failed_at">No se ha podido leer el valor actual en %1$s, así que no se ha escrito nada. La aplicación hace respaldo antes de escribir.</string>
     <string name="error_write_rejected">La impresora ha rechazado la escritura. No se ha escrito nada más.</string>
-    <string name="error_write_rejected_at">La impresora ha rechazado la escritura en %1$s. Ya se habían escrito %2$d direcciones; no se ha escrito ninguna más. La copia está abajo.</string>
+    <string name="error_write_rejected_at">La impresora ha rechazado la escritura en %1$s. Ya se habían escrito %2$d direcciones; no se ha escrito ninguna más. El respaldo está abajo.</string>
 
     <!-- Se muestra cuando el modelo está en la lista curada de cajas de
          mantenimiento, así que la causa se conoce en vez de suponerse. El
