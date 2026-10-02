@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -46,7 +47,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -573,6 +578,30 @@ private fun StatusHeroCard(
 private fun ProtocolLogPanel(logs: List<String>) {
     val pad = PadTheme.colors
     val shape = RoundedCornerShape(PadRadius.m)
+    val listState = rememberLazyListState()
+
+    // The log is a scrolling list inside a page that also scrolls. By default
+    // Compose hands the scroll the list did not use up to the parent, so once
+    // the log reached either end the gesture started moving the whole page
+    // instead of stopping. Reaching the end of the log and having the page jump
+    // is the app reacting to the wrong thing.
+    //
+    // Claiming the leftover keeps the page still. It is claimed only while the
+    // log has lines out of view: a log short enough to fit is not scrollable at
+    // all, and swallowing the gesture there would block the page behind it.
+    val holdScroll = remember(listState) {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset {
+                val info = listState.layoutInfo
+                val hasLinesOutOfView = info.totalItemsCount > info.visibleItemsInfo.size
+                return if (hasLinesOutOfView) available else Offset.Zero
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -593,7 +622,10 @@ private fun ProtocolLogPanel(logs: List<String>) {
             )
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(holdScroll),
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 items(logs.takeLast(80).asReversed()) { line ->

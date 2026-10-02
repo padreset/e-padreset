@@ -44,7 +44,14 @@ Two pages, reached from the header.
 
 - `Ink Levels` panel with adaptive single-row gauges for 4 to 8 inks
 - `Waste Levels` panel with dynamic counter rows, or an explanation when the model has no counter to reset
-- Protocol log with a copy action
+- Protocol log with a copy action, newest entry first
+
+The log scrolls inside a page that also scrolls, which is two scrollables in one
+gesture. By default Compose hands the scroll the log did not use up to the page,
+so reaching either end of the log started moving the page instead of stopping.
+The log now claims that leftover while it has lines out of view, so its ends hold
+still. It claims nothing when the log fits entirely: swallowing the gesture there
+would block the page behind a panel that has nowhere to scroll.
 
 **Maintenance** — acting on the printer:
 
