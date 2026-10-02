@@ -83,7 +83,9 @@
     <string name="section_waste_backup">Copia previa a la escritura</string>
     <string name="waste_backup_note">Los valores que tenían estas direcciones antes de escribir. Guarda una copia para poder devolverlos si algo sale mal.</string>
     <string name="action_copy_backup">Copiar copia</string>
-    <string name="backup_copied">Copia copiada</string>
+    <!-- Forma impersonal, como la del propio Android: el aviso confirma la
+         acción y no deja ningún pronombre al que se le pueda preguntar qué. -->
+    <string name="backup_copied">Copiado al portapapeles</string>
     <!-- Fallos de la ruta de escritura. Los dos primeros significan que no se
          escribió nada; los otros dos, que la impresora la rechazó a mitad. -->
     <string name="error_backup_failed">No se han podido leer los valores actuales, así que no se ha escrito nada. La aplicación hace copia antes de escribir.</string>
