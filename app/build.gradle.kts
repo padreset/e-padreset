@@ -14,6 +14,11 @@ android {
         versionCode = 2
         versionName = "0.1.1"
 
+        // Needed for the instrumented tests. Without it the default runner is
+        // the framework's, which does not know about AndroidX Test and reports
+        // no tests rather than failing.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
         vectorDrawables {
             useSupportLibrary = true
         }

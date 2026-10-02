@@ -622,6 +622,11 @@ private fun CopyLogButton(logs: List<String>) {
  * Plain text rather than a formatted table: it is meant to be copied out and
  * kept, not read on screen, and the same block is what someone would paste into
  * an issue when asking why a reset was refused.
+ *
+ * No inner scroll and no fixed height. The first version had both, which put a
+ * scrollable region inside the page's own scroll: a drag that started on the
+ * backup moved the box instead of the page, and the content below it could not
+ * be reached. The page already scrolls, so the block just grows with its text.
  */
 @Composable
 private fun BackupPanel(backup: String) {
@@ -631,21 +636,18 @@ private fun BackupPanel(backup: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp)
             .clip(shape)
             .background(pad.sunken)
             .border(1.dp, pad.border, shape)
             .padding(PadSpace.md),
     ) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            Text(
-                text = backup,
-                fontFamily = PadMono,
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
-                color = pad.note,
-            )
-        }
+        Text(
+            text = backup,
+            fontFamily = PadMono,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+            color = pad.note,
+        )
     }
 }
 

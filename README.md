@@ -240,6 +240,24 @@ fix.
 
 Open the project in Android Studio and build the `app` module.
 
+The unit tests run on the JVM; the UI tests need a device or an emulator:
+
+```sh
+./gradlew :app:testDebugUnitTest           # parsers, protocol and write rules, no device
+./gradlew :app:connectedDebugAndroidTest   # renders the screens, needs one
+```
+
+The UI tests render the status page against states a desk cannot reach — a model
+missing from the catalog, a finished write, a counter with no published ceiling —
+because none of those appear without a printer on the other end of the cable.
+They also caught two things no amount of compiling would have: that section
+labels are upper-cased before they are drawn, and that the backup block had a
+scrollable region inside the page's own scroll, which trapped a drag instead of
+moving the page.
+
+The write rules are tested the same way, with a fake printer standing in for the
+hardware: see `WasteWriterTest`.
+
 Key identifiers:
 
 - Project name: `epad-reset`
