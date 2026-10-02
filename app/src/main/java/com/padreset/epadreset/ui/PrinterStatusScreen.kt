@@ -244,7 +244,14 @@ fun PrinterStatusScreen(
         }
 
         if (uiState.isBusy) {
-            PadBusyIndicator(modifier = Modifier.align(Alignment.Center))
+            PadBusyIndicator(
+                modifier = Modifier.align(Alignment.Center),
+                // Same condition as the card's detail line, and the same split:
+                // the pill is the headline the user sees first, the card carries
+                // the explanation. Kept short because the pill is only as wide as
+                // its text.
+                label = uiState.connectNote?.let { stringResource(R.string.connect_slow_brief) },
+            )
         }
     }
 

@@ -91,6 +91,11 @@ It cannot be raised any earlier. Before the handshake there is no evidence
 either way, and guessing would put the note up on connections that turn out to
 be fast.
 
+The floating pill changes too, from "Working…" to "Trying another route…". The
+pill is what the eye lands on first, so it carries the headline and the card
+carries the explanation. It stays to a few words because the pill is only as
+wide as its text, and a longer sentence there would cover the panels behind it.
+
 ## Fonts
 
 The UI uses two typefaces from the [Google Fonts](https://github.com/google/fonts) repository, both

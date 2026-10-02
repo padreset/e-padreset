@@ -90,9 +90,16 @@ fun PadHeaderBar(
  *
  * Sits above the content rather than pushing it down, so a refresh does not make
  * the page jump.
+ *
+ * [label] overrides the default wording when there is something more specific to
+ * say. It is the pill's whole width, so keep it to a few words: anything longer
+ * belongs in the card below, which has the room to explain.
  */
 @Composable
-fun PadBusyIndicator(modifier: Modifier = Modifier) {
+fun PadBusyIndicator(
+    modifier: Modifier = Modifier,
+    label: String? = null,
+) {
     val pad = PadTheme.colors
     val shape = RoundedCornerShape(PadRadius.m)
     Row(
@@ -110,7 +117,7 @@ fun PadBusyIndicator(modifier: Modifier = Modifier) {
             modifier = Modifier.size(18.dp),
         )
         Text(
-            stringResource(R.string.status_busy_indicator),
+            text = label ?: stringResource(R.string.status_busy_indicator),
             style = MaterialTheme.typography.bodyMedium,
             color = pad.fg,
         )

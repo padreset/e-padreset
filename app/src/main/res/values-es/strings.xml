@@ -40,6 +40,11 @@
          impresora no respondió, antes de probar la siguiente. Dice qué pasa y
          cuánto dura, porque si no la espera queda sin explicación. -->
     <string name="connect_slow_note">La impresora no ha respondido por la primera vía de conexión, así que se está probando otra. Puede tardar unos segundos, y la próxima vez debería ser más rápido.</string>
+    <!-- Lo mismo que connect_slow_note, para la píldora flotante. Tres palabras,
+         porque la píldora es pequeña y la tarjeta de debajo lleva la
+         explicación. Dice qué está haciendo la app, para que la espera se lea
+         como avance y no como cuelgue; la duración es cosa de la tarjeta. -->
+    <string name="connect_slow_brief">Probando otra vía…</string>
 
     <!-- Filas de detalle dentro de la tarjeta de impresora. -->
     <string name="label_model">Modelo</string>

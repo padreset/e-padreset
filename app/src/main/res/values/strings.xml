@@ -47,6 +47,11 @@
          not answer on, before the next one is tried. Says what is happening and
          how long, because the wait is otherwise unexplained. -->
     <string name="connect_slow_note">No answer on the first connection route, so another is being tried. This can take a few seconds, and should be quicker next time.</string>
+    <!-- The same situation as connect_slow_note, for the floating pill. Three
+         words, because the pill is small and the card below it carries the
+         explanation. Says what the app is doing, so the wait reads as progress
+         rather than a stall; the duration is the card's job. -->
+    <string name="connect_slow_brief">Trying another route…</string>
 
     <!-- Detail rows inside the printer card. -->
     <string name="label_model">Model</string>
