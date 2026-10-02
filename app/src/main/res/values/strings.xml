@@ -87,7 +87,7 @@
     <!-- The EEPROM backup taken before any write. Shown after the write, whether
          it succeeded or was refused partway through. -->
     <string name="section_waste_backup">Backup before write</string>
-    <string name="waste_backup_note">The values these addresses held before the write. Keep it if you may need to put them back.</string>
+    <string name="waste_backup_note">The values these addresses held before the write. Keep a copy so you can put them back if something goes wrong.</string>
     <string name="action_copy_backup">Copy backup</string>
     <string name="backup_copied">Backup copied</string>
     <!-- Write-path failures. The first pair means nothing was written at all;
