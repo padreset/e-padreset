@@ -137,6 +137,34 @@
     <string name="cleaning_alternative_mode">Head cleaning (alternative mode)</string>
     <string name="cleaning_power_clean">Power Clean</string>
 
+    <!-- Service cleaning modes, as the model database names them.
+         The dialog is read, so it gets these labels. The protocol log keeps the
+         database wording instead, because it is a diagnostic record and people
+         search for the exact string. That wording also carries a leftover "%"
+         where a placeholder was never substituted, which these drop.
+         A name the table does not know falls back to the database wording. -->
+    <string name="cleaning_mode_gentle">Gentle cleaning</string>
+    <string name="cleaning_mode_normal">Normal cleaning</string>
+    <string name="cleaning_mode_medium">Medium cleaning</string>
+    <string name="cleaning_mode_strong">Strong cleaning</string>
+    <string name="cleaning_mode_gentle_mode">Gentle cleaning (mode)</string>
+    <string name="cleaning_mode_normal_mode">Normal cleaning (mode)</string>
+    <string name="cleaning_mode_strong_mode">Strong cleaning (mode)</string>
+    <string name="cleaning_mode_strong_a">Strong cleaning, mode A</string>
+    <string name="cleaning_mode_strong_b">Strong cleaning, mode B</string>
+    <string name="cleaning_all_gentle">Gentle, all nozzles</string>
+    <string name="cleaning_all_normal">Normal, all nozzles</string>
+    <string name="cleaning_all_medium">Medium, all nozzles</string>
+    <string name="cleaning_all_strong">Strong, all nozzles</string>
+    <string name="cleaning_black_gentle">Gentle, black nozzle</string>
+    <string name="cleaning_black_normal">Normal, black nozzle</string>
+    <string name="cleaning_black_medium">Medium, black nozzle</string>
+    <string name="cleaning_black_strong">Strong, black nozzle</string>
+    <string name="cleaning_color_gentle">Gentle, color nozzles</string>
+    <string name="cleaning_color_normal">Normal, color nozzles</string>
+    <string name="cleaning_color_medium">Medium, color nozzles</string>
+    <string name="cleaning_color_strong">Strong, color nozzles</string>
+
     <!-- Nozzle check dialog. -->
     <string name="dialog_nozzle_check_title">Nozzle check</string>
     <string name="action_print_test">Print Test</string>

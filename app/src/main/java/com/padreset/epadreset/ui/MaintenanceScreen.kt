@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.padreset.epadreset.R
@@ -159,7 +160,9 @@ fun MaintenanceScreen(
                     Text(stringResource(R.string.dialog_cleaning_body))
                     cleaningOptions.forEach { option ->
                         PadSelectableRow(
-                            label = option,
+                            // Translated for the dialog only. The raw name still
+                            // travels to the log and to the printer.
+                            label = cleaningModeLabel(LocalContext.current, option),
                             selected = option == selectedCleaning,
                             multi = false,
                             onSelect = { checked ->

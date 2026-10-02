@@ -131,6 +131,35 @@
     <string name="cleaning_alternative_mode">Limpieza de cabezal (modo alternativo)</string>
     <string name="cleaning_power_clean">Limpieza intensiva</string>
 
+    <!-- Modos de limpieza de servicio, tal como los nombra la base de datos de
+         modelos. El diálogo se lee, así que usa estas etiquetas. El registro de
+         protocolo conserva en cambio el texto de la base de datos, porque es un
+         registro de diagnóstico y la gente busca la cadena exacta. Ese texto
+         además arrastra un "%" sobrante de un marcador nunca sustituido, que
+         estas etiquetas eliminan.
+         Un nombre que la tabla no conoce cae al texto de la base de datos. -->
+    <string name="cleaning_mode_gentle">Limpieza suave</string>
+    <string name="cleaning_mode_normal">Limpieza normal</string>
+    <string name="cleaning_mode_medium">Limpieza media</string>
+    <string name="cleaning_mode_strong">Limpieza fuerte</string>
+    <string name="cleaning_mode_gentle_mode">Limpieza suave (modo)</string>
+    <string name="cleaning_mode_normal_mode">Limpieza normal (modo)</string>
+    <string name="cleaning_mode_strong_mode">Limpieza fuerte (modo)</string>
+    <string name="cleaning_mode_strong_a">Limpieza fuerte, modo A</string>
+    <string name="cleaning_mode_strong_b">Limpieza fuerte, modo B</string>
+    <string name="cleaning_all_gentle">Suave, todos los inyectores</string>
+    <string name="cleaning_all_normal">Normal, todos los inyectores</string>
+    <string name="cleaning_all_medium">Media, todos los inyectores</string>
+    <string name="cleaning_all_strong">Fuerte, todos los inyectores</string>
+    <string name="cleaning_black_gentle">Suave, inyector negro</string>
+    <string name="cleaning_black_normal">Normal, inyector negro</string>
+    <string name="cleaning_black_medium">Media, inyector negro</string>
+    <string name="cleaning_black_strong">Fuerte, inyector negro</string>
+    <string name="cleaning_color_gentle">Suave, inyectores de color</string>
+    <string name="cleaning_color_normal">Normal, inyectores de color</string>
+    <string name="cleaning_color_medium">Media, inyectores de color</string>
+    <string name="cleaning_color_strong">Fuerte, inyectores de color</string>
+
     <!-- Diálogo de comprobación de inyectores. -->
     <string name="dialog_nozzle_check_title">Comprobación de inyectores</string>
     <string name="action_print_test">Imprimir prueba</string>

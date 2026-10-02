@@ -333,7 +333,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runJob("Starting head cleaning") {
                 printerService.runHeadCleaning(current, cleaningName)
                 _uiState.value = _uiState.value.copy(
-                    actionSuccessMessage = str(R.string.msg_cleaning_sent_named, cleaningName),
+                    // The notice is read, so it names the mode the way the dialog
+                    // did. The log line above keeps the database wording.
+                    actionSuccessMessage = str(
+                        R.string.msg_cleaning_sent_named,
+                        cleaningModeLabel(getApplication(), cleaningName),
+                    ),
                 )
             }
         }
