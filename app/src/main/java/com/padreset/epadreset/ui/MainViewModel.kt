@@ -273,6 +273,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Resetting waste counters") {
+                // The previous write's backup describes a state this run is about
+                // to change, so it goes now rather than when the new one arrives.
+                _uiState.value = _uiState.value.copy(wasteBackup = null)
                 val outcome = printerService.writeWasteCounters(current, selectedCounterNames, targetPercentage)
                 val counters = outcome.counters
                 appendLog("Waste counters read back: ${counters.joinToString { "${it.name}=${it.percentage}%" }}")
@@ -579,7 +582,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             reportableModel = null,
             modelReportBody = null,
             modelReportUrl = null,
-            wasteBackup = null,
+            // wasteBackup is deliberately NOT cleared here. It is a record of
+            // what the last write overwrote, not a status, and clearing it with
+            // every job meant the refresh that follows a successful write wiped
+            // it in the next statement. A new write clears it instead, which is
+            // the only moment it stops being true.
         )
         appendLog(message)
         runCatching { block() }
