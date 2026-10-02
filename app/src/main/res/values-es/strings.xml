@@ -36,6 +36,10 @@
     <string name="status_ready">Lista</string>
     <string name="status_connected">Conectada por USB OTG</string>
     <string name="status_busy_indicator">Trabajando…</string>
+    <!-- Se muestra mientras una conexión gasta segundos en una vía por la que la
+         impresora no respondió, antes de probar la siguiente. Dice qué pasa y
+         cuánto dura, porque si no la espera queda sin explicación. -->
+    <string name="connect_slow_note">La impresora no ha respondido por la primera vía de conexión, así que se está probando otra. Puede tardar unos segundos, y la próxima vez debería ser más rápido.</string>
 
     <!-- Filas de detalle dentro de la tarjeta de impresora. -->
     <string name="label_model">Modelo</string>

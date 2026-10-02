@@ -43,6 +43,10 @@
     <string name="status_ready">Ready</string>
     <string name="status_connected">Connected over USB OTG</string>
     <string name="status_busy_indicator">Working…</string>
+    <!-- Shown while a connection is spending seconds on a route the printer did
+         not answer on, before the next one is tried. Says what is happening and
+         how long, because the wait is otherwise unexplained. -->
+    <string name="connect_slow_note">No answer on the first connection route, so another is being tried. This can take a few seconds, and should be quicker next time.</string>
 
     <!-- Detail rows inside the printer card. -->
     <string name="label_model">Model</string>

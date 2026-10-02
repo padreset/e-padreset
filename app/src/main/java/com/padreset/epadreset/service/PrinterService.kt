@@ -17,6 +17,15 @@ import kotlinx.coroutines.withContext
 class PrinterService(
     context: Context,
     private val log: (String) -> Unit = {},
+    /**
+     * Called when a connection attempt is about to spend seconds on an interface
+     * the printer did not answer on.
+     *
+     * The failed attempt is not an error and not worth reporting as one, but it
+     * is several seconds of the user watching a spinner, and this is the only
+     * point where that is knowable before it happens.
+     */
+    private val onSlowConnect: () -> Unit = {},
 ) {
     /**
      * Why a connection attempt failed, in terms the user can act on.
@@ -500,6 +509,13 @@ class PrinterService(
         log("1284.4 enter aggregate: ${enterReply.joinToString(" ") { "%02X".format(it) }}")
         if (enterReply.size < 8) {
             log("1284.4 enter reply shorter than expected (${enterReply.size}/8)")
+            // The printer did not answer the handshake on this interface, which
+            // is what a wrong interface looks like. What follows is the D4 init,
+            // whose reply is read with an eight second timeout, so the attempt
+            // is about to fail slowly. Saying so now is the difference between
+            // an explained wait and an unexplained one; the interface that works
+            // answers this handshake in about two milliseconds.
+            onSlowConnect()
         }
         return enterReply
     }

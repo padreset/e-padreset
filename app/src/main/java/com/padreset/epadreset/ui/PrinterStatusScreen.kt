@@ -478,7 +478,11 @@ private fun StatusHeroCard(
     when {
         status == null && uiState.isBusy -> {
             label = stringResource(R.string.status_working)
-            detail = stringResource(R.string.status_scanning)
+            // Once the printer has been found, "scanning" is no longer what is
+            // happening: the connection is working through its routes, and one
+            // of them can cost several seconds. The note says so where the eye
+            // already is, instead of leaving the wait unexplained.
+            detail = uiState.connectNote ?: stringResource(R.string.status_scanning)
             accentColor = pad.accent
         }
         status == null -> {

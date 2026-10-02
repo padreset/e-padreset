@@ -80,6 +80,17 @@ changes on every replug and would make the preference unreachable.
 The first connect to a printer is still slow, because there is nothing to
 remember yet. Every one after it is not.
 
+While that happens the status card says so instead of leaving the wait
+unexplained. The note is raised at the one point where the wait is knowable
+before it happens: the printer did not answer the IEEE 1284.4 handshake on the
+interface being tried. That is what a wrong interface looks like, and it is
+immediately followed by the eight second read, so saying so at that moment is
+the difference between an explained wait and a spinner with no reason given.
+
+It cannot be raised any earlier. Before the handshake there is no evidence
+either way, and guessing would put the note up on connections that turn out to
+be fast.
+
 ## Fonts
 
 The UI uses two typefaces from the [Google Fonts](https://github.com/google/fonts) repository, both

@@ -37,6 +37,11 @@ data class MainUiState(
     val usesMaintenanceBox: Boolean = false,
     val isBusy: Boolean = false,
     /**
+     * Already localized. Explains a connection that is taking a while, and is
+     * null the rest of the time. Cleared when the job ends, whichever way.
+     */
+    val connectNote: String? = null,
+    /**
      * Already localized. Shown in the error callout, so anything written here
      * must go through [MainViewModel.str].
      */
@@ -110,7 +115,7 @@ private class UnhandledJobException(
 ) : Exception(logMessage, cause)
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
-    private val printerService = PrinterService(application, ::appendLog)
+    private val printerService = PrinterService(application, ::appendLog, ::noteSlowConnect)
 
     /**
      * Read once, from the package manager rather than from `BuildConfig`: the
@@ -563,6 +568,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // running it is stale, and leaving it up would put "the printer was
             // unplugged" above a job that just connected to one.
             notice = null,
+            // Same reasoning: an explanation of the last connection's wait does
+            // not describe this one.
+            connectNote = null,
             reportableModel = null,
             modelReportBody = null,
             modelReportUrl = null,
@@ -596,7 +604,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         ?.let(::formatBackup),
                 )
             }
-        _uiState.value = _uiState.value.copy(isBusy = false)
+        _uiState.value = _uiState.value.copy(isBusy = false, connectNote = null)
+    }
+
+    /**
+     * Explains the wait when a connection is about to spend seconds on a route
+     * the printer did not answer on.
+     *
+     * Only while nothing is connected. A session that already exists means the
+     * note describes a state that has passed, and [runJob] clears it when the
+     * attempt ends either way, so a failure does not leave it above the error.
+     */
+    private fun noteSlowConnect() {
+        if (_uiState.value.status != null) return
+        _uiState.value = _uiState.value.copy(connectNote = str(R.string.connect_slow_note))
     }
 
     private fun appendLog(line: String) {
