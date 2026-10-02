@@ -368,6 +368,13 @@ what makes the maintenance-box classification possible: the list in
 AGPL-3.0, and section 13 of GPL-3.0 permits combining a covered work with a
 work licensed under AGPL-3.0.
 
+[`NOTICE`](NOTICE) states what this work is derived from, what was modified and
+when, and which data and assets come from other projects. GPL-3.0 section 5 asks
+a modified work to carry that; it lives in one file rather than in a header on
+every source file, because a header added to untouched files would attribute
+every one of their lines to the change that added it and erase the record the
+notice exists to state.
+
 The upstream `ez-reset` repository does not currently expose a clear top-level
 project license in its repository metadata. The upstream licensing situation
 should therefore still be confirmed with the original author or maintainer.
