@@ -2,6 +2,7 @@ package com.padreset.epadreset.ui
 
 import android.content.Context
 import androidx.annotation.StringRes
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -167,6 +168,25 @@ class PrinterStatusScreenTest {
         // And 0% must not appear: it would read as an empty pad, which is the
         // false all-clear this branch exists to prevent.
         compose.onNodeWithText("0.00%").assertDoesNotExist()
+    }
+
+    @Test
+    fun theUnpublishedCeilingIsExplainedOnceNotPerCounter() {
+        // These models usually carry two or three counters, and the same
+        // sentence under each of them is a wall of text — which costs most to
+        // the reader who does not have the language.
+        render(
+            MainUiState(
+                status = snapshot(
+                    WasteCounterStatus("Main pad", rawValue = 1234, maxValue = 0),
+                    WasteCounterStatus("Platen pad", rawValue = 5678, maxValue = 0),
+                ),
+                supportsWasteReset = true,
+            ),
+        )
+
+        compose.onAllNodesWithText(string(R.string.waste_scale_unknown))
+            .assertCountEquals(1)
     }
 
     @Test

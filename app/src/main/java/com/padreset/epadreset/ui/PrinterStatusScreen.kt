@@ -866,6 +866,7 @@ private fun WasteLevelsPanel(
     onReset: () -> Unit,
     onExplainUnsupported: () -> Unit,
 ) {
+    val pad = PadTheme.colors
     val context = LocalContext.current
 
     // Three states, not two. An empty list used to always draw the placeholders
@@ -914,6 +915,19 @@ private fun WasteLevelsPanel(
     Column(verticalArrangement = Arrangement.spacedBy(PadSpace.md)) {
         displayCounters.forEach { counter ->
             WasteCounterRow(counter = counter, connected = connected)
+        }
+
+        // Said once for the panel, not once per counter. These models routinely
+        // have two or three counters, and the same sentence repeated under each
+        // of them is a wall of text — which costs most to the reader who does
+        // not have the language, because it reads as something important they
+        // are failing to understand.
+        if (connected && displayCounters.any { !it.scaleKnown }) {
+            Text(
+                text = stringResource(R.string.waste_scale_unknown),
+                style = MaterialTheme.typography.bodySmall,
+                color = pad.muted,
+            )
         }
 
         PadCallout(
@@ -975,15 +989,10 @@ private fun WasteCounterRow(counter: WasteCounterStatus, connected: Boolean) {
         }
         if (counter.scaleKnown) {
             HorizontalGauge(percentage = counter.percentage, fillColor = pad.accent)
-        } else {
-            // No bar: a bar is a fraction of a ceiling, and there is none to
-            // take a fraction of.
-            Text(
-                text = stringResource(R.string.waste_scale_unknown),
-                style = MaterialTheme.typography.bodySmall,
-                color = pad.muted,
-            )
         }
+        // No bar when the ceiling is unknown: a bar is a fraction of a ceiling,
+        // and there is none to take a fraction of. Why that is gets said once
+        // for the whole panel rather than once per row.
     }
 }
 
