@@ -439,8 +439,6 @@ gate guarantees is reachability, not absence.
 
 ## Status
 
-This is a working port in progress, not a finished production tool.
-
 Known realities:
 
 - USB behavior can vary between Epson models
