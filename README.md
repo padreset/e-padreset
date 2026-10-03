@@ -304,6 +304,14 @@ fix.
   Generated models that only reinkpy has
 - `scripts/sync-model-data.mjs`
   Cross-checks the two sources, then regenerates both generated assets
+- `play-store`
+  What gets uploaded to the Play listing: the 512×512 icon, the 1024×500 feature
+  graphic and the phone screenshots. The editable originals live in
+  `play-store/source` rather than beside them, so the folder holds only files
+  that are meant to be uploaded and there is nothing to guess at
+- `docs`
+  The GitHub Pages site, and the privacy policy URL the Play listing points at.
+  Plain HTML with no build step, so what is committed is what is served
 
 ## Build
 
