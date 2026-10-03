@@ -84,7 +84,7 @@ fun EPadResetApp(
     onReset: (Set<String>, Int) -> Unit,
     onServiceClean: (String) -> Unit,
     onGenericClean: (Int, Boolean, Boolean) -> Unit,
-    onNozzleCheck: (Int) -> Unit,
+    onNozzleCheck: () -> Unit,
     onDismissActionSuccess: () -> Unit,
 ) {
     var page by remember { mutableStateOf(AppPage.Status) }
@@ -109,17 +109,27 @@ fun EPadResetApp(
 
     // Held here rather than on a page: a job can be started from either one, and
     // the confirmation should not vanish because the page changed underneath it.
-    uiState.actionSuccessMessage?.let { message ->
-        ActionSuccessDialog(message = message, onDismiss = onDismissActionSuccess)
+    //
+    // Both parts are required. The title says what the app actually knows — a
+    // verified reset, or a job it could only send — and a message without one
+    // would fall back to claiming more than that.
+    val successTitle = uiState.actionSuccessTitle
+    val successMessage = uiState.actionSuccessMessage
+    if (successTitle != null && successMessage != null) {
+        ActionSuccessDialog(
+            title = successTitle,
+            message = successMessage,
+            onDismiss = onDismissActionSuccess,
+        )
     }
 }
 
 @Composable
-private fun ActionSuccessDialog(message: String, onDismiss: () -> Unit) {
+private fun ActionSuccessDialog(title: String, message: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
     PadAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.dialog_action_completed_title)) },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                 Text(message)

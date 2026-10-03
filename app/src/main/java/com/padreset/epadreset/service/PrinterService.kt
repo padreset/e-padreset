@@ -400,12 +400,9 @@ class PrinterService(
         sendPrintJob(connection, payload)
     }
 
-    suspend fun printNozzleCheck(
-        connection: ConnectionState,
-        type: Int,
-    ) = withContext(Dispatchers.IO) {
-        val payload = Escp2MaintenanceProtocol.buildNozzleCheckJob(type)
-        log("Printing nozzle check type=$type bytes=${payload.size}")
+    suspend fun printNozzleCheck(connection: ConnectionState) = withContext(Dispatchers.IO) {
+        val payload = Escp2MaintenanceProtocol.buildNozzleCheckJob()
+        log("Printing nozzle check bytes=${payload.size}")
         sendPrintJob(connection, payload)
     }
 

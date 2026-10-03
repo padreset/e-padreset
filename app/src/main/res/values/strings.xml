@@ -165,11 +165,13 @@
     <string name="cleaning_color_medium">Medium, color nozzles</string>
     <string name="cleaning_color_strong">Strong, color nozzles</string>
 
-    <!-- Nozzle check dialog. -->
+    <!-- Nozzle check dialog. There is one check, not two: the sequence is what
+         escputil sends and what yusnel-rojas proved on hardware. The pair of
+         options that used to live here were the two halves of that sequence
+         offered separately, which is why one of them did nothing. -->
     <string name="dialog_nozzle_check_title">Nozzle check</string>
     <string name="action_print_test">Print Test</string>
-    <string name="nozzle_test_standard">Standard nozzle test</string>
-    <string name="nozzle_test_alternative">Alternative nozzle test</string>
+    <string name="dialog_nozzle_check_body">Prints a nozzle check page. It uses a sheet of paper and a little ink, and it is the only way to tell whether a head cleaning is worth doing.</string>
 
     <!-- About dialog. The repository label and the donation line still point at
          the upstream project and are pending the fork's own repository. -->
@@ -190,8 +192,13 @@
     <string name="dialog_exit_body">Do you want to exit and close %1$s?</string>
     <string name="action_exit">Exit</string>
 
-    <!-- Dialog shown after an action succeeds. -->
-    <string name="dialog_action_completed_title">Operation completed</string>
+    <!-- Titles for the dialog shown after an action succeeds. One per kind of
+         outcome, because the app knows different amounts about each: a counter
+         reset is read back and verified, a print job is only sent and has no
+         acknowledgement to wait for. A single title said the same thing about
+         both, which was true for one and a claim for the other. -->
+    <string name="dialog_counters_updated_title">Counters updated</string>
+    <string name="dialog_job_sent_title">Job sent</string>
 
     <!-- Error callout. The title is fixed; the body is either a localized
          message raised by the ViewModel, or this generic line when the failure

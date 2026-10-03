@@ -18,17 +18,38 @@ object Escp2MaintenanceProtocol {
     private val exitRemoteMode = byteArrayOf(0x1B, 0x00, 0x00, 0x00)
     private val jobEnd = remoteCommand("JE", byteArrayOf(0x00))
     private val printNozzleCheck = remoteCommand("NC", byteArrayOf(0x00, 0x00))
+
+    /** The same command with its last argument byte set, which leads the pair. */
+    private val nozzleCheckFirstStep = remoteCommand("NC", byteArrayOf(0x00, 0x10))
+
+    private val versionInformation = remoteCommand("VI", byteArrayOf(0x00, 0x00))
     private val loadCommand = remoteCommand("LD", byteArrayOf())
     private val carriageReturn = byteArrayOf('\r'.code.toByte())
     private val formFeed = byteArrayOf(0x0C)
 
-    fun buildNozzleCheckJob(type: Int = 0): ByteArray {
-        val nozzleCheck = if (type == 1) {
-            printNozzleCheck.copyOf().also { it[it.lastIndex] = 0x10 }
-        } else {
-            printNozzleCheck
-        }
-        return exitPacketMode + enterRemoteMode + nozzleCheck + buildJobTrailer(includeFormFeed = true)
+    /**
+     * The nozzle check, which is three commands in one session, not one.
+     *
+     * There is no "alternative" form. This sequence is what `escputil` sends —
+     * captured to a file with `escputil --nozzle-check --raw-device`, which is
+     * the only way to read its bytes without a printer — and what yusnel-rojas
+     * sends, byte for byte, proven end to end on an ET-2820.
+     *
+     * The two `NC` commands are the reason this is worth a comment. Ircama's
+     * `epson_escp2` exposes them as two selectable modes, `check_nozzles(type=0)`
+     * and `check_nozzles(type=1)`, differing only in the last argument byte. This
+     * app inherited that split, and it is wrong: the `00 10` form is the *first*
+     * step of the sequence, not a variant of it. Sent alone it leaves the printer
+     * mid-sequence — the panel lights up, waits for the rest and gives up without
+     * a word, which is exactly what it did on an L365.
+     */
+    fun buildNozzleCheckJob(): ByteArray {
+        return exitPacketMode +
+            enterRemoteMode +
+            versionInformation +
+            nozzleCheckFirstStep +
+            printNozzleCheck +
+            buildJobTrailer(includeFormFeed = true)
     }
 
     fun buildHeadCleaningJob(

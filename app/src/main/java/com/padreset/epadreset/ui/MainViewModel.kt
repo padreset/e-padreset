@@ -85,6 +85,18 @@ data class MainUiState(
     val notice: String? = null,
     val logs: List<String> = emptyList(),
     val actionSuccessMessage: String? = null,
+    /**
+     * Title for the dialog that shows [actionSuccessMessage].
+     *
+     * Per action rather than one fixed line, because the app knows different
+     * amounts about each one. A counter reset is verified by reading the counters
+     * back; a print job is only sent, and there is no acknowledgement to wait
+     * for. A single "Operation completed" said the same thing about both, which
+     * was true for one and a claim for the other.
+     *
+     * Already localized, like the message.
+     */
+    val actionSuccessTitle: String? = null,
 )
 
 /**
@@ -348,6 +360,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 _uiState.value = _uiState.value.copy(
+                    actionSuccessTitle = str(R.string.dialog_counters_updated_title),
                     actionSuccessMessage = str(R.string.msg_counters_updated),
                     wasteBackup = formatBackup(outcome.backup),
                 )
@@ -365,6 +378,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runJob("Starting head cleaning") {
                 printerService.runHeadCleaning(current, cleaningName)
                 _uiState.value = _uiState.value.copy(
+                    actionSuccessTitle = str(R.string.dialog_job_sent_title),
                     // The notice is read, so it names the mode the way the dialog
                     // did. The log line above keeps the database wording.
                     actionSuccessMessage = str(
@@ -389,21 +403,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runJob("Starting head cleaning") {
                 printerService.runPrintJobHeadCleaning(current, groupIndex, powerClean, alternativeMode)
                 _uiState.value = _uiState.value.copy(
+                    actionSuccessTitle = str(R.string.dialog_job_sent_title),
                     actionSuccessMessage = str(R.string.msg_cleaning_sent),
                 )
             }
         }
     }
 
-    fun printNozzleCheck(type: Int) {
+    fun printNozzleCheck() {
         val current = connection ?: run {
             appendError(str(R.string.error_printer_not_connected))
             return
         }
         viewModelScope.launch {
             runJob("Printing nozzle check") {
-                printerService.printNozzleCheck(current, type)
+                printerService.printNozzleCheck(current)
                 _uiState.value = _uiState.value.copy(
+                    actionSuccessTitle = str(R.string.dialog_job_sent_title),
                     actionSuccessMessage = str(R.string.msg_nozzle_check_sent),
                 )
             }
@@ -411,7 +427,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissActionSuccess() {
-        _uiState.value = _uiState.value.copy(actionSuccessMessage = null)
+        _uiState.value = _uiState.value.copy(
+            actionSuccessMessage = null,
+            actionSuccessTitle = null,
+        )
     }
 
     override fun onCleared() {

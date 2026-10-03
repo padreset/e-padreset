@@ -103,6 +103,32 @@ pill is what the eye lands on first, so it carries the headline and the card
 carries the explanation. It stays to a few words because the pill is only as
 wide as its text, and a longer sentence there would cover the panels behind it.
 
+### The nozzle check is three commands, not a choice of two
+
+The maintenance page used to offer a "standard" and an "alternative" nozzle test.
+They were `NC 00 00` and `NC 00 10` — the same command with one argument byte
+changed — and the second one did nothing on an L365: the panel lit up, waited, and
+gave up without a word.
+
+The reference implementation, `escputil` from GIMP-Print, sends **three** commands
+in one session: `VI 00 00`, then `NC 00 10`, then `NC 00 00`. Capturing its bytes
+is a matter of pointing it at a file rather than a printer:
+
+```bash
+touch /tmp/nc.bin && escputil --nozzle-check --raw-device /tmp/nc.bin -m escp2-et2750
+```
+
+The `0x10` form is the *first* step of that sequence, not a variant of it. Sent
+alone it leaves the printer mid-sequence, which is exactly the "starts and gives
+up" that was reported. yusnel-rojas sends the same three commands byte for byte,
+and has it proven end to end on an ET-2820; the sequence here is now that one, and
+`Escp2MaintenanceProtocolTest` pins the order.
+
+Where the split came from: Ircama's `epson_escp2` exposes the two `NC` commands as
+`check_nozzles(type=0)` and `check_nozzles(type=1)`, and this app inherited that
+pairing — including its labels. It is the odd one out among the tools that
+implement this.
+
 ## Fonts
 
 The UI uses two typefaces from the [Google Fonts](https://github.com/google/fonts) repository, both

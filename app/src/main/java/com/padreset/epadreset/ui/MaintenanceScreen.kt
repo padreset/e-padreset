@@ -59,7 +59,7 @@ fun MaintenanceScreen(
     onBack: () -> Unit,
     onServiceClean: (String) -> Unit,
     onGenericClean: (Int, Boolean, Boolean) -> Unit,
-    onNozzleCheck: (Int) -> Unit,
+    onNozzleCheck: () -> Unit,
 ) {
     val pad = PadTheme.colors
     val cleaningOptions = uiState.cleaningOptions
@@ -69,7 +69,6 @@ fun MaintenanceScreen(
     var selectedCleaning by remember(cleaningOptions) {
         mutableStateOf(cleaningOptions.firstOrNull().orEmpty())
     }
-    var selectedNozzleCheckType by remember { mutableStateOf(0) }
     var genericCleaningGroup by remember { mutableStateOf(0) }
     var genericPowerClean by remember { mutableStateOf(false) }
 
@@ -232,7 +231,7 @@ fun MaintenanceScreen(
                 Button(
                     onClick = {
                         showNozzleCheckDialog = false
-                        onNozzleCheck(selectedNozzleCheckType)
+                        onNozzleCheck()
                     },
                 ) {
                     Text(stringResource(R.string.action_print_test))
@@ -243,23 +242,10 @@ fun MaintenanceScreen(
                     Text(stringResource(R.string.action_cancel))
                 }
             },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                    listOf(
-                        stringResource(R.string.nozzle_test_standard),
-                        stringResource(R.string.nozzle_test_alternative),
-                    ).forEachIndexed { index, label ->
-                        PadSelectableRow(
-                            label = label,
-                            selected = selectedNozzleCheckType == index,
-                            multi = false,
-                            onSelect = { checked ->
-                                if (checked) selectedNozzleCheckType = index
-                            },
-                        )
-                    }
-                }
-            },
+            // A statement of what the button costs, not a set of options. There is
+            // one nozzle check: the two entries that used to sit here were the two
+            // halves of a single sequence, offered as if they were alternatives.
+            text = { Text(stringResource(R.string.dialog_nozzle_check_body)) },
         )
     }
 }

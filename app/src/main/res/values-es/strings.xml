@@ -169,11 +169,13 @@
     <string name="cleaning_color_medium">Media, inyectores de color</string>
     <string name="cleaning_color_strong">Fuerte, inyectores de color</string>
 
-    <!-- Diálogo de comprobación de inyectores. -->
+    <!-- Diálogo de comprobación de inyectores. Hay una comprobación, no dos: la
+         secuencia es la que envía escputil y la que yusnel-rojas validó en
+         hardware. Las dos opciones que había antes eran las dos mitades de esa
+         secuencia ofrecidas por separado, y por eso una no hacía nada. -->
     <string name="dialog_nozzle_check_title">Comprobación de inyectores</string>
     <string name="action_print_test">Imprimir prueba</string>
-    <string name="nozzle_test_standard">Prueba de inyectores estándar</string>
-    <string name="nozzle_test_alternative">Prueba de inyectores alternativa</string>
+    <string name="dialog_nozzle_check_body">Imprime una página de comprobación de inyectores. Consume una hoja y algo de tinta, y es la única forma de saber si merece la pena limpiar el cabezal.</string>
 
     <!-- Diálogo Acerca de. -->
     <string name="dialog_about_title">Acerca de</string>
@@ -192,8 +194,14 @@
     <string name="dialog_exit_body">¿Quieres salir y cerrar %1$s?</string>
     <string name="action_exit">Salir</string>
 
-    <!-- Diálogo mostrado cuando una acción termina bien. -->
-    <string name="dialog_action_completed_title">Operación completada</string>
+    <!-- Títulos del diálogo que aparece cuando una acción termina bien. Uno por
+         tipo de resultado, porque la aplicación sabe cosas distintas de cada uno:
+         un reinicio de contadores se lee de vuelta y se verifica; un trabajo de
+         impresión solo se envía y no tiene acuse que esperar. Un título único
+         decía lo mismo de los dos, y era cierto para uno y una afirmación para
+         el otro. -->
+    <string name="dialog_counters_updated_title">Contadores actualizados</string>
+    <string name="dialog_job_sent_title">Trabajo enviado</string>
 
     <!-- Aviso de error. El título es fijo; el cuerpo es o bien un mensaje ya
          traducido que emite el ViewModel, o bien esta línea genérica cuando el
