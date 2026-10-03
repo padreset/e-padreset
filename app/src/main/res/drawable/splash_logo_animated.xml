@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Animated launch icon, driven by the platform splash screen (Android 12+).
+
+  One pulse: every piece drifts outwards from the centre and comes straight
+  back, ending exactly where it started. No loop, no fade, no colour shift, and
+  the pieces themselves never change size. Measured off the reference clip
+  (Load1.mp4, 16 frames at 24fps, 0.667s) frame by frame.
+
+  Two things worth knowing about the rebuild:
+
+  * The pieces do NOT scale. Their bounding boxes are identical in every frame;
+    only their position changes. So each one is a translate, and the distance is
+    the piece's own: the top-left corner travels ~4.1 units while the small
+    centre bar travels ~0.9. One shared scale factor would not reproduce it.
+
+  * The pieces are staggered, and they converge. The top of the mark sets off
+    first and travels for longer; the bottom sets off last and is back in place
+    sooner. All of them peak at the same instant (~355ms in), which is what
+    makes it read as one breath rather than a ripple.
+
+  Each animator is a half cycle with repeatMode="reverse", so the return is the
+  outward trip played backwards. With a decelerating interpolator that yields
+  the measured shape: quick away from rest, easing into the peak, easing out of
+  it, quick back to rest.
+
+  Longest piece: tl at 60ms + 2x310ms = 680ms, which is the clip's length and
+  the value declared as windowSplashScreenAnimationDuration.
+
+  Animators live in res/animator/ and are referenced with android:animation
+  rather than written inline: the inline form is documented, but the separate
+  resources are the form this project was verified to animate with.
+
+  Colour is not set here. The paths inherit @color/splash_logo from
+  splash_logo_base.xml, which resolves per light/dark scheme.
+-->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/splash_logo_base">
+
+    <target
+        android:name="tl_x"
+        android:animation="@animator/splash_tl_x" />
+    <target
+        android:name="tl_y"
+        android:animation="@animator/splash_tl_y" />
+    <target
+        android:name="tc_y"
+        android:animation="@animator/splash_tc_y" />
+    <target
+        android:name="tr_x"
+        android:animation="@animator/splash_tr_x" />
+    <target
+        android:name="tr_y"
+        android:animation="@animator/splash_tr_y" />
+    <target
+        android:name="ml_x"
+        android:animation="@animator/splash_ml_x" />
+    <target
+        android:name="cbu_y"
+        android:animation="@animator/splash_cbu_y" />
+    <target
+        android:name="mr_x"
+        android:animation="@animator/splash_mr_x" />
+    <target
+        android:name="cbl_y"
+        android:animation="@animator/splash_cbl_y" />
+    <target
+        android:name="bl_x"
+        android:animation="@animator/splash_bl_x" />
+    <target
+        android:name="bl_y"
+        android:animation="@animator/splash_bl_y" />
+    <target
+        android:name="br_x"
+        android:animation="@animator/splash_br_x" />
+    <target
+        android:name="br_y"
+        android:animation="@animator/splash_br_y" />
+    <target
+        android:name="bc_y"
+        android:animation="@animator/splash_bc_y" />
+</animated-vector>

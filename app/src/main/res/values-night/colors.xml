@@ -2,4 +2,9 @@
     <!-- En tema oscuro el arranque usa el fondo de la app en lugar de blanco,
          para no provocar un destello al abrir. -->
     <color name="splash_background">#050814</color>
+
+    <!-- El azul oscuro del tema claro (#0B47C1) no tiene contraste suficiente
+         sobre #050814, así que aquí el logo usa el acento oscuro de la app
+         (PadDark.accent), el mismo que llevan los botones y las barras. -->
+    <color name="splash_logo">#3D7EFF</color>
 </resources>

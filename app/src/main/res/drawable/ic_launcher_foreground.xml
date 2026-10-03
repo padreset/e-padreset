@@ -1,6 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Generado desde el logo de origen. Es un unico color plano con bordes
-     duros, asi que se vectoriza en 15 rectangulos en lugar de rasterizarse. -->
+     duros, asi que se vectoriza en lugar de rasterizarse.
+
+     Cuatro uniones van soldadas: el bloque central-derecha (tres barras) y las
+     tres patas con su bloque son un unico poligono cada una. Antes eran dos
+     trazos (o tres) dibujados borde con borde sobre la misma coordenada, y cada
+     uno aportaba su propio borde antialiasado, asi que la union se veia como un
+     hilo de fondo entre dos formas que debian leerse como una. La union es
+     exacta: la silueta no cambia, solo desaparecen las aristas compartidas.
+
+     Las piezas que solo estan cerca (los huecos de ~1,85 unidades entre los
+     tres bloques de arriba y entre filas) conservan su separacion: eso es
+     espaciado deliberado, no una costura.
+
+     Este es el icono de lanzador y por eso lleva el azul fijo del tema claro:
+     es una marca, no debe seguir al tema del sistema. El icono del splash usa
+     el mismo glifo con los mismos diez trazos, pero con el color como recurso
+     (ver splash_logo_base.xml). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -8,5 +24,5 @@
     android:viewportHeight="108">
     <path
         android:fillColor="#0B47C1"
-        android:pathData="M48.21,31.62H59.86V38.99H48.21ZM61.71,31.62H73.43V43.27H61.71ZM34.64,31.62H46.37V43.27H34.64ZM48.21,45.19H59.86V48.87H48.21ZM64.14,45.19H73.43V53.08H64.14ZM61.71,53.08H73.43V55.88H61.71ZM34.64,45.19H43.93V56.84H34.64ZM48.21,53.08H59.86V56.84H48.21ZM64.14,55.88H73.43V56.84H64.14ZM61.71,58.68H73.43V70.41H61.71ZM34.64,58.68H46.37V70.41H34.64ZM48.21,63.04H59.86V70.41H48.21ZM38.18,70.41H42.75V76.31H38.18ZM65.32,70.41H69.89V76.31H65.32ZM51.75,70.41H56.32V76.31H51.75Z" />
+        android:pathData="M48.21,31.62H59.86V38.99H48.21ZM61.71,31.62H73.43V43.27H61.71ZM34.64,31.62H46.37V43.27H34.64ZM48.21,45.19H59.86V48.87H48.21ZM64.14,45.19H73.43V56.84H64.14V55.88H61.71V53.08H64.14ZM34.64,45.19H43.93V56.84H34.64ZM48.21,53.08H59.86V56.84H48.21ZM61.71,58.68H73.43V70.41H69.89V76.31H65.32V70.41H61.71ZM34.64,58.68H46.37V70.41H42.75V76.31H38.18V70.41H34.64ZM48.21,63.04H59.86V70.41H56.32V76.31H51.75V70.41H48.21Z" />
 </vector>

@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Base artwork for the animated launch icon (see splash_logo_animated.xml).
+
+  Same glyph as ic_launcher_foreground.xml, on the same 108-unit grid, but
+  declared at 432dp because that is what the platform asks of an animated
+  splash icon: a canvas four times the 108dp adaptive icon, of which the inner
+  two thirds (288dp) stay visible. The artwork already sits inside the inner
+  72 of 108 units, so it lands inside the visible 288dp without being moved.
+
+  Every piece is wrapped in its own group so the animator can translate it
+  independently. Pieces that only move on one axis carry a single group; the
+  rest are nested (x outside, y inside). Nesting is deliberate: a target holds
+  one animator, so one axis per target keeps the pairing unambiguous.
+
+  Four places used to be two paths each (or three), drawn edge to edge on a
+  shared coordinate. Two abutting paths each get their own antialiased edge, so
+  the join showed as a hairline of background between two shapes that were
+  meant to read as one - invisible at launcher size, obvious once the icon is
+  drawn at splash size. They are single polygons now: the outer edge is traced
+  once and the shared edges no longer exist. The union is exact, so the
+  silhouette is unchanged.
+
+    * mid-right block : three bars  -> one stepped polygon
+    * bottom-left     : block + leg -> one polygon
+    * bottom-right    : block + leg -> one polygon
+    * bottom-centre   : block + leg -> one polygon
+
+  Nothing else changed. The pieces that merely come close keep their gap: the
+  ~1.85-unit separations between the top three, and between rows, are meant to
+  read as spacing, and at splash size they are wide enough that no seam is
+  visible.
+
+  The fill is a colour resource rather than a literal so the mark follows the
+  light/dark scheme the way the rest of the app does: #0B47C1 on light,
+  #3D7EFF on dark (see values/colors.xml and values-night/colors.xml).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="432dp"
+    android:height="432dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- top-left square -->
+    <group android:name="tl_x">
+        <group android:name="tl_y">
+            <path
+                android:fillColor="@color/splash_logo"
+                android:pathData="M34.64,31.62H46.37V43.27H34.64Z" />
+        </group>
+    </group>
+
+    <!-- top-centre bar -->
+    <group android:name="tc_y">
+        <path
+            android:fillColor="@color/splash_logo"
+            android:pathData="M48.21,31.62H59.86V38.99H48.21Z" />
+    </group>
+
+    <!-- top-right square -->
+    <group android:name="tr_x">
+        <group android:name="tr_y">
+            <path
+                android:fillColor="@color/splash_logo"
+                android:pathData="M61.71,31.62H73.43V43.27H61.71Z" />
+        </group>
+    </group>
+
+    <!-- middle-left block -->
+    <group android:name="ml_x">
+        <path
+            android:fillColor="@color/splash_logo"
+            android:pathData="M34.64,45.19H43.93V56.84H34.64Z" />
+    </group>
+
+    <!-- centre bar, upper -->
+    <group android:name="cbu_y">
+        <path
+            android:fillColor="@color/splash_logo"
+            android:pathData="M48.21,45.19H59.86V48.87H48.21Z" />
+    </group>
+
+    <!-- middle-right block: three bars welded into one stepped polygon. The
+         right edge is a single straight run from y=45.19 down to y=56.84; the
+         left edge steps out to x=61.71 for the middle bar only. -->
+    <group android:name="mr_x">
+        <path
+            android:fillColor="@color/splash_logo"
+            android:pathData="M64.14,45.19H73.43V56.84H64.14V55.88H61.71V53.08H64.14Z" />
+    </group>
+
+    <!-- centre bar, lower -->
+    <group android:name="cbl_y">
+        <path
+            android:fillColor="@color/splash_logo"
+            android:pathData="M48.21,53.08H59.86V56.84H48.21Z" />
+    </group>
+
+    <!-- bottom-left block and its leg, welded -->
+    <group android:name="bl_x">
+        <group android:name="bl_y">
+            <path
+                android:fillColor="@color/splash_logo"
+                android:pathData="M34.64,58.68H46.37V70.41H42.75V76.31H38.18V70.41H34.64Z" />
+        </group>
+    </group>
+
+    <!-- bottom-right block and its leg, welded -->
+    <group android:name="br_x">
+        <group android:name="br_y">
+            <path
+                android:fillColor="@color/splash_logo"
+                android:pathData="M61.71,58.68H73.43V70.41H69.89V76.31H65.32V70.41H61.71Z" />
+        </group>
+    </group>
+
+    <!-- bottom-centre block and its leg, welded -->
+    <group android:name="bc_y">
+        <path
+            android:fillColor="@color/splash_logo"
+            android:pathData="M48.21,63.04H59.86V70.41H56.32V76.31H51.75V70.41H48.21Z" />
+    </group>
+</vector>

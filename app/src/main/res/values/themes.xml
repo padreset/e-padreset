@@ -4,6 +4,14 @@
              tema base de Material 3 pinta el splash con #FEF7FF. -->
         <item name="android:windowBackground">@color/splash_background</item>
         <item name="android:windowSplashScreenBackground" tools:targetApi="s">@color/splash_background</item>
+        <!-- Icono animado del splash (Android 12+). Sin esto el sistema dibuja
+             el icono de lanzador, que es un disco blanco con el logo dentro: en
+             tema oscuro eso dejaba un círculo claro sobre el fondo #050814.
+             El AVD dura 680 ms y no se repite. En Android 7-11 estas dos líneas
+             no existen para el sistema y se sigue viendo solo el color de
+             windowBackground. -->
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="s">@drawable/splash_logo_animated</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="s">680</item>
         <item name="android:statusBarColor" tools:targetApi="l">#F6F8FB</item>
         <item name="android:navigationBarColor" tools:targetApi="l">#F6F8FB</item>
         <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>

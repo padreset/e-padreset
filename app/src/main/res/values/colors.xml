@@ -8,4 +8,10 @@
          superficie base por defecto (#FEF7FF), que tira a lavanda y se percibe
          como rosada. -->
     <color name="splash_background">#FFFFFF</color>
+
+    <!-- Tinta del logo en la pantalla de arranque. Es el mismo azul que el
+         acento claro de la app (PadLight.accent), y en tema oscuro cambia a
+         PadDark.accent desde values-night. El icono de lanzador NO lo usa: ese
+         es una marca fija y no debe seguir al tema. -->
+    <color name="splash_logo">#0B47C1</color>
 </resources>
