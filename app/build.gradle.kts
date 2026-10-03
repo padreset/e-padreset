@@ -63,8 +63,19 @@ android {
         applicationId = "com.padreset.epadreset"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.1.1"
+        // The first public release. Nothing had shipped under this fork, so the
+        // number was free to choose, and 1.0.0 is what it should say: 0.y.z
+        // promises that anything may change, which is not what a published app
+        // is claiming. The upstream it forked from sat at 0.1.x, and inheriting
+        // that would have suggested a continuity and a stage that are not real.
+        //
+        // versionCode reads back as the version: major*10000 + minor*100 +
+        // patch. Play requires it to increase with every upload, forever, so it
+        // is worth a scheme that stays legible. This leaves 99 minor and 99
+        // patch releases per major and still lands far below the 2,100,000,000
+        // ceiling.
+        versionCode = 10000
+        versionName = "1.0.0"
 
         // Needed for the instrumented tests. Without it the default runner is
         // the framework's, which does not know about AndroidX Test and reports
