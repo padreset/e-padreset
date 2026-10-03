@@ -341,6 +341,61 @@ Key identifiers:
 - Application ID: `com.padreset.epadreset`
 - Launcher label: `E-Pad Reset`
 
+## Releasing
+
+The repository is not public yet. These steps belong to publishing rather than to
+building, and they are written down here so they are not rediscovered later.
+
+**Turn on the repository's security features.** `gh-secure` is a GitHub CLI
+extension from the GitHub Security Lab that does it in one command:
+
+```sh
+gh extension install GitHubSecurityLab/gh-secure
+gh secure status   # read-only: reports what is already on
+gh secure          # enables the set below
+```
+
+It turns on secret-scanning push protection, Dependabot alerts and security
+updates, private vulnerability reporting, and CodeQL default setup — all free on
+public repositories. It also offers branch protection that requires one approving
+review, which is friction on a repository one person merges into; leave that one
+out with `gh secure ss vr dep cs` if it applies to you.
+
+**Attest the APK.** The app is distributed by sideloading, so the question a user
+actually has is whether the file they downloaded was built from this source, by
+this repository's workflow, and not swapped for something else along the way.
+Artifact attestations answer exactly that, and they are free for public
+repositories on the Free, Pro and Team plans.
+
+Add to the release workflow:
+
+```yaml
+permissions:
+  id-token: write
+  contents: read
+  attestations: write
+```
+
+and, after the APK has been built and signed:
+
+```yaml
+- uses: actions/attest@v4
+  with:
+    subject-path: app/build/outputs/apk/release/*.apk
+```
+
+Anyone can then check a file they downloaded:
+
+```sh
+gh attestation verify EPadReset-1.0.0.apk -R DSGM-GMSD/e-padreset
+```
+
+That last line belongs in the release notes. An attestation nobody knows to check
+is worth nothing.
+
+**Tag the release `vX.Y.Z`.** The badge at the top of this file reads the GitHub
+release tag rather than the manifest, so it stays blank until a release exists.
+
 ## Usage
 
 1. Connect an Epson printer through USB OTG.
