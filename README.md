@@ -393,6 +393,24 @@ gh attestation verify EPadReset-1.0.0.apk -R DSGM-GMSD/e-padreset
 That last line belongs in the release notes. An attestation nobody knows to check
 is worth nothing.
 
+**Publish the SHA-256 as well.** Not as a second security measure: the digest is
+already inside the attestation, because the subject of a provenance statement is
+the artifact's hash. This is for the readers who will not install `gh`.
+
+```sh
+sha256sum app/build/outputs/apk/release/*.apk > SHA256SUMS
+```
+
+Attach `SHA256SUMS` to the release, and put the hash in the release notes too, so
+it can be read without downloading a second file.
+
+It is worth being precise about what a checksum does and does not do, because the
+two are easy to confuse. It catches a truncated or corrupted download, which is
+the likeliest thing to go wrong with a file this size. It does not prove the
+binary was not swapped: a checksum published on the same page as the binary is
+replaced by whoever replaces the binary. That is what the attestation is for, and
+why both are here rather than one instead of the other.
+
 **Tag the release `vX.Y.Z`.** The badge at the top of this file reads the GitHub
 release tag rather than the manifest, so it stays blank until a release exists.
 
