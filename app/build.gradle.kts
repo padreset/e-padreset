@@ -78,7 +78,22 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 and resource shrinking are most of the APK. Without them the
+            // release shipped the whole of material-icons-extended - about
+            // 6,400 icons in three styles, of which this app uses five - plus
+            // every library resource pulled in along the way.
+            //
+            // The default rules cover what this app needs: it holds no
+            // reflection, and the libraries that do (Compose, AndroidX) ship
+            // consumer rules of their own. proguard-rules.pro stays empty on
+            // purpose rather than by omission.
+            //
+            // Shrinking does not touch assets/, where the printer databases
+            // live and are opened by name at runtime. It does remove resources
+            // nothing references, which is why the font licences in res/raw
+            // carry a keep rule of their own.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

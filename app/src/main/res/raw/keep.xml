@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Keeps the bundled font licences through resource shrinking.
+
+  Nothing in the code opens these files, so the shrinker sees them as unused and
+  removes them. That would break the SIL Open Font License, which requires the
+  licence text to travel with the fonts it covers - and the fonts are embedded in
+  the APK, so the licence has to be too. NOTICE points here for the same reason.
+
+  A keep rule rather than a code reference: reading the file at runtime just to
+  stop it being deleted would be a fake dependency, and a reader could not tell
+  the difference between "this is loaded" and "this is kept alive".
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/ofl_figtree,@raw/ofl_space_grotesk" />
