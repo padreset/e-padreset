@@ -429,6 +429,29 @@ fun PrinterStatusScreen(
                             color = pad.muted,
                         )
                     }
+
+                    // Same shape as the releases button above, and for the same
+                    // reason: an ask only appears next to the means to answer it.
+                    // While DONATE_URL is null none of this renders, so the app
+                    // never asks for money it has nowhere to send.
+                    if (DONATE_URL != null) {
+                        PadButton(
+                            text = stringResource(R.string.action_support_development),
+                            variant = PadButtonVariant.Secondary,
+                            onClick = {
+                                showAbout = false
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(DONATE_URL)),
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            text = stringResource(R.string.about_donation),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = pad.muted,
+                        )
+                    }
                 }
             },
             confirmButton = {

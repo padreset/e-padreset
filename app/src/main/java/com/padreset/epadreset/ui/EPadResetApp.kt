@@ -64,6 +64,24 @@ internal val REPORT_REPO_URL: String? = "https://github.com/DSGM-GMSD/e-padreset
  */
 internal val RELEASES_URL: String? = "https://github.com/DSGM-GMSD/e-padreset/releases"
 
+/**
+ * Where a donation is collected, or null while there is nowhere to collect it.
+ *
+ * Null is not a placeholder: the support block in About is hidden entirely while
+ * this is null, so the app never asks for money it has nowhere to send. Setting
+ * this is what turns the block on, and it is the only change needed.
+ *
+ * The button opens the address in the browser, which is deliberate on two counts.
+ * It needs no INTERNET permission, because the browser does the connecting - the
+ * same reason the repository and releases buttons work in an app that promises
+ * never to go online. And it keeps the donation outside Google Play's billing
+ * requirement, which covers payments taken inside the app.
+ *
+ * Prefer a destination a non-technical user can use without an account: this
+ * app's audience owns an Epson printer, not a GitHub profile.
+ */
+internal val DONATE_URL: String? = "https://ko-fi.com/dantesgonzalez"
+
 /** The pages the app can show. There are two, so a navigation library would be overkill. */
 private enum class AppPage { Status, Maintenance }
 
@@ -131,7 +149,6 @@ private fun ActionSuccessDialog(title: String, message: String, onDismiss: () ->
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                 Text(message)
-                Text(stringResource(R.string.about_donation))
                 OutlinedButton(
                     onClick = {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(REPO_URL)))

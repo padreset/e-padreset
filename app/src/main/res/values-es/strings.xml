@@ -186,7 +186,12 @@
     <string name="action_check_updates">Buscar actualizaciones</string>
     <string name="about_updates_note">Abre la página de versiones en tu navegador. La aplicación no se conecta nunca.</string>
     <string name="action_open_repo">Abrir repositorio</string>
-    <string name="about_donation">Dona para apoyar el desarrollo de esta y mis otras aplicaciones gratuitas, ¡gracias!</string>
+    <!-- Se muestra con el botón de apoyo, y solo mientras DONATE_URL tenga valor:
+         la aplicación no pide dinero que no tiene dónde enviar. El botón abre el
+         navegador, que es además lo que la mantiene fuera del requisito de
+         facturación de Google Play: no se cobra nada dentro de la aplicación. -->
+    <string name="about_donation">E-Pad Reset es gratis, no tiene anuncios ni cuenta. Si te ha ahorrado una visita al servicio técnico, puedes apoyar su desarrollo.</string>
+    <string name="action_support_development">Apoyar el desarrollo</string>
     <string name="action_open_github">Abrir repositorio en GitHub</string>
 
     <!-- Confirmación de salida. -->

@@ -173,8 +173,7 @@
     <string name="action_print_test">Print Test</string>
     <string name="dialog_nozzle_check_body">Prints a nozzle check page. It uses a sheet of paper and a little ink, and it is the only way to tell whether a head cleaning is worth doing.</string>
 
-    <!-- About dialog. The repository label and the donation line still point at
-         the upstream project and are pending the fork's own repository. -->
+    <!-- About dialog. -->
     <string name="dialog_about_title">About</string>
     <string name="about_version">Version %1$s</string>
     <string name="about_epson_only">Works with Epson inkjet printers only.</string>
@@ -184,7 +183,12 @@
     <string name="about_updates_note">Opens the releases page in your browser. The app itself never goes online.</string>
     <string name="about_repo_label">GitHub: DSGM-GMSD/e-padreset</string>
     <string name="action_open_repo">Open Repo</string>
-    <string name="about_donation">Donate now to support development of this and my other free apps, thank you!</string>
+    <!-- Shown with the support button, and only while DONATE_URL has a value:
+         the app does not ask for money it has nowhere to send. The button opens
+         the browser, which is also what keeps this outside Google Play's billing
+         requirement - no payment is taken inside the app. -->
+    <string name="about_donation">E-Pad Reset is free, has no ads and no account. If it saved you a service call, you can support its development.</string>
+    <string name="action_support_development">Support development</string>
     <string name="action_open_github">Open GitHub Repo</string>
 
     <!-- Exit confirmation. -->
