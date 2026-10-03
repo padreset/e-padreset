@@ -23,19 +23,19 @@
     <!-- Encabezados de sección. -->
     <string name="section_printer">Impresora</string>
     <string name="section_ink_levels">Niveles de tinta</string>
-    <string name="section_waste_levels">Niveles de residuo</string>
+    <string name="section_waste_levels">Niveles de tinta residual</string>
     <string name="section_maintenance">Mantenimiento</string>
     <string name="section_protocol_log">Registro de protocolo</string>
 
     <!-- Bloque de estado de la impresora. -->
-    <string name="status_working">Trabajando</string>
+    <string name="status_working">En curso</string>
     <string name="status_scanning">Buscando una impresora Epson por USB OTG</string>
     <string name="status_no_printer">Sin impresora</string>
     <string name="status_no_printer_hint">Conecta una impresora Epson por USB OTG y pulsa el botón de actualizar</string>
     <string name="status_printer_error">La impresora ha reportado un error</string>
     <string name="status_ready">Lista</string>
     <string name="status_connected">Conectada por USB OTG</string>
-    <string name="status_busy_indicator">Trabajando…</string>
+    <string name="status_busy_indicator">Procesando…</string>
     <!-- Se muestra mientras una conexión gasta segundos en una vía por la que la
          impresora no respondió, antes de probar la siguiente. Dice qué pasa y
          cuánto dura, porque si no la espera queda sin explicación. -->
@@ -49,33 +49,33 @@
     <!-- Filas de detalle dentro de la tarjeta de impresora. -->
     <string name="label_model">Modelo</string>
     <string name="label_serial">Número de serie</string>
-    <string name="label_highest_pad">Almohadilla más alta</string>
+    <string name="label_highest_pad">Almohadilla más llena</string>
 
     <!-- Panel del registro de protocolo. -->
     <string name="log_empty">Todavía no hay entradas en el registro.</string>
     <string name="log_copied">Registro de protocolo copiado</string>
 
     <!-- Aviso mostrado sobre los contadores de residuo. -->
-    <string name="pad_warning_title">Reiniciar no limpia la almohadilla</string>
-    <string name="pad_warning_body">El contador es electrónico; la almohadilla es física. Lava, sustituye o redirige la tinta residual antes de reiniciar, o la tinta acabará goteando dentro de la impresora.</string>
+    <string name="pad_warning_title">Restablecer el contador no limpia la almohadilla</string>
+    <string name="pad_warning_body">El contador es electrónico; la almohadilla es física. Lava, sustituye o redirige la tinta residual antes de restablecer, o la tinta acabará goteando dentro de la impresora.</string>
 
     <!-- Se muestra en lugar de los contadores cuando la impresora conectada
          guarda el contador de residuo donde la aplicación no puede escribir. No
          afirma cuál de las dos causas es: el catálogo sabe que el modelo no
          tiene contador, pero no si se debe a una caja de mantenimiento o a un
          hueco en la base de datos. El diálogo explica ambas. -->
-    <string name="waste_unsupported_title">Este modelo no tiene contador que reiniciar</string>
-    <string name="waste_unsupported_body">Esta impresora no guarda el contador de residuo donde la aplicación pueda reiniciarlo. No hay nada averiado: ni la aplicación ni la impresora tienen un problema.</string>
+    <string name="waste_unsupported_title">Este modelo no tiene contador que restablecer</string>
+    <string name="waste_unsupported_body">Esta impresora no guarda el contador de tinta residual donde la aplicación pueda restablecerlo. No hay nada averiado: ni la aplicación ni la impresora tienen un problema.</string>
     <string name="action_more_info">Más información</string>
 
     <!-- Se muestra junto a un contador cuyo techo no publica el modelo, que es
          el caso de todos los modelos que vienen de reinkpy. Sin techo no hay
          porcentaje, y el valor crudo es lo que reporta la impresora. -->
-    <string name="waste_scale_unknown">Sin porcentaje: este modelo no tiene publicado el techo del contador. El valor de arriba es la lectura cruda.</string>
+    <string name="waste_scale_unknown">Sin porcentaje: este modelo no tiene publicado el límite del contador. El valor mostrado es la lectura directa en bruto.</string>
     <!-- Cuerpo del diálogo de reinicio para esos mismos modelos. No hay campo de
          porcentaje ni elección por contador, porque el reinicio cubre todas las
          direcciones que publica el modelo. -->
-    <string name="dialog_reset_model_values">Este modelo no tiene publicado el techo del contador, así que no hay porcentaje al que apuntar. El reinicio escribe los valores publicados para este modelo, en todas las direcciones que lista.</string>
+    <string name="dialog_reset_model_values">Este modelo no tiene publicado el límite del contador, por lo que no hay un porcentaje de referencia. El restablecimiento escribe los valores publicados para este modelo, en todas las direcciones que lista.</string>
 
     <!-- El respaldo de la EEPROM tomado antes de cualquier escritura. Se muestra
          después de escribir, tanto si fue bien como si la impresora la rechazó a
@@ -104,17 +104,17 @@
          mantenimiento, así que la causa se conoce en vez de suponerse. El
          diálogo que sigue es el específico de abajo, no el de dos causas. -->
     <string name="waste_box_title">Esta impresora usa una caja de mantenimiento</string>
-    <string name="waste_box_body">La tinta residual va a una caja, y la caja registra el nivel en su propio chip. La impresora no tiene ningún contador que la aplicación pueda reiniciar; cuando la caja se llena, se sustituye.</string>
+    <string name="waste_box_body">La tinta residual va a una caja, y la caja registra el nivel en su propio chip. La impresora no tiene ningún contador que la aplicación pueda restablecer; cuando la caja se llena, se sustituye.</string>
     <string name="waste_box_dialog_title">Tu impresora usa una caja de mantenimiento</string>
-    <string name="waste_box_dialog_body">La tinta residual de la limpieza de cabezal se recoge en una caja de mantenimiento, no en almohadillas dentro de la impresora. La caja lleva su propio chip que registra cuánto se ha llenado, y la impresora no guarda ningún contador propio, así que no hay nada que ninguna utilidad de reinicio pueda borrar.\n\nCuando la caja se llena, se sustituye, o se reinicia su chip con una herramienta específica. Una aplicación no puede hacer ninguna de las dos cosas por USB.\n\nPuedes confirmarlo en la propia impresora: su panel de estado nombra la caja de mantenimiento y te avisa cuando hay que cambiarla.\n\nLa limpieza de cabezal y la comprobación de inyectores siguen funcionando en esta impresora. Están en la página de Mantenimiento.</string>
+    <string name="waste_box_dialog_body">La tinta residual de la limpieza de cabezal se recoge en una caja de mantenimiento, no en almohadillas dentro de la impresora. La caja lleva su propio chip que registra cuánto se ha llenado, y la impresora no guarda ningún contador propio, así que no hay nada que ninguna utilidad de reinicio pueda borrar.\n\nCuando la caja se llena, se sustituye, o se reinicia su chip con una herramienta específica. Una aplicación no puede hacer ninguna de las dos cosas por USB.\n\nPuedes confirmarlo en la propia impresora: su panel de estado indica la caja de mantenimiento y te avisa cuando hay que cambiarla.\n\nLa limpieza de cabezal y la comprobación de inyectores siguen funcionando en esta impresora. Están en la página de Mantenimiento.</string>
 
-    <string name="waste_unsupported_dialog_title">Dónde se guarda el contador de residuo</string>
-    <string name="waste_unsupported_dialog_body">Epson guarda el contador de residuo en uno de dos sitios.\n\nAlmohadilla interna: la tinta la absorben unas almohadillas dentro de la impresora, y el nivel se guarda en la memoria de la propia impresora. Es el caso que esta aplicación puede reiniciar.\n\nCaja de mantenimiento: la tinta se recoge en una caja extraíble, y la caja lleva su propio chip que registra el nivel. La memoria de la impresora no tiene ningún contador, así que ningún programa puede borrarlo. La caja se sustituye, o se reinicia su chip con una herramienta específica.\n\nPara saber cuál tienes, mira el panel de estado de la propia impresora. Si indica caja de mantenimiento, ninguna utilidad de reinicio puede ayudar.\n\nSi tu impresora usa almohadilla interna y aun así ves este mensaje, es que el modelo falta en la base de datos de la aplicación. Ese caso sí tiene solución, y nos gustaría conocerlo.\n\nLa limpieza de cabezal y la comprobación de inyectores siguen funcionando en esta impresora. Están en la página de Mantenimiento.</string>
+    <string name="waste_unsupported_dialog_title">Dónde se guarda el contador de tinta residual</string>
+    <string name="waste_unsupported_dialog_body">Epson guarda el contador de tinta residual en uno de dos sitios.\n\nAlmohadilla interna: la tinta la absorben unas almohadillas dentro de la impresora, y el nivel se guarda en la memoria de la propia impresora. Es el caso que esta aplicación puede restablecer.\n\nCaja de mantenimiento: la tinta se recoge en una caja extraíble, y la caja lleva su propio chip que registra el nivel. La memoria de la impresora no tiene ningún contador, así que ningún programa puede borrarlo. La caja se sustituye, o se reinicia su chip con una herramienta específica.\n\nPara saber cuál tienes, mira el panel de estado de la propia impresora. Si indica caja de mantenimiento, ninguna utilidad de reinicio puede ayudar.\n\nSi tu impresora usa almohadilla interna y aun así ves este mensaje, es que el modelo falta en la base de datos de la aplicación. Ese caso sí tiene solución, y nos gustaría conocerlo.\n\nLa limpieza de cabezal y la comprobación de inyectores siguen funcionando en esta impresora. Están en la página de Mantenimiento.</string>
 
     <!-- Panel de mantenimiento. -->
     <string name="maintenance_head_cleaning">Limpieza de cabezal</string>
     <string name="maintenance_nozzle_check">Comprobación de inyectores</string>
-    <string name="maintenance_note">La limpieza de cabezal consume tinta y suma a los contadores de residuo.</string>
+    <string name="maintenance_note">La limpieza de cabezal consume tinta y suma a los contadores de tinta residual.</string>
 
     <!-- Acciones compartidas por varios diálogos. -->
     <string name="action_cancel">Cancelar</string>
@@ -122,10 +122,10 @@
     <string name="action_close">Cerrar</string>
 
     <!-- Diálogo de reinicio de contadores. -->
-    <string name="dialog_reset_title">Reiniciar contadores de residuo</string>
-    <string name="dialog_reset_warning">Reiniciar los contadores de residuo modifica valores internos del firmware de la impresora. Úsalo bajo tu propia responsabilidad.</string>
+    <string name="dialog_reset_title">Restablecer contadores de tinta residual</string>
+    <string name="dialog_reset_warning">Restablecer los contadores de tinta residual modifica valores internos del firmware de la impresora. Úsalo bajo tu propia responsabilidad.</string>
     <string name="field_target_percentage">Porcentaje objetivo</string>
-    <string name="action_reset_counters">Reiniciar contadores</string>
+    <string name="action_reset_counters">Restablecer contadores</string>
 
     <!-- Diálogo de limpieza de cabezal, para modelos que la aceptan. -->
     <string name="dialog_cleaning_title">Limpieza de cabezal</string>
@@ -138,7 +138,7 @@
     <string name="cleaning_black_nozzle">Limpiar el inyector de tinta negra</string>
     <string name="cleaning_color_nozzles">Limpiar los inyectores de color</string>
     <string name="cleaning_alternative_mode">Limpieza de cabezal (modo alternativo)</string>
-    <string name="cleaning_power_clean">Limpieza intensiva</string>
+    <string name="cleaning_power_clean">Limpieza a fondo</string>
 
     <!-- Modos de limpieza de servicio, tal como los nombra la base de datos de
          modelos. El diálogo se lee, así que usa estas etiquetas. El registro de
@@ -230,8 +230,8 @@
          el aviso indique la causa real y no un fallo genérico. -->
     <string name="error_connect_permission_denied">Se ha denegado el acceso por USB. Vuelve a conectar la impresora y acepta la solicitud de permiso.</string>
     <string name="error_connect_no_interfaces">Este dispositivo USB no tiene ninguna interfaz que la aplicación pueda usar. Puede que no sea una impresora Epson compatible.</string>
-    <string name="error_connect_unsupported_model">Este modelo de Epson no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. A diferencia de una impresora con caja de mantenimiento, esto no es definitivo: el modelo se puede soportar cuando se añadan sus datos.</string>
-    <string name="error_connect_unsupported_model_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. A diferencia de una impresora con caja de mantenimiento, esto no es definitivo: el modelo se puede soportar cuando se añadan sus datos.</string>
+    <string name="error_connect_unsupported_model">Este modelo de Epson no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. A diferencia de una impresora con caja de mantenimiento, esto no es definitivo: se podrá añadir compatibilidad para este modelo cuando se incluyan sus datos.</string>
+    <string name="error_connect_unsupported_model_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. A diferencia de una impresora con caja de mantenimiento, esto no es definitivo: se podrá añadir compatibilidad para este modelo cuando se incluyan sus datos.</string>
     <!-- El espejo de las dos líneas de arriba. El modelo también falta en la base
          de datos, pero la base comunitaria lo clasifica como uso de caja de
          mantenimiento, así que añadirlo nunca habilitaría un reinicio. Se separa
@@ -250,7 +250,7 @@
     <string name="action_copy_report">Copiar informe</string>
     <string name="report_model_note">El informe incluye el modelo, el identificador de dispositivo de la impresora sin su número de serie y las últimas líneas del registro de protocolo. Nada sale de tu dispositivo por sí solo.</string>
     <string name="report_copied">Informe copiado</string>
-    <string name="msg_counters_updated">Los contadores de residuo se han actualizado. Reinicia la impresora si el modelo lo requiere.</string>
+    <string name="msg_counters_updated">Los contadores de tinta residual se han actualizado. Reinicia la impresora si el modelo lo requiere.</string>
     <!-- Se lanza cuando los contadores leídos tras la escritura no coinciden con
          el valor pedido, lo que significa que la impresora no lo aplicó. -->
     <string name="error_counters_not_applied">La impresora no ha aplicado los valores nuevos: los contadores siguen en %1$s. No se ha cambiado nada. Lo más probable es que la escritura fuera rechazada.</string>
@@ -260,7 +260,7 @@
 
     <!-- Lecturas. El guion largo significa "todavía sin lectura". -->
     <string name="percent_value">%1$d%%</string>
-    <string name="waste_counter_default_name">Contador de residuo %1$d</string>
+    <string name="waste_counter_default_name">Contador de tinta residual %1$d</string>
 
     <!-- Estado de la impresora, resuelto a partir del código que reporta. -->
     <string name="printer_state_self_printing">Autoimpresión</string>

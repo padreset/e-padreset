@@ -78,11 +78,11 @@
     <!-- Shown next to a counter whose ceiling the model does not publish, which
          is every model sourced from reinkpy. Without a ceiling there is no
          percentage, and the raw value is what the printer actually reports. -->
-    <string name="waste_scale_unknown">No percentage: this model\'s counter ceiling is not published. The value above is the raw reading.</string>
+    <string name="waste_scale_unknown">No percentage: this model\'s counter limit is not published. The value above is the raw reading.</string>
     <!-- Reset dialog body for those same models. There is no percentage field
          and no per-counter choice, because the reset covers every address the
          model publishes. -->
-    <string name="dialog_reset_model_values">This model\'s counter ceiling is not published, so there is no percentage to aim at. The reset writes the values published for this model, across every address it lists.</string>
+    <string name="dialog_reset_model_values">This model\'s counter limit is not published, so there is no target percentage. The reset writes the values published for this model, across every address it lists.</string>
 
     <!-- The EEPROM backup taken before any write. Shown after the write, whether
          it succeeded or was refused partway through. -->
@@ -95,7 +95,7 @@
     <string name="error_backup_failed">The current values could not be read, so nothing was written. The app backs up before it writes.</string>
     <string name="error_backup_failed_at">The current value at %1$s could not be read, so nothing was written. The app backs up before it writes.</string>
     <string name="error_write_rejected">The printer refused the write. Nothing further was written.</string>
-    <string name="error_write_rejected_at">The printer refused the write at %1$s. %2$d address(es) had already been written; nothing further was. The backup is below.</string>
+    <string name="error_write_rejected_at">The printer refused the write at %1$s. %2$d address(es) had already been written; nothing further was written. The backup is below.</string>
 
     <!-- Shown when the model is on the curated maintenance-box list, so the
          cause is known rather than guessed. The dialog that follows is the
