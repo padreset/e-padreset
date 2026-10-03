@@ -328,6 +328,26 @@ Head cleaning consumes ink and increases waste ink accumulation.
 
 Waste counter reset does **not** replace the physical waste ink pads or maintenance tank. Use maintenance functions only if you understand the hardware implications and accept the risk.
 
+### The reset writes zero, from whatever the counter reads
+
+A release build has no target field. Resetting writes the model's own reset
+values, which is what every other tool does: Epson's Adjustment Program, WIC
+Reset, yusnel-rojas, EWR and PadZero all write the model's values and give the
+user no say in it.
+
+The reason is that writing a counter *up* has no legitimate use. It does not
+make the pads hold more ink, it only brings the block closer — and on a printer
+that is not yours, that means handing the owner a service bill. Writing it down
+partially is a real use, but it is also the operation a repair shop would use to
+bring a customer back sooner, and the app cannot tell the two apart. So the
+choice is removed rather than restricted.
+
+A `Target percentage` field still exists, gated on `BuildConfig.DEBUG`, because
+testing the write path on hardware needs to write a value up as well as down.
+`BuildConfig.DEBUG` is a compile-time constant, so the field is unreachable in a
+release build. Minification is off, so the code stays in the binary; what the
+gate guarantees is reachability, not absence.
+
 ## Status
 
 This is a working port in progress, not a finished production tool.

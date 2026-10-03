@@ -45,6 +45,11 @@ android {
 
     buildFeatures {
         compose = true
+        // For BuildConfig.DEBUG, which gates the counter target field. The
+        // version string is read from the package manager instead; this one
+        // needs to be a compile-time constant so the field is unreachable in a
+        // release build rather than merely hidden at runtime.
+        buildConfig = true
     }
 
     composeOptions {

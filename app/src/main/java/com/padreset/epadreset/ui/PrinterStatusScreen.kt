@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.padreset.epadreset.BuildConfig
 import com.padreset.epadreset.R
 import com.padreset.epadreset.data.InkLevel
 import com.padreset.epadreset.data.PrinterStatusSnapshot
@@ -129,6 +130,22 @@ fun PrinterStatusScreen(
     // from devices.xml — the reset writes the values that model's own record
     // publishes, and there is nothing for the user to aim at.
     val percentageWritable = availableCounters.isNotEmpty() && availableCounters.all { it.scaleKnown }
+
+    // The target field is a development tool, not a feature.
+    //
+    // It was the only way to write a counter up as well as down, and nothing in
+    // the ecosystem allows that: Epson's own Adjustment Program, WIC Reset and
+    // every free tool write the model's own reset values, usually zero, and give
+    // the user no say in it. Raising a counter has no legitimate use — it does
+    // not make the pads hold more ink, it only brings the block closer — and the
+    // one real use it had was testing the write path on hardware.
+    //
+    // So the reset writes zero, from whatever the counter currently reads.
+    // BuildConfig.DEBUG is a compile-time constant, so the branch below is dead
+    // in a release build and the field cannot be reached. The module does not
+    // enable minification, so the code itself stays in the binary; what the
+    // gate guarantees is reachability, not absence.
+    val targetValueAllowed = BuildConfig.DEBUG && percentageWritable
 
     BackHandler(enabled = !showWarning && !showAbout && !showExitDialog && !showWasteUnsupported) {
         showExitDialog = true
@@ -279,7 +296,7 @@ fun PrinterStatusScreen(
                             } else {
                                 availableCounters.map { it.name }.toSet()
                             },
-                            if (percentageWritable) {
+                            if (targetValueAllowed) {
                                 targetPercentageText.toIntOrNull()?.coerceIn(0, 100) ?: 0
                             } else {
                                 0
@@ -294,9 +311,7 @@ fun PrinterStatusScreen(
                 ) {
                     // "Reset" is the word the whole ecosystem uses (WIC Reset,
                     // Adjustment Program, ez-reset, padreset itself) and the one
-                    // users look for. The precise mechanic, including the fact
-                    // that a non-zero target is a write rather than a reset,
-                    // belongs in the dialog body where there is room to explain it.
+                    // users look for.
                     Text(stringResource(R.string.action_reset_counters))
                 }
             },
@@ -308,7 +323,7 @@ fun PrinterStatusScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
                     Text(stringResource(R.string.dialog_reset_warning))
-                    if (percentageWritable) {
+                    if (targetValueAllowed) {
                         OutlinedTextField(
                             value = targetPercentageText,
                             onValueChange = { input ->
@@ -320,6 +335,8 @@ fun PrinterStatusScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                    }
+                    if (percentageWritable) {
                         availableCounters.forEach { counter ->
                             PadSelectableRow(
                                 label = counter.name,
@@ -335,9 +352,9 @@ fun PrinterStatusScreen(
                             )
                         }
                     } else {
-                        // No percentage field and no per-counter selection: the
-                        // reset covers every address the model publishes, so a
-                        // choice here would be one the service ignores.
+                        // No per-counter selection: the reset covers every address
+                        // the model publishes, so a choice here would be one the
+                        // service ignores.
                         Text(stringResource(R.string.dialog_reset_model_values))
                     }
                 }
