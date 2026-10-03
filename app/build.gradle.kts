@@ -3,9 +3,61 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+/**
+ * Release signing, read from the machine rather than from the repository.
+ *
+ * The values live in `~/.gradle/gradle.properties`, never in the project: a
+ * keystore password committed here would be a password published. The keystore
+ * itself is created once with:
+ *
+ *     keytool -genkeypair -v -keystore epadreset-release.jks -alias epadreset \
+ *         -keyalg RSA -keysize 4096 -validity 10000
+ *
+ * and these four properties are added to `~/.gradle/gradle.properties`:
+ *
+ *     epadreset.storeFile=/absolute/path/to/epadreset-release.jks
+ *     epadreset.storePassword=...
+ *     epadreset.keyAlias=epadreset
+ *     epadreset.keyPassword=...
+ *
+ * The CN chosen in `keytool` is the signer identity that appears on every APK,
+ * so it should be something stable and recognisable.
+ *
+ * Losing the keystore cannot be undone. Android requires every update to be
+ * signed with the same key, so without it the app can never be updated for
+ * anyone who already installed it — not by the author, not by anyone. Back it
+ * up twice, somewhere other than the machine that builds, and keep the password
+ * and alias stored separately from the file.
+ *
+ * When the properties are absent the release build simply produces an unsigned
+ * APK. That is deliberate: a fresh clone, and CI, have to be able to build
+ * without holding the shipping key.
+ */
+val releaseStoreFile: String? = providers.gradleProperty("epadreset.storeFile").orNull
+val releaseStorePassword: String? = providers.gradleProperty("epadreset.storePassword").orNull
+val releaseKeyAlias: String? = providers.gradleProperty("epadreset.keyAlias").orNull
+val releaseKeyPassword: String? = providers.gradleProperty("epadreset.keyPassword").orNull
+val hasReleaseSigning: Boolean = listOf(
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.padreset.epadreset"
     compileSdk = 35
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.padreset.epadreset"
@@ -31,6 +83,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Left unset when the keystore properties are missing, so the task
+            // produces an unsigned APK rather than failing.
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

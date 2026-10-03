@@ -1,8 +1,8 @@
 # E-Pad Reset
 
 <p align="center">
-  <a href="https://github.com/tekware-it/android-epson-reset/releases">
-    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/tekware-it/android-epson-reset?display_name=tag" />
+  <a href="https://github.com/DSGM-GMSD/e-padreset/releases">
+    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/DSGM-GMSD/e-padreset?display_name=tag" />
   </a>
 </p>
 

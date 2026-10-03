@@ -10,3 +10,17 @@ upstream-epson-print-conf/
 *.iml
 captures/
 .DS_Store
+
+# Release binaries and signing keys are never committed.
+#
+# The APKs belong on GitHub Releases, not in the tree. The upstream project
+# committed its own signed APK here, which meant this repository carried a 13 MB
+# binary signed by a key nobody here controls — indistinguishable at a glance
+# from a release of this fork.
+#
+# The keystore is the one file whose loss cannot be undone: lose it and the app
+# can never be updated for anyone who already installed it. It belongs outside
+# the repository, backed up twice, with its password and alias stored separately.
+*.apk
+*.jks
+*.keystore

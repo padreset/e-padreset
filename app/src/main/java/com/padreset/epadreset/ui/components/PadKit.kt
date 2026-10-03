@@ -1,5 +1,8 @@
 package com.padreset.epadreset.ui.components
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,12 +26,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -213,6 +224,14 @@ fun PadAlertDialog(
 }
 
 /**
+ * How long the press spin takes.
+ *
+ * Long enough to read as a deliberate turn rather than a flicker, short enough
+ * that it is over well before the job it announced has finished.
+ */
+private const val SPIN_MILLIS = 500
+
+/**
  * Circular icon-only action.
  *
  * Refresh used to be a full-width button sitting at the bottom of a scrolling
@@ -222,8 +241,20 @@ fun PadAlertDialog(
  * `filled = false` gives a quieter treatment for secondary actions, where a
  * solid accent circle would compete with the primary one.
  *
+ * `spinOnPress` turns the icon a full circle each time it is pressed. It is opt
+ * in because it only makes sense for an icon that means "do it again": a
+ * rotating wrench or question mark would read as decoration. The press is still
+ * delivered immediately; the turn is feedback on top of it, not a delay before
+ * it, so nothing waits for the animation to finish.
+ *
  * The description is still required: the icon carries the meaning visually, but
  * screen readers need something to announce.
+ *
+ * `size` is the size of the circle as drawn, not the size of the target. The
+ * target is whatever `size` is, grown to the 48 dp Android asks for, so a 40 dp
+ * button is still comfortable to hit without looking any bigger. Before this,
+ * the target and the drawing were the same thing, and every use of this button
+ * — six of them — was under the minimum.
  */
 @Composable
 fun PadIconButton(
@@ -234,9 +265,11 @@ fun PadIconButton(
     enabled: Boolean = true,
     size: Dp = 44.dp,
     filled: Boolean = true,
+    spinOnPress: Boolean = false,
 ) {
     val pad = PadTheme.colors
     val shape = CircleShape
+    val label = contentDescription
     val background = when {
         !enabled -> pad.sunken
         filled -> pad.accent
@@ -252,21 +285,57 @@ fun PadIconButton(
         filled -> pad.onAccent
         else -> pad.note
     }
+
+    // Counted rather than reset. Each press asks for one more turn than the
+    // last, so the target keeps climbing and a second press carries on from
+    // wherever the first one stopped. Sending it back to zero instead would
+    // rewind the icon to the start before turning it again.
+    var turns by remember { mutableIntStateOf(0) }
+    val angle by animateFloatAsState(
+        targetValue = turns * 360f,
+        animationSpec = tween(durationMillis = SPIN_MILLIS, easing = LinearEasing),
+        label = "padIconSpin",
+    )
+
     Box(
         modifier = modifier
-            .size(size)
-            .clip(shape)
-            .background(background)
-            .border(1.dp, borderColor, shape)
-            .clickable(enabled = enabled, onClick = onClick),
+            // The target, and the only node the accessibility tree needs to
+            // see: at least 48 dp, with the label and the action on it. This is
+            // what Material3's own IconButton gets for free and what a
+            // hand-rolled Box does not.
+            .minimumInteractiveComponentSize()
+            .clickable(enabled = enabled) {
+                if (spinOnPress) turns++
+                onClick()
+            }
+            // `this.` is load-bearing: the parameter of the same name shadows
+            // the receiver's property inside this lambda, and without it Kotlin
+            // tries to reassign the parameter and refuses to compile.
+            .semantics { this.contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = tint,
-            modifier = Modifier.size(size * 0.45f),
-        )
+        Box(
+            modifier = Modifier
+                .size(size)
+                .clip(shape)
+                .background(background)
+                .border(1.dp, borderColor, shape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                // Null on purpose. The label belongs to the node that can be
+                // pressed, not to the circle inside it: with the description
+                // here, the labelled node was `size * 0.45f` across — 18 dp on
+                // a 40 dp button — and a screen reader found the name and the
+                // action in two different places.
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier
+                    .size(size * 0.45f)
+                    .graphicsLayer { rotationZ = if (spinOnPress) angle else 0f },
+            )
+        }
     }
 }
 

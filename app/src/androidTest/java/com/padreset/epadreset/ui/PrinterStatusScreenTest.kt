@@ -237,11 +237,18 @@ class PrinterStatusScreenTest {
     }
 
     @Test
-    fun withNoReleasesUrlAboutDoesNotOfferToCheck() {
+    fun aboutOffersToCheckForUpdatesNowThatThereIsSomewhereToSendThem() {
+        // This asserted the opposite while RELEASES_URL was null, which it was
+        // for as long as the fork had no repository of its own. It is set now,
+        // so the assertion flips — and what it checks is that the button appears
+        // on its own, from the constant alone, with nothing else wired up.
         render(MainUiState(appVersion = "9.9.9"))
 
         compose.onNodeWithContentDescription(string(R.string.action_about)).performClick()
-        compose.onNodeWithText(string(R.string.action_check_updates)).assertDoesNotExist()
+        compose.onNodeWithText(string(R.string.action_check_updates)).assertIsDisplayed()
+        // And it says what it actually does, because the app cannot check by
+        // itself: it hands the address to the browser.
+        compose.onNodeWithText(string(R.string.about_updates_note)).assertIsDisplayed()
     }
 
     @Test

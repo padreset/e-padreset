@@ -265,16 +265,15 @@ fun PrinterStatusScreen(
             Spacer(Modifier.height(PadSpace.lg))
         }
 
-        if (uiState.isBusy) {
-            PadBusyIndicator(
-                modifier = Modifier.align(Alignment.Center),
-                // Same condition as the card's detail line, and the same split:
-                // the pill is the headline the user sees first, the card carries
-                // the explanation. Kept short because the pill is only as wide as
-                // its text.
-                label = uiState.connectNote?.let { stringResource(R.string.connect_slow_brief) },
-            )
-        }
+        PadBusyIndicator(
+            busy = uiState.isBusy,
+            modifier = Modifier.align(Alignment.Center),
+            // Same condition as the card's detail line, and the same split:
+            // the pill is the headline the user sees first, the card carries
+            // the explanation. Kept short because the pill is only as wide as
+            // its text.
+            label = uiState.connectNote?.let { stringResource(R.string.connect_slow_brief) },
+        )
     }
 
     if (showWarning) {
@@ -554,6 +553,9 @@ private fun StatusHeroCard(
                 ),
                 enabled = !uiState.isBusy,
                 onClick = onRefresh,
+                // The one icon here that means "do it again", so it is the one
+                // that turns when pressed.
+                spinOnPress = true,
             )
         }
 

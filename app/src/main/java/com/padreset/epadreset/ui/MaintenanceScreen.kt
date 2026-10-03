@@ -129,9 +129,10 @@ fun MaintenanceScreen(
             Spacer(Modifier.height(PadSpace.lg))
         }
 
-        if (uiState.isBusy) {
-            PadBusyIndicator(modifier = Modifier.align(Alignment.Center))
-        }
+        PadBusyIndicator(
+            busy = uiState.isBusy,
+            modifier = Modifier.align(Alignment.Center),
+        )
     }
 
     if (showServiceCleaningDialog) {

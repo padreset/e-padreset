@@ -182,7 +182,7 @@
          network permission, so this opens the page rather than checking. -->
     <string name="action_check_updates">Check for updates</string>
     <string name="about_updates_note">Opens the releases page in your browser. The app itself never goes online.</string>
-    <string name="about_repo_label">GitHub: tekware-it/android-epson-reset</string>
+    <string name="about_repo_label">GitHub: DSGM-GMSD/e-padreset</string>
     <string name="action_open_repo">Open Repo</string>
     <string name="about_donation">Donate now to support development of this and my other free apps, thank you!</string>
     <string name="action_open_github">Open GitHub Repo</string>

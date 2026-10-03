@@ -22,31 +22,32 @@ import com.padreset.epadreset.ui.theme.PadSpace
  * The project repository, opened from the About dialog and from the completion
  * dialog.
  *
- * Still points at the upstream project: the fork has no repository of its own
- * yet. Change this, the About label and the README together once it does.
+ * This fork's own repository. It pointed at the upstream until the fork had one,
+ * which was documented as temporary and was wrong for anything the user could
+ * act on: the upstream is not maintained, and the fork's relicensing, its model
+ * extension and its report action are not that author's to answer for.
  */
-internal const val REPO_URL = "https://github.com/tekware-it/android-epson-reset"
+internal const val REPO_URL = "https://github.com/DSGM-GMSD/e-padreset"
 
 /**
  * Where a model report is filed, or null when there is nowhere to file it.
  *
- * Kept apart from [REPO_URL] on purpose. Linking to the upstream repository from
- * the About dialog is a display choice, and it is documented as temporary. Sending
- * a user there to *open an issue* is a different act: the report would land in a
- * third party's tracker, describing a build that author never made — this fork's
- * GPL-3.0 relicensing, its 313-model maintenance-box list, its report button.
- * That is noise for them and a dead end for the user.
+ * Kept apart from [REPO_URL] because the two answer different questions — one is
+ * where to read the code, the other is where to send a report — and they have
+ * not always had the same answer. While this fork had no repository of its own,
+ * [REPO_URL] pointed at the upstream, and sending a user there to open an issue
+ * would have landed a report about a build that author never made in a third
+ * party's tracker.
  *
- * Null until this fork has a repository of its own. While it is null the report
- * block offers only the clipboard: the text is assembled and handed to the user,
- * and nothing is addressed anywhere. Set this to the fork's own repository and
- * the prefilled-issue button appears on its own.
+ * Null switches the report action down to the clipboard alone: the text is still
+ * assembled and handed to the user, and nothing is addressed anywhere. Set this
+ * to a repository and the prefilled-issue button appears on its own.
  *
  * Not a `const`: a nullable constant is not something Kotlin allows, and an
  * empty string standing in for "no destination" would be a trap of exactly the
  * kind this file is trying to avoid.
  */
-internal val REPORT_REPO_URL: String? = null
+internal val REPORT_REPO_URL: String? = "https://github.com/DSGM-GMSD/e-padreset"
 
 /**
  * Where releases are published, or null while there is nowhere to publish them.
@@ -60,11 +61,8 @@ internal val REPORT_REPO_URL: String? = null
  * What it can do is hand the address to the browser. That is what every
  * sideloaded app does, and it is honest — the user watches a browser open,
  * rather than a spinner that decided something on its own.
- *
- * Null until this fork publishes releases of its own. While it is null the About
- * dialog shows the version and nothing else.
  */
-internal val RELEASES_URL: String? = null
+internal val RELEASES_URL: String? = "https://github.com/DSGM-GMSD/e-padreset/releases"
 
 /** The pages the app can show. There are two, so a navigation library would be overkill. */
 private enum class AppPage { Status, Maintenance }

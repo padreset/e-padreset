@@ -1,5 +1,9 @@
 package com.padreset.epadreset.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +25,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +40,7 @@ import com.padreset.epadreset.R
 import com.padreset.epadreset.ui.theme.PadRadius
 import com.padreset.epadreset.ui.theme.PadSpace
 import com.padreset.epadreset.ui.theme.PadTheme
+import kotlinx.coroutines.delay
 
 /**
  * Page header, shared by every page.
@@ -86,10 +96,39 @@ fun PadHeaderBar(
 }
 
 /**
+ * How long a job has to run before the pill is worth announcing.
+ *
+ * Reading the status of a printer that is already connected takes a fraction of
+ * this, so the pill used to appear and vanish inside a frame or two, which reads
+ * as a glitch rather than as progress. Below the threshold nothing is shown, and
+ * the press is still acknowledged by the refresh icon turning.
+ *
+ * Note that this is a threshold and not a fixed wait: the timer is cancelled the
+ * moment the job ends, so a fast job shows nothing at all rather than something
+ * late.
+ */
+private const val BUSY_PILL_DELAY_MILLIS = 300L
+
+/**
+ * How long the pill takes to fade in and out.
+ *
+ * The delay on its own would move the flicker rather than remove it. A job that
+ * outlasts the threshold by only a few frames would still flash a hard-edged box
+ * - just at a slightly later moment. Fading means that job shows a ghost that
+ * never reaches full opacity, which is the difference between a glitch and
+ * something nobody can name.
+ */
+private const val BUSY_PILL_FADE_MILLIS = 150
+
+/**
  * Floating "working" pill, shown while a job runs.
  *
  * Sits above the content rather than pushing it down, so a refresh does not make
  * the page jump.
+ *
+ * [busy] is the raw job flag; the pill decides for itself whether the job has
+ * run long enough to be worth announcing, so callers pass the flag rather than
+ * guarding the call with their own `if`.
  *
  * [label] overrides the default wording when there is something more specific to
  * say. It is the pill's whole width, so keep it to a few words: anything longer
@@ -97,30 +136,48 @@ fun PadHeaderBar(
  */
 @Composable
 fun PadBusyIndicator(
+    busy: Boolean,
     modifier: Modifier = Modifier,
     label: String? = null,
 ) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(busy) {
+        if (busy) {
+            delay(BUSY_PILL_DELAY_MILLIS)
+            visible = true
+        } else {
+            visible = false
+        }
+    }
+
     val pad = PadTheme.colors
     val shape = RoundedCornerShape(PadRadius.m)
-    Row(
-        modifier = modifier
-            .clip(shape)
-            .background(pad.card)
-            .border(1.dp, pad.border, shape)
-            .padding(horizontal = PadSpace.lg, vertical = PadSpace.md),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(PadSpace.sm),
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(BUSY_PILL_FADE_MILLIS)),
+        exit = fadeOut(tween(BUSY_PILL_FADE_MILLIS)),
+        modifier = modifier,
     ) {
-        CircularProgressIndicator(
-            color = pad.accent,
-            strokeWidth = 2.5.dp,
-            modifier = Modifier.size(18.dp),
-        )
-        Text(
-            text = label ?: stringResource(R.string.status_busy_indicator),
-            style = MaterialTheme.typography.bodyMedium,
-            color = pad.fg,
-        )
+        Row(
+            modifier = Modifier
+                .clip(shape)
+                .background(pad.card)
+                .border(1.dp, pad.border, shape)
+                .padding(horizontal = PadSpace.lg, vertical = PadSpace.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(PadSpace.sm),
+        ) {
+            CircularProgressIndicator(
+                color = pad.accent,
+                strokeWidth = 2.5.dp,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = label ?: stringResource(R.string.status_busy_indicator),
+                style = MaterialTheme.typography.bodyMedium,
+                color = pad.fg,
+            )
+        }
     }
 }
 

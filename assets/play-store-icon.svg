@@ -1,10 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 108 108">
-  <rect width="108" height="108" fill="#DCE8EA"/>
-  <path fill="#24424B" d="M33 23h42a5 5 0 0 1 5 5v11H28V28a5 5 0 0 1 5-5z"/>
-  <path fill="#1A2E35" d="M25 36h58a8 8 0 0 1 8 8v23a8 8 0 0 1-8 8H25a8 8 0 0 1-8-8V44a8 8 0 0 1 8-8z"/>
-  <path fill="#F6FBFB" d="M31 47h46v13H31z"/>
-  <path fill="#DCE8EA" d="M35 28h38v7H35z"/>
-  <circle cx="69" cy="50" r="4.6" fill="#FFCF33"/>
-  <path fill="#12CFE0" d="M54 83c-4.15 0-7.5-3.07-7.5-6.85 0-5.22 6.69-12.8 6.98-13.12L54 62.53l.52.5c.29.32 6.98 7.9 6.98 13.12C61.5 79.93 58.15 83 54 83z"/>
-  <path fill="#E84A5F" d="M67.8 67.2c-1.52-3.37-4.91-5.53-8.61-5.53-1.61 0-3.14.4-4.49 1.14l-2.22-2.22c1.97-1.33 4.32-2.06 6.71-2.06 6.09 0 11.32 4.03 12.92 9.85l1.07-3.45 3.02.94-2.36 7.62-7.78-1.86.74-3.05 4.25 1.02c-.08-.15-.16-.31-.25-.46z"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN" "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
+<!-- Creator: CorelDRAW -->
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1600px" height="1600px" version="1.0" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd"
+viewBox="0 0 630 630"
+ xmlns:xlink="http://www.w3.org/1999/xlink"
+ xmlns:xodm="http://www.corel.com/coreldraw/odm/2003">
+ <g id="Capa_x0020_1">
+  <metadata id="CorelCorpID_0Corel-Layer"/>
+  <rect fill="white" width="630" height="630"/>
+  <path fill="#0046C1" d="M266 129l97 0 0 61 -97 0 0 -61zm0 179l97 0 0 31 -97 0 0 -31zm113 47l97 0 0 97 -30 0 0 49 -38 0 0 -49 -30 0 0 -97zm-226 0l97 0 0 97 -30 0 0 49 -38 0 0 -49 -30 0 0 -97zm113 36l97 0 0 61 -30 0 0 49 -38 0 0 -49 -30 0 0 -61zm133 -149l77 0 0 97 -77 0 0 -8 -20 0 0 -23 20 0 0 -66zm-246 0l77 0 0 97 -77 0 0 -97zm113 0l97 0 0 30 -97 0 0 -30zm113 -113l97 0 0 97 -97 0 0 -97zm-226 0l97 0 0 97 -97 0 0 -97z"/>
+ </g>
 </svg>
