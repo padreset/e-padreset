@@ -45,8 +45,11 @@ class UsbTransport(private val context: Context) {
         val readBuffer: MutableList<Byte> = mutableListOf(),
     ) {
         fun close() {
-            connection.releaseInterface(usbInterface)
-            connection.close()
+            // Best effort: release must never throw past a close, and close
+            // itself must run even when release failed. Called from IO paths
+            // and from Main-safe local-close paths alike.
+            runCatching { connection.releaseInterface(usbInterface) }
+            runCatching { connection.close() }
         }
     }
 

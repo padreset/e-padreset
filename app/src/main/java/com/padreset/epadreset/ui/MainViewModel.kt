@@ -184,6 +184,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var connection: PrinterService.ConnectionState? = null
 
     /**
+     * Bumped every time the session is replaced or dropped (connect success,
+     * [dropConnection], [onCleared]). A job captures the value at start; when
+     * it fails and the value moved, the session was closed from underneath it
+     * (exit or detach during a write), so the failure is a torn-down transport
+     * rather than a printer verdict and must not surface as READ_BACK_FAILED.
+     * The pre-write backup is already persisted at that point and stays valid.
+     */
+    private var sessionEpoch = 0
+
+    /**
      * Whether the launch scan has already run.
      *
      * The ViewModel outlives a rotation, so this is what keeps it to one scan
@@ -272,8 +282,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun dropConnection() {
         val current = connection ?: return
-        runCatching { printerService.close(current) }
+        // Local close only: no D4 I/O, Main-safe, minimal race window with a
+        // job that may still hold this session. See closeLocal KDoc.
+        runCatching { printerService.closeLocal(current) }
         connection = null
+        sessionEpoch++
         _uiState.value = _uiState.value.copy(
             status = null,
             connectedDeviceName = null,
@@ -311,7 +324,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun connect(device: UsbDevice) {
         viewModelScope.launch {
             runJob("Connecting to ${device.productName ?: device.deviceName}") {
-                connection?.let(printerService::close)
+                connection?.let { runCatching { printerService.closeLocal(it) } }
                 connection = runCatching { printerService.connectPrinter(device) }
                     .getOrElse {
                         throw UnhandledJobException(
@@ -326,6 +339,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                     .also { appendLog("Connected to ${it.deviceId}") }
+                sessionEpoch++
                 refreshStatus()
             }
         }
@@ -496,7 +510,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
-        connection?.let(printerService::close)
+        // The ViewModel outlives rotation (see autoScanDone), so this runs on
+        // finish/exit, not on rotate. A write may still be in flight in
+        // viewModelScope: close locally without D4 I/O so the transport is not
+        // torn down mid-read as a multi-second round-trip, and bump the epoch
+        // so runJob reports it as a torn-down session rather than a printer
+        // verdict. The pre-write backup is already persisted and stays valid.
+        connection?.let { runCatching { printerService.closeLocal(it) } }
+        connection = null
+        sessionEpoch++
         super.onCleared()
     }
 
@@ -713,8 +735,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // the only moment it stops being true.
         )
         appendLog(message)
+        val epochAtStart = sessionEpoch
         runCatching { block() }
             .onFailure { failure ->
+                // Cancellation is lifecycle, not a printer verdict. Let the
+                // scope handle it instead of turning it into a callout.
+                if (failure is kotlinx.coroutines.CancellationException) throw failure
+                // The session was replaced or dropped while this job ran (exit
+                // or detach during a write). The transport was torn down from
+                // underneath the read; reporting it as READ_BACK_FAILED would
+                // blame the printer for an app-lifecycle event. The backup is
+                // already persisted and stays valid.
+                if (sessionEpoch != epochAtStart) {
+                    appendLog("Job ended after the session was closed; ignoring torn-down result")
+                    return@onFailure
+                }
                 // The printer may have gone away while the job was running. That
                 // is not a failure the user can act on, and leaving the session
                 // in place is what made every later operation fail against a

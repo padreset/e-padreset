@@ -461,7 +461,29 @@ class PrinterService(
         sendPrintJob(connection, payload)
     }
 
-    fun close(connection: ConnectionState) {
+    fun close(connection: ConnectionState) = closeLocal(connection)
+
+    /**
+     * Fast, Main-safe close: releases the USB interface without any USB I/O.
+     *
+     * Use for detach, foreground-return and [onCleared]-style paths, and when
+     * replacing an old session before a new connect. Those run on Main and may
+     * race with a job in flight; a D4 goodbye round-trip here would both block
+     * Main (bulkWrite 4 s + reply 8 s + 8 s when the printer is mute but still
+     * attached) and close the transport from under a concurrent read, turning
+     * it into a confusing READ_BACK_FAILED. The detached case already fails
+     * fast (bulkTransfer returns -1 immediately), but the mute-but-attached
+     * case does not, so the blocking variant below must stay on IO.
+     */
+    fun closeLocal(connection: ConnectionState) {
+        connection.session.close()
+    }
+
+    /**
+     * Full close with a D4 channel goodbye. Blocking: must be called from IO,
+     * never from Main. Prefer [closeLocal] unless a polite D4 goodbye matters.
+     */
+    suspend fun closeBlocking(connection: ConnectionState) = withContext(Dispatchers.IO) {
         runCatching {
             val channel = connection.controlChannel ?: return@runCatching
             sendD4Command(
