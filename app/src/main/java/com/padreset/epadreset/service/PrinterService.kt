@@ -662,7 +662,7 @@ class PrinterService(
             transport.bulkWrite(connection.session, connection.protocol.encodeD4Frame(frame))
             channel.txCredits -= 1
         }
-        val reply = readD4Reply(connection.session, connection.protocol)
+        val reply = readD4Reply(connection.session, connection.protocol, channel)
         channel.txCredits += reply.credit
         channel.rxCredits = (channel.rxCredits - 1).coerceAtLeast(0)
         log("CTRL RX: ${reply.payload.joinToString(" ") { "%02X".format(it) }}")
@@ -705,9 +705,28 @@ class PrinterService(
         log("D4 credit request granted=$granted")
     }
 
-    private fun readD4Reply(session: UsbTransport.Session, protocol: EpsonProtocol): EpsonProtocol.D4Frame {
-        val header = transport.bulkRead(session, 6, timeoutMs = 8000)
+    private fun readD4Reply(
+        session: UsbTransport.Session,
+        protocol: EpsonProtocol,
+        channel: EpsonProtocol.D4ChannelState? = null,
+    ): EpsonProtocol.D4Frame {
+        // The first read can land on stale stream bytes (spontaneous printer
+        // output after print jobs): validate before trusting the length, drain
+        // once, retry once, then fail loud with a cause instead of chasing a
+        // garbage length into a bulk-read timeout.
+        val first = transport.bulkRead(session, 6, timeoutMs = 8000)
+        require(first.size == 6) { "Incomplete D4 header" }
+        val header = if (protocol.isPlausibleD4Header(first, channel)) {
+            first
+        } else {
+            log("D4 RX header not plausible (${first.joinToString(" ") { "%02X".format(it) }}); draining once and retrying")
+            transport.drain(session)
+            transport.bulkRead(session, 6, timeoutMs = 8000)
+        }
         require(header.size == 6) { "Incomplete D4 header" }
+        require(protocol.isPlausibleD4Header(header, channel)) {
+            "D4 reply out of framing; the printer may still be working through print jobs"
+        }
         val length = ((header[2].toInt() and 0xFF) shl 8) or (header[3].toInt() and 0xFF)
         log("D4 RX header: ${header.joinToString(" ") { "%02X".format(it) }}")
         val payload = if (length > 6) transport.bulkRead(session, length - 6, timeoutMs = 8000) else byteArrayOf()

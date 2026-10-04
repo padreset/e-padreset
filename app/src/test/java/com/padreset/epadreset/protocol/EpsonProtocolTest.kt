@@ -3,6 +3,7 @@ package com.padreset.epadreset.protocol
 import com.padreset.epadreset.data.PrinterSpec
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -131,5 +132,43 @@ class EpsonProtocolTest {
         val payload = "@BDC ST2\r\n".encodeToByteArray() + statusPayload
         val snapshot = protocol.parseStatusResponse(payload, "MFG:EPSON;MDL:Test;")
         assertTrue(snapshot.inkLevels.isEmpty())
+    }
+
+    @Test
+    fun `stale stream bytes fail D4 header validation`() {
+        // Bytes lifted from a real log: after several print jobs the next read
+        // landed on an old `@BDC …` payload (`40 42 44 43 20 53`) and derived a
+        // 17 kB "length" from it, then timed out chasing bytes never sent.
+        val channel = EpsonProtocol.D4ChannelState(psid = 2, ssid = 2, mtu = 64, txCredits = 0)
+        assertFalse(
+            protocol.isPlausibleD4Header(
+                byteArrayOf(0x40, 0x42, 0x44, 0x43, 0x20, 0x53),
+                channel,
+            ),
+        )
+        // Tail of an earlier ST2 payload, same story.
+        assertFalse(
+            protocol.isPlausibleD4Header(
+                byteArrayOf(0x54, 0x32, 0x0D, 0x0A, 0x62, 0x00),
+                channel,
+            ),
+        )
+        // A header for another channel is equally unusable here.
+        assertFalse(
+            protocol.isPlausibleD4Header(
+                byteArrayOf(0x00, 0x00, 0x00, 0x0C, 0x01, 0x00),
+                channel,
+            ),
+        )
+        // Real headers pass: control channel and management channel.
+        assertTrue(
+            protocol.isPlausibleD4Header(
+                byteArrayOf(0x02, 0x02, 0x00, 0x76, 0x00, 0x01),
+                channel,
+            ),
+        )
+        assertTrue(
+            protocol.isPlausibleD4Header(byteArrayOf(0x00, 0x00, 0x00, 0x0C, 0x01, 0x00)),
+        )
     }
 }

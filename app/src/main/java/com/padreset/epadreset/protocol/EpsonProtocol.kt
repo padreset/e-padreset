@@ -6,6 +6,14 @@ import com.padreset.epadreset.data.PrinterStatusSnapshot
 import com.padreset.epadreset.data.WasteCounterStatus
 import kotlin.math.min
 
+/**
+ * Largest D4 frame the app will trust blindly from a length field: real
+ * replies are on the order of a hundred bytes, so anything past this is
+ * framing garbage, not a reply (observed: stale `@BDC …` payload bytes read
+ * as a header, yielding a 17 kB "length" and a hopeless bulk read).
+ */
+private const val MAX_D4_FRAME_BYTES = 8192
+
 class EpsonProtocol(private val spec: PrinterSpec) {
     enum class ControlBackend {
         D4,
@@ -176,6 +184,27 @@ class EpsonProtocol(private val spec: PrinterSpec) {
             control = bytes[5].toInt() and 0xFF,
             payload = bytes.copyOfRange(6, bytes.size),
         )
+    }
+
+    /**
+     * Whether six bytes can plausibly be a D4 frame header.
+     *
+     * The bulk IN endpoint is a shared stream: after print jobs the printer
+     * may leave spontaneous output behind, and the next read can land on stale
+     * payload instead of a header. Trusting its "length" then sends the read
+     * off after kilobytes that never arrive. When [channel] is given, its
+     * endpoint ids must match too; management commands (psid/ssid 0) pass null
+     * and get the size check only. Pure for tests.
+     */
+    fun isPlausibleD4Header(header: ByteArray, channel: D4ChannelState? = null): Boolean {
+        if (header.size != 6) return false
+        val length = ((header[2].toInt() and 0xFF) shl 8) or (header[3].toInt() and 0xFF)
+        if (length < 6 || length > MAX_D4_FRAME_BYTES) return false
+        if (channel != null) {
+            if ((header[0].toInt() and 0xFF) != channel.psid) return false
+            if ((header[1].toInt() and 0xFF) != channel.ssid) return false
+        }
+        return true
     }
 
     fun chunkForChannel(channel: D4ChannelState, payload: ByteArray): List<D4Frame> {
