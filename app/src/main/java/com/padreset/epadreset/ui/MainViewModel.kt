@@ -245,7 +245,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (device == null) {
                     appendLog("No Epson printer on the USB bus")
                 } else {
-                    connect(device)
+                    connectNow(device)
                 }
             }
         }
@@ -338,52 +338,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             str(R.string.error_no_printer_detected)
                         },
                     )
-                connect(device)
+                connectNow(device)
             }
         }
     }
 
+    /**
+     * Entry point for an explicit device (USB attach intent). Launches its own
+     * job; the scan paths call [connectNow] inside theirs instead, so one user
+     * action is always one job: a nested fire-and-forget connect used to let
+     * the outer scan job finish first, clearing `isBusy` and the slow-connect
+     * note while the inner connect still worked through its 8 s timeouts —
+     * and re-enabled the button, inviting a second, interleaved connect loop
+     * against the same printer.
+     */
     fun connect(device: UsbDevice) {
         viewModelScope.launch {
             runJob("Connecting to ${device.productName ?: device.deviceName}") {
-                // Goodbye on the old session before opening the new one, so the
-                // printer closes the old D4 channel first. closeBlocking hops to
-                // IO internally, so this is safe inside the coroutine. The epoch
-                // bumps BEFORE the teardown (not after the new connect), closing
-                // the hole where another job failing in between looked like a
-                // real printer verdict. This cannot silence this job's own
-                // failure: connect errors are UnhandledJobException, which
-                // SessionGuard never suppresses.
-                connection?.let {
-                    sessionEpoch++
-                    // No runCatching: closeBlocking logs its own best-effort
-                    // failures, and wrapping it here would swallow a
-                    // CancellationException and keep connecting a dead job.
-                    printerService.closeBlocking(it)
-                    if (connection === it) connection = null
-                }
-                connection = runCatching { printerService.connectPrinter(device) }
-                    .getOrElse {
-                        // The old session is already torn down and nothing new
-                        // replaced it: leave no dangling handle behind.
-                        connection = null
-                        sessionEpoch++
-                        throw UnhandledJobException(
-                            uiMessage = localizedConnectFailure(it),
-                            logMessage = it.message ?: it.javaClass.simpleName,
-                            reportableDeviceId = reportableDeviceId(it),
-                            reportVendorId = device.vendorId,
-                            reportProductId = device.productId,
-                            reportMaintenanceBox = (it as? PrinterService.ConnectException)?.failure ==
-                                PrinterService.ConnectFailure.UNSUPPORTED_MODEL_MAINTENANCE_BOX,
-                            cause = it,
-                        )
-                    }
-                    .also { appendLog("Connected to ${it.deviceId}") }
-                sessionEpoch++
-                refreshStatus()
+                connectNow(device)
             }
         }
+    }
+
+    /** The connect itself, as a suspending block for exactly one [runJob]. */
+    private suspend fun connectNow(device: UsbDevice) {
+        // Goodbye on the old session before opening the new one, so the
+        // printer closes the old D4 channel first. closeBlocking hops to
+        // IO internally, so this is safe inside the coroutine. The epoch
+        // bumps BEFORE the teardown (not after the new connect), closing
+        // the hole where another job failing in between looked like a
+        // real printer verdict. This cannot silence this job's own
+        // failure: connect errors are UnhandledJobException, which
+        // SessionGuard never suppresses.
+        connection?.let {
+            sessionEpoch++
+            // No runCatching: closeBlocking logs its own best-effort
+            // failures, and wrapping it here would swallow a
+            // CancellationException and keep connecting a dead job.
+            printerService.closeBlocking(it)
+            if (connection === it) connection = null
+        }
+        connection = runCatching { printerService.connectPrinter(device) }
+            .getOrElse {
+                // The old session is already torn down and nothing new
+                // replaced it: leave no dangling handle behind.
+                connection = null
+                sessionEpoch++
+                throw UnhandledJobException(
+                    uiMessage = localizedConnectFailure(it),
+                    logMessage = it.message ?: it.javaClass.simpleName,
+                    reportableDeviceId = reportableDeviceId(it),
+                    reportVendorId = device.vendorId,
+                    reportProductId = device.productId,
+                    reportMaintenanceBox = (it as? PrinterService.ConnectException)?.failure ==
+                        PrinterService.ConnectFailure.UNSUPPORTED_MODEL_MAINTENANCE_BOX,
+                    cause = it,
+                )
+            }
+            .also { appendLog("Connected to ${it.deviceId}") }
+        sessionEpoch++
+        refreshStatus()
     }
 
     fun refreshStatus() {
