@@ -8,8 +8,6 @@ plugins {
     id("io.gitlab.arturbosch.detekt")
 }
 
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 /**
  * Release signing, read from the machine rather than from the repository.
  *
@@ -132,16 +130,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlin {
-        // AGP 9 removed `android.kotlinOptions`, because AGP 9 also brings its
-        // own Kotlin support: there is no longer a Kotlin Gradle plugin whose
-        // `kotlinOptions` extension this could be delegating to. The target
-        // moved to the `kotlin` block, and it still has to be stated explicitly
-        // or the JVM target stops matching `compileOptions` above.
-        compilerOptions {
-            jvmTarget = JvmTarget.JVM_17
-        }
-    }
+    // No `kotlin { compilerOptions { jvmTarget } }` here. AGP 9 removed
+    // `android.kotlinOptions`, and the replacement is a *top-level* `kotlin { }`
+    // block — not one nested in `android { }`, which would only compile because
+    // Kotlin's lambda resolution falls through to the outer extension. It is also
+    // unnecessary: with built-in Kotlin, `jvmTarget` defaults to
+    // `compileOptions.targetCompatibility` set just above, which is why the
+    // compiled classes are Java 17 without anything stated here.
 
     buildFeatures {
         compose = true

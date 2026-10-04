@@ -1,10 +1,28 @@
+buildscript {
+    // Kotlin is pinned here on purpose, and this is the only place that pins it.
+    //
+    // AGP 9 carries its own Kotlin support and declares KGP 2.2.10. The Compose
+    // compiler plugin below declares 2.4.10, and Gradle's highest-version rule
+    // resolves the buildscript classpath to 2.4.10 — which is the version that
+    // actually compiles the app. Without this block that coupling would be a side
+    // effect of the Compose plugin happening to be present, and the day it were
+    // removed or downgraded the toolchain would fall back to 2.2.10 in silence
+    // while the Compose compiler stayed at 2.4.10. AGP's own release notes name
+    // this as the supported way to raise KGP: there is no property for it in
+    // `android { }` or `kotlin { }`, and a constraint on `kotlin-stdlib` cannot
+    // reach the compiler, which is chosen on the buildscript classpath.
+    dependencies {
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10")
+    }
+}
+
 plugins {
     // Toolchain, not preference. Google's own table puts API 36 at AGP 8.9.1 as
     // the floor, and Play has required targeting 36 since 31 August 2026, so
-    // staying on the 8.5 line meant the app could not be updated at all. These
-    // are the versions documented together for AGP 9.4 (which requires Gradle
-    // 9.6+), and the Compose compiler plugin rides on Kotlin, so they move
-    // together rather than being pinned apart.
+    // staying on the 8.5 line meant the app could not be updated at all. AGP 9.4
+    // requires Gradle 9.6+, and the Compose compiler plugin rides on Kotlin, so
+    // its version is the Kotlin version too — see the buildscript block above,
+    // which is what makes that explicit instead of incidental.
     id("com.android.application") version "9.4.0" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.10" apply false
     id("io.gitlab.arturbosch.detekt") version "1.23.8" apply false
