@@ -201,15 +201,14 @@ val verifyPrinterData by tasks.registering {
         assetsDir.file("reinkpy_models.xml"),
     )
     doLast {
+        // Plain settings matching PrinterModels.secureFactory: the Gradle JDK
+        // parser would accept XXE-hardening features that Android's built-in
+        // parser rejects on device, so hardening here would pass the build and
+        // still break every connect. See the KDoc there.
         fun parse(file: java.io.File): org.w3c.dom.Document =
             javax.xml.parsers.DocumentBuilderFactory.newInstance()
                 .apply {
                     isNamespaceAware = false
-                    isXIncludeAware = false
-                    isExpandEntityReferences = false
-                    setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
-                    setFeature("http://xml.org/sax/features/external-general-entities", false)
-                    setFeature("http://xml.org/sax/features/external-parameter-entities", false)
                 }
                 .newDocumentBuilder()
                 .parse(file)
