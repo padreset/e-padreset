@@ -140,12 +140,31 @@ class WasteVerificationTest {
     }
 
     @Test
+    fun `reset without a published ceiling verifies against the model plan`() {
+        // Reinkpy-style model: no counter ceiling (max = 0, raw readout), but a
+        // published reset baseline. planFor(target 0) must return the resetMap
+        // without looking at max, and a printer that applies it verifies clean.
+        val counter = WasteCounterSpec("Platen pad", listOf(28, 52, 53, 54, 55), 0)
+        val model = spec(listOf(counter), mapOf(28 to 0, 52 to 0, 53 to 0, 54 to 94, 55 to 94))
+        val plan = WasteWriter.planFor(model, setOf("Platen pad"), 0)
+        assertEquals(model.resetMap, plan)
+        val printer = FakePrinter(initial = mapOf(28 to 2, 54 to 10, 55 to 20))
+        val result = printer.writer().writeAndVerify(plan) { read ->
+            EpsonProtocol(model).parseWasteCounter(counter.addresses.map(read).toByteArray(), counter.max, counter.name)
+        }
+        // The backup still holds what was there before the write.
+        assertEquals(2.toByte(), result.backup[28])
+        assertEquals(10.toByte(), result.backup[54])
+        assertEquals(20.toByte(), result.backup[55])
+    }
+
+    @Test
     fun `partial and debug percentage plans verify only bytes actually sent`() {
         val model = spec(
             listOf(WasteCounterSpec("Main pad", listOf(28, 29), 9999), WasteCounterSpec("Platen pad", listOf(30, 31), 7000)),
             mapOf(28 to 0xF4, 29 to 1, 30 to 0, 31 to 0, 50 to 95),
         )
-        assertEquals(mapOf(28 to 0, 29 to 0), WasteWriter.planFor(model, setOf("Main pad"), 0))
+        assertEquals(mapOf(28 to 0xF4, 29 to 1), WasteWriter.planFor(model, setOf("Main pad"), 0))
         val plan = WasteWriter.planFor(model, setOf("Main pad"), 33)
         assertEquals(mapOf(28 to 0xE3, 29 to 0x0C), plan) // 9999 * 33 / 100 = 3299.
         val printer = FakePrinter(initial = mapOf(30 to 0xAA, 31 to 0xBB, 50 to 0xCC))
@@ -153,6 +172,28 @@ class WasteVerificationTest {
         assertFalse(printer.calls.any { it.startsWith("write 0x001E") || it.startsWith("write 0x001F") })
         assertFalse(printer.calls.any { it.contains("0x0032") })
         assertEquals(0xAA.toByte(), printer.memory[30])
+    }
+
+    @Test
+    fun `partial reset writes the model values not zeros`() {
+        // 195 of 299 reset blocks publish nonzero baselines. A partial reset
+        // with target 0 used to fall into the percentage maths and write 0x00;
+        // it must write the model's own values for the selected addresses.
+        val model = spec(
+            listOf(WasteCounterSpec("Main pad", listOf(28, 29), 9999), WasteCounterSpec("Platen pad", listOf(30, 31), 7000)),
+            mapOf(28 to 0xF4, 29 to 1, 30 to 0, 31 to 0, 50 to 95),
+        )
+        assertEquals(mapOf(28 to 0xF4, 29 to 1), WasteWriter.planFor(model, setOf("Main pad"), 0))
+        // Full selection keeps the whole map, including the auxiliary address
+        // outside every counter's query range.
+        assertEquals(model.resetMap, WasteWriter.planFor(model, setOf("Main pad", "Platen pad"), 0))
+        val printer = FakePrinter()
+        printer.writer().writeAndVerify(WasteWriter.planFor(model, setOf("Main pad"), 0)) { read ->
+            listOf(28, 29).map(read)
+        }
+        assertEquals(0xF4.toByte(), printer.memory[28])
+        assertEquals(0x01.toByte(), printer.memory[29])
+        assertFalse(printer.calls.any { it.startsWith("write 0x001E") || it.startsWith("write 0x0032") })
     }
 
     @Test

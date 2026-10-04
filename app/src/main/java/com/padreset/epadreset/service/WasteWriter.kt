@@ -98,9 +98,21 @@ internal class WasteWriter(
             require(targetPercentage in 0..100) { "Target percentage must be between 0 and 100" }
             val selected = spec.wasteCounters.filter { it.name in selectedCounterNames }
             require(selected.isNotEmpty()) { "No waste counter selected" }
-            if (targetPercentage == 0 && selected.size == spec.wasteCounters.size) {
+            if (targetPercentage == 0) {
+                // The model's own reset values — usually but not always zero
+                // (195 of 299 reset blocks publish nonzero baselines). A partial
+                // selection used to fall through to the percentage maths below
+                // and write 0x00, contradicting the documented promise and the
+                // rest of the ecosystem. Intersect instead: only the selected
+                // counters' addresses, at the model's values. A full selection
+                // keeps the whole map, including auxiliary reset addresses that
+                // live outside every counter's query range.
                 require(spec.resetMap.isNotEmpty()) { "This model publishes no reset values" }
-                return spec.resetMap.toSortedMap()
+                if (selected.size == spec.wasteCounters.size) return spec.resetMap.toSortedMap()
+                val selectedAddresses = selected.flatMap { it.addresses }.toSet()
+                val plan = spec.resetMap.filterKeys { it in selectedAddresses }.toSortedMap()
+                require(plan.isNotEmpty()) { "Selected counters publish no reset values" }
+                return plan
             }
             require(selected.all { it.max > 0 && it.addresses.size <= 4 }) {
                 "Percentage writes require a published ceiling and counters of at most four bytes"

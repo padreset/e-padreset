@@ -44,12 +44,18 @@ class UsbTransport(private val context: Context) {
         val bulkOut: UsbEndpoint?,
         val readBuffer: MutableList<Byte> = mutableListOf(),
     ) {
-        fun close() {
-            // Best effort: release must never throw past a close, and close
-            // itself must run even when release failed. Called from IO paths
-            // and from Main-safe local-close paths alike.
+        /**
+         * Best effort, single swallowing layer: release must never throw past
+         * a close, and close itself runs even when release failed. Failures are
+         * reported once via [onError] (nothing actionable — retrying a release
+         * is meaningless) instead of propagating, so callers must NOT wrap this
+         * in another `runCatching`.
+         */
+        fun close(onError: (Throwable) -> Unit = {}) {
             runCatching { connection.releaseInterface(usbInterface) }
+                .onFailure(onError)
             runCatching { connection.close() }
+                .onFailure(onError)
         }
     }
 
@@ -371,39 +377,6 @@ class UsbTransport(private val context: Context) {
         }
     }
 
-    fun bulkWriteChunked(
-        session: Session,
-        data: ByteArray,
-        chunkSize: Int = 512,
-        timeoutMs: Int = 4000,
-    ) {
-        require(chunkSize > 0) { "chunkSize must be > 0" }
-        var offset = 0
-        while (offset < data.size) {
-            val end = minOf(offset + chunkSize, data.size)
-            var attempts = 0
-            var written = false
-            var currentChunkSize = end - offset
-            while (!written && attempts < 4) {
-                val chunk = data.copyOfRange(offset, offset + currentChunkSize)
-                val result = runCatching {
-                    bulkWrite(session, chunk, timeoutMs = timeoutMs)
-                }
-                if (result.isSuccess) {
-                    written = true
-                } else {
-                    attempts += 1
-                    currentChunkSize = maxOf(currentChunkSize / 2, session.bulkOut?.maxPacketSize ?: 64, 64)
-                    if (currentChunkSize >= end - offset && attempts >= 4) {
-                        throw result.exceptionOrNull() ?: error("Bulk write failed")
-                    }
-                }
-            }
-            require(written) { "Bulk write chunk failed" }
-            offset = end
-        }
-    }
-
     fun bulkRead(session: Session, expectedBytes: Int, timeoutMs: Int = 4000): ByteArray {
         val endpoint = requireNotNull(session.bulkIn) { "Bulk IN endpoint missing" }
         val packetSize = maxOf(endpoint.maxPacketSize, 64)
@@ -445,27 +418,6 @@ class UsbTransport(private val context: Context) {
         } else {
             buffer.copyOf(transferred)
         }
-    }
-
-    fun bulkReadUpTo(session: Session, maxBytes: Int, timeoutMs: Int = 2000): ByteArray {
-        val endpoint = requireNotNull(session.bulkIn) { "Bulk IN endpoint missing" }
-        val packetSize = maxOf(endpoint.maxPacketSize, 64)
-        val collected = mutableListOf<Byte>()
-        val chunk = ByteArray(maxOf(packetSize, maxBytes))
-        val deadline = System.currentTimeMillis() + timeoutMs
-
-        while (collected.size < maxBytes && System.currentTimeMillis() < deadline) {
-            val remaining = deadline - System.currentTimeMillis()
-            val transferTimeout = remaining.coerceAtMost(250L).toInt().coerceAtLeast(1)
-            val transferred = session.connection.bulkTransfer(endpoint, chunk, chunk.size, transferTimeout)
-            if (transferred > 0) {
-                repeat(minOf(transferred, maxBytes - collected.size)) { index ->
-                    collected += chunk[index]
-                }
-            }
-        }
-
-        return collected.toByteArray()
     }
 
     fun captureIncoming(

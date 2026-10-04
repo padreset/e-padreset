@@ -86,7 +86,14 @@ class PrinterService(
         EpsonPrinterCatalog.logger = log
     }
 
-    fun detectPrinters(): List<UsbDevice> = transport.findEpsonDevices()
+    /**
+     * Suspends on IO: `deviceList` is a Binder call into the USB service and
+     * does not belong on Main, where the launch scan and the detach receiver
+     * run.
+     */
+    suspend fun detectPrinters(): List<UsbDevice> = withContext(Dispatchers.IO) {
+        transport.findEpsonDevices()
+    }
 
     /**
      * USB printers from any vendor other than Epson.
@@ -95,7 +102,9 @@ class PrinterService(
      * printer detected" to someone who has one plugged in, which reads as a bug
      * rather than as a brand limitation.
      */
-    fun detectNonEpsonPrinters(): List<UsbDevice> = transport.findPrintersFromOtherVendors()
+    suspend fun detectNonEpsonPrinters(): List<UsbDevice> = withContext(Dispatchers.IO) {
+        transport.findPrintersFromOtherVendors()
+    }
 
     /**
      * Whether the device behind an open connection is still on the bus.
@@ -105,8 +114,9 @@ class PrinterService(
      * starting a job that will fail in whatever way the transport happens to
      * fail that day.
      */
-    fun isStillAttached(connection: ConnectionState): Boolean =
+    suspend fun isStillAttached(connection: ConnectionState): Boolean = withContext(Dispatchers.IO) {
         transport.isAttached(connection.session.device)
+    }
 
     suspend fun connectPrinter(device: UsbDevice): ConnectionState = withContext(Dispatchers.IO) {
         log(
@@ -461,27 +471,34 @@ class PrinterService(
         sendPrintJob(connection, payload)
     }
 
-    fun close(connection: ConnectionState) = closeLocal(connection)
-
     /**
-     * Fast, Main-safe close: releases the USB interface without any USB I/O.
+     * Fast, Main-safe release: no D4 round-trip and no bulk transfer.
      *
-     * Use for detach, foreground-return and [onCleared]-style paths, and when
-     * replacing an old session before a new connect. Those run on Main and may
-     * race with a job in flight; a D4 goodbye round-trip here would both block
-     * Main (bulkWrite 4 s + reply 8 s + 8 s when the printer is mute but still
-     * attached) and close the transport from under a concurrent read, turning
-     * it into a confusing READ_BACK_FAILED. The detached case already fails
-     * fast (bulkTransfer returns -1 immediately), but the mute-but-attached
-     * case does not, so the blocking variant below must stay on IO.
+     * It still performs synchronous USB-stack calls (`releaseInterface` /
+     * `close`), so IO is preferred when available — but it never blocks on a
+     * printer reply, unlike [closeBlocking] below.
+     *
+     * Use for detach, foreground-return and [onCleared]-style paths, where the
+     * device is gone or the app is leaving. A D4 goodbye round-trip here would
+     * both block Main (bulkWrite 4 s + reply 8 s + 8 s when the printer is mute
+     * but still attached) and close the transport from under a concurrent read.
+     * The detached case already fails fast (bulkTransfer returns -1
+     * immediately), but the mute-but-attached case does not.
      */
     fun closeLocal(connection: ConnectionState) {
-        connection.session.close()
+        connection.session.close { throwable ->
+            log("USB release failed (best effort, nothing to retry): ${throwable.message}")
+        }
     }
 
     /**
-     * Full close with a D4 channel goodbye. Blocking: must be called from IO,
-     * never from Main. Prefer [closeLocal] unless a polite D4 goodbye matters.
+     * Full close with a D4 channel goodbye (0x02). Blocking: switches to IO
+     * internally, so it is safe to call from a Main coroutine, but never call
+     * it from a raw Main callback.
+     *
+     * Use when replacing an old session before a new connect, so the printer
+     * closes the old channel before a new D4 session opens. Prefer
+     * [closeLocal] where the device is gone or the app is leaving.
      */
     suspend fun closeBlocking(connection: ConnectionState) = withContext(Dispatchers.IO) {
         runCatching {
@@ -492,8 +509,12 @@ class PrinterService(
                 0x02,
                 byteArrayOf(channel.psid.toByte(), channel.ssid.toByte()),
             )
+        }.onFailure { throwable ->
+            log("D4 goodbye failed (best effort, closing anyway): ${throwable.message}")
         }
-        connection.session.close()
+        connection.session.close { throwable ->
+            log("USB release failed (best effort, nothing to retry): ${throwable.message}")
+        }
     }
 
     private suspend fun connectOnce(device: UsbDevice, interfaceId: Int, performSoftReset: Boolean): ConnectionState {
@@ -520,7 +541,10 @@ class PrinterService(
             val protocol = EpsonProtocol(spec)
 
             val enterReply = enterDot4(session, protocol)
-            if (enterReply.contentEquals(byteArrayOf(0x15))) {
+            // A lone 0x15 is the classic NAK, but a framed reply can carry it as
+            // its first byte with trailing data; either way the printer refused
+            // the handshake on this interface.
+            if (enterReply.firstOrNull() == 0x15.toByte()) {
                 throw ConnectException(ConnectFailure.DOT4_NAK)
             }
             log("Entered IEEE 1284.4 mode")

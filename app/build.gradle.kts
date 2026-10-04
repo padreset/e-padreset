@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("io.gitlab.arturbosch.detekt")
 }
 
@@ -136,9 +137,9 @@ android {
         buildConfig = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
+    // No composeOptions block: since Kotlin 2.0 the Compose compiler ships as
+    // the org.jetbrains.kotlin.plugin.compose plugin above, versioned with
+    // Kotlin itself rather than pinned separately.
 
     packaging {
         resources {
@@ -202,7 +203,14 @@ val verifyPrinterData by tasks.registering {
     doLast {
         fun parse(file: java.io.File): org.w3c.dom.Document =
             javax.xml.parsers.DocumentBuilderFactory.newInstance()
-                .apply { isNamespaceAware = false }
+                .apply {
+                    isNamespaceAware = false
+                    isXIncludeAware = false
+                    isExpandEntityReferences = false
+                    setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+                    setFeature("http://xml.org/sax/features/external-general-entities", false)
+                    setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+                }
                 .newDocumentBuilder()
                 .parse(file)
 

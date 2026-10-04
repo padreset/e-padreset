@@ -3,6 +3,7 @@ package com.padreset.epadreset.protocol
 import com.padreset.epadreset.data.PrinterSpec
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EpsonProtocolTest {
@@ -95,5 +96,40 @@ class EpsonProtocolTest {
             name = "Counter",
         )
         assertEquals(6346, value.rawValue)
+    }
+
+    @Test
+    fun `wide counter groups report exact hex instead of a shifted mixture`() {
+        // Five bytes no longer fit the Int fold (shifts wrap at 32 bits), so
+        // the value saturates and the bytes travel alongside as hex.
+        val first = protocol.parseWasteCounter(
+            rawBytes = byteArrayOf(0x00, 0x00, 0x00, 0x5E, 0x5E),
+            max = 0,
+            name = "Platen pad",
+        )
+        val second = protocol.parseWasteCounter(
+            rawBytes = byteArrayOf(0x02, 0x00, 0x00, 0x5E, 0x5E),
+            max = 0,
+            name = "Platen pad",
+        )
+        assertEquals("00 00 00 5E 5E", first.rawHex)
+        assertEquals("02 00 00 5E 5E", second.rawHex)
+        assertEquals(Int.MAX_VALUE, first.rawValue)
+        // The old fold OR-ed byte 5 over byte 1 and read both inputs alike.
+        assertTrue(first.rawHex != second.rawHex)
+    }
+
+    @Test
+    fun `zero ink entry size yields no levels instead of hanging`() {
+        // A 0x0F parameter whose first byte is 0x00 used to freeze the parse
+        // loop (index never advances) and hang the status read on IO.
+        val params = byteArrayOf(0x0F, 0x01, 0x00)
+        val statusPayload = byteArrayOf(
+            (params.size and 0xFF).toByte(),
+            ((params.size ushr 8) and 0xFF).toByte(),
+        ) + params
+        val payload = "@BDC ST2\r\n".encodeToByteArray() + statusPayload
+        val snapshot = protocol.parseStatusResponse(payload, "MFG:EPSON;MDL:Test;")
+        assertTrue(snapshot.inkLevels.isEmpty())
     }
 }

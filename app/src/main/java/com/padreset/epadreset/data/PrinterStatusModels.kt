@@ -9,6 +9,16 @@ data class WasteCounterStatus(
     val name: String,
     val rawValue: Int,
     val maxValue: Int,
+    /**
+     * The counter's bytes as read, in address order, e.g. "00 00 00 5E 5E".
+     *
+     * Counter groups wider than four bytes do not fit an `Int` (and ten-byte
+     * groups do not fit a `Long` either), so [rawValue] saturates at
+     * [Int.MAX_VALUE] for those and this is the exact reading. The UI shows it
+     * whenever the ceiling is unknown; blank only for hand-built instances in
+     * tests, where the UI falls back to [rawValue].
+     */
+    val rawHex: String = "",
 ) {
     /**
      * False when the model's counter ceiling is not published.

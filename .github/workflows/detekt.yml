@@ -54,7 +54,7 @@ jobs:
       # detekt needs to parse Kotlin sources, not compile them, so this runs
       # without the Android SDK installed. The verifyPrinterData task that
       # guards the model assets is wired to preBuild and therefore does not
-      # run here; it has its own job in the build workflow.
+      # run here; it runs in the unit-tests workflow instead.
       - name: Run detekt
         run: ./gradlew :app:detekt --console=plain --stacktrace
 

@@ -69,6 +69,10 @@ The header carries circular icon buttons for maintenance and about, and a refres
 - USB stack: `UsbManager`, `UsbDeviceConnection`, bulk endpoints, printer-class control requests
 - Protocol: Epson `st` / `||` commands over D4 / IEEE 1284.4, plus USB ESC/P2 maintenance print jobs where needed
 - Model database: bundled `devices.xml` from the upstream `ez-reset` project, extended by `reinkpy_models.xml`
+- Permissions: the source manifest declares no `uses-permission` (no `INTERNET`, offline by design). The merged
+  manifest additionally declares `com.padreset.epadreset.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, injected by
+  AndroidX Core so the USB-detach receiver can be registered as not-exported — signature-level, own package,
+  never user-facing.
 
 ### Which USB interface to use
 
@@ -378,8 +382,8 @@ Detekt is a floor against private dead code and unused imports, not the thing
 that keeps this project tidy.
 
 The configuration is `app/detekt.yml`, an overlay on detekt's recommended
-defaults: a rule is listed only when it is deliberately switched off, and the
-reason is in the file next to it. There is no baseline file, and `build.maxIssues` is
+defaults: a rule is listed when it is deliberately switched off or deliberately
+pinned on, and the reason is in the file next to it. There is no baseline file, and `build.maxIssues` is
 0, so a new finding fails the build rather than joining a list of tolerated ones.
 
 The UI tests render the status page against states a desk cannot reach — a model

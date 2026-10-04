@@ -238,10 +238,20 @@ class EpsonProtocol(private val spec: PrinterSpec) {
     }
 
     fun parseWasteCounter(rawBytes: ByteArray, max: Int, name: String): WasteCounterStatus {
-        val value = rawBytes.foldIndexed(0) { index, acc, byte ->
-            acc or ((byte.toInt() and 0xFF) shl (index * 8))
+        val hex = rawBytes.joinToString(" ") { "%02X".format(it) }
+        // An Int holds four little-endian bytes; reinkpy groups run to ten, and
+        // the JVM masks shifts to 31 bits, so folding more would OR bytes 5..8
+        // back over bytes 0..3 into a meaningless mixture. Saturate instead and
+        // let callers show rawHex, which is always exact. Counters with a
+        // published ceiling never take this branch (two addresses in practice).
+        val value = if (rawBytes.size <= 4) {
+            rawBytes.foldIndexed(0) { index, acc, byte ->
+                acc or ((byte.toInt() and 0xFF) shl (index * 8))
+            }
+        } else {
+            Int.MAX_VALUE
         }
-        return WasteCounterStatus(name = name, rawValue = value, maxValue = max)
+        return WasteCounterStatus(name = name, rawValue = value, maxValue = max, rawHex = hex)
     }
 
     private fun parseStatusParameters(statusPayload: ByteArray): Map<Int, ByteArray> {
@@ -263,13 +273,19 @@ class EpsonProtocol(private val spec: PrinterSpec) {
     private fun parseInkLevels(field: ByteArray?): List<InkLevel> {
         if (field == null || field.isEmpty()) return emptyList()
         val entrySize = field[0].toInt() and 0xFF
+        // A zero entrySize would freeze the loop below (index never advances),
+        // hanging the status read on IO. Malformed rather than empty: bail out.
+        if (entrySize < 1) return emptyList()
         val levels = mutableListOf<InkLevel>()
         var index = 1
         while (index + entrySize <= field.size) {
             val entry = field.copyOfRange(index, index + entrySize)
             val colorCode = entry.getOrNull(1)?.toInt()?.and(0xFF) ?: 0xFF
-            val percentage = entry.getOrNull(2)?.toInt()?.and(0xFF) ?: -1
-            levels += InkLevel(colorName(colorCode), percentage.coerceIn(0, 100))
+            // -1 means the printer reported no level. It stays -1 (the UI
+            // shows an em dash): coercing it to 0 would print "0%", which reads
+            // as an empty cartridge. Only clamp implausible highs.
+            val percentage = entry.getOrNull(2)?.toInt()?.and(0xFF)?.coerceAtMost(100) ?: -1
+            levels += InkLevel(colorName(colorCode), percentage)
             index += entrySize
         }
         return levels

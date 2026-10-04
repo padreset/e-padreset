@@ -1,0 +1,58 @@
+name: unit-tests
+
+# JVM unit tests, on every push and every pull request.
+#
+# These need the Android SDK (unlike detekt), so this workflow installs it via
+# setup-android. No device or emulator: :app:testDebugUnitTest covers parsers,
+# protocol and write rules only. The verifyPrinterData asset guard runs too,
+# because it is wired to preBuild.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only. Nothing in this workflow writes to the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: unit-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: unit-tests-${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            unit-tests-${{ runner.os }}-gradle-
+
+      - name: Run unit tests
+        run: ./gradlew :app:testDebugUnitTest --console=plain --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: app/build/reports/tests/**
+          if-no-files-found: ignore
+          retention-days: 14

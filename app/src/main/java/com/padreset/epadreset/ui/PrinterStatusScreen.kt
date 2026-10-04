@@ -136,7 +136,10 @@ fun PrinterStatusScreen(
     // the dialog survives the card recomposing, and so the BackHandler can see it.
     var pendingRestore by remember { mutableStateOf<PendingRestore?>(null) }
     val availableCounters = uiState.status?.wasteCounters.orEmpty()
-    var selectedCounters by remember(availableCounters) {
+    // Keyed by content, not by list identity: every status refresh builds a new
+    // list, and keying on the list itself wiped the user's deselection after
+    // each read. A different model (different names) still resets the choice.
+    var selectedCounters by remember(availableCounters.map { it.name }) {
         mutableStateOf(availableCounters.map { it.name }.toSet())
     }
     var targetPercentageText by remember { mutableStateOf("0") }
@@ -1052,14 +1055,21 @@ private fun RestoreConfirmDialog(
 
                 counters.forEach { counter ->
                     val spec = specs.firstOrNull { it.name == counter.name }
-                    val restored = spec?.let { restoredCounterValue(it, pending.values) }
-                    if (restored != null) {
+                    val restoredText = spec?.let {
+                        if (it.max > 0) {
+                            restoredCounterValue(it, pending.values)
+                                ?.let { restored -> restoredReadout(counter, restored) }
+                        } else {
+                            restoredCounterHex(it, pending.values)
+                        }
+                    }
+                    if (restoredText != null) {
                         Text(
                             stringResource(
                                 R.string.dialog_restore_counter_delta,
                                 counter.name,
                                 counterReadout(counter),
-                                restoredReadout(counter, restored),
+                                restoredText,
                             ),
                         )
                     }
@@ -1081,8 +1091,11 @@ private fun RestoreConfirmDialog(
  * packs a value into them. Null when the record holds no byte for one of them: a
  * counter that would be written only in part has no single value to show, and
  * showing the part that is present would be a number the printer never reports.
+ * Also null past four bytes: the packing no longer fits an Int (same reason
+ * the status parser saturates there), and the hex variant below covers it.
  */
 private fun restoredCounterValue(spec: WasteCounterSpec, values: Map<Int, Byte>): Int? {
+    if (spec.addresses.size > 4) return null
     var packed = 0
     spec.addresses.forEachIndexed { position, address ->
         val byte = values[address] ?: return null
@@ -1091,9 +1104,24 @@ private fun restoredCounterValue(spec: WasteCounterSpec, values: Map<Int, Byte>)
     return packed
 }
 
+/**
+ * The bytes a recorded backup would give a counter, in address order.
+ *
+ * The wide-counter twin of [restoredCounterValue]: exact at any width, used
+ * wherever the ceiling is unknown and no Int packing is honest.
+ */
+private fun restoredCounterHex(spec: WasteCounterSpec, values: Map<Int, Byte>): String? {
+    val bytes = spec.addresses.map { values[it] ?: return null }
+    return bytes.joinToString(" ") { "%02X".format(it) }
+}
+
 /** A counter as it reads now, in the units the restore preview uses. */
 private fun counterReadout(counter: WasteCounterStatus): String =
-    if (counter.scaleKnown) counter.percentage.formatPercent() else counter.rawValue.toString()
+    if (counter.scaleKnown) {
+        counter.percentage.formatPercent()
+    } else {
+        counter.rawHex.ifBlank { counter.rawValue.toString() }
+    }
 
 /** A counter as it would read after the restore, in the same units. */
 private fun restoredReadout(counter: WasteCounterStatus, restoredValue: Int): String =
@@ -1136,8 +1164,13 @@ private fun recordCounterReadout(
 ): String? {
     if (specs.isEmpty() || !backupModelMatches(record.model, connectedModel)) return null
     val readings = specs.mapNotNull { spec ->
-        val value = restoredCounterValue(spec, record.values) ?: return@mapNotNull null
-        "${spec.name} ${readoutFor(value, spec.max)}"
+        val text = if (spec.max > 0) {
+            val value = restoredCounterValue(spec, record.values) ?: return@mapNotNull null
+            readoutFor(value, spec.max)
+        } else {
+            restoredCounterHex(spec, record.values) ?: return@mapNotNull null
+        }
+        "${spec.name} $text"
     }
     return readings.takeIf { it.isNotEmpty() }?.joinToString(", ")
 }
@@ -1246,8 +1279,14 @@ private fun InkLevelCell(
         )
         Spacer(Modifier.height(PadSpace.xs))
         Text(
-            text = if (connected) stringResource(R.string.percent_value, level.percentage) else "—",
-            color = if (connected) inkLevelColor(level.percentage, pad) else pad.muted,
+            // An unknown level (-1, printer reported nothing) is an em dash,
+            // never "0%": zero reads as an empty cartridge.
+            text = if (connected && level.percentage >= 0) {
+                stringResource(R.string.percent_value, level.percentage)
+            } else {
+                "—"
+            },
+            color = if (connected && level.percentage >= 0) inkLevelColor(level.percentage, pad) else pad.muted,
             style = MaterialTheme.typography.labelMedium.withFontSize(valueFontSize),
             maxLines = 1,
         )
@@ -1416,7 +1455,9 @@ private fun WasteCounterRow(counter: WasteCounterStatus, connected: Boolean) {
                 text = when {
                     !connected -> "—"
                     counter.scaleKnown -> counter.percentage.formatPercent()
-                    else -> counter.rawValue.toString()
+                    // Exact bytes, not a packed Int: wide groups do not fit one
+                    // (and a zero here would read as an empty pad).
+                    else -> counter.rawHex.ifBlank { counter.rawValue.toString() }
                 },
                 color = valueColor,
                 style = MaterialTheme.typography.labelMedium,

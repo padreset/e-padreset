@@ -112,6 +112,11 @@
         The app requests USB permission from Android only when needed to communicate with a connected printer.
         This permission is used exclusively for printer access. Preparing, copying and sharing a model
         report or opening an external link does not add an INTERNET permission to this app.
+        The source manifest declares no <code>uses-permission</code> entries; the merged manifest additionally
+        declares <code>com.padreset.epadreset.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION</code>, injected by
+        AndroidX Core (<code>androidx.core:core</code>) so the USB-detach receiver can be registered as
+        not-exported. It is a signature-level permission on this app's own package — never shown to the user
+        and never requested from them — and it grants no network, storage or device access.
       </p>
 
       <h2>Third-Party Links</h2>

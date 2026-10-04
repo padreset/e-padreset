@@ -16,10 +16,14 @@ import com.padreset.epadreset.data.WasteBackupRecord
 import com.padreset.epadreset.data.WasteCounterSpec
 import com.padreset.epadreset.data.backupModelMatches
 import com.padreset.epadreset.service.PrinterService
+import com.padreset.epadreset.service.SessionGuard
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class MainUiState(
     val connectedDeviceName: String? = null,
@@ -178,18 +182,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Read once, at construction, so the restore card is already populated the
         // first time the screen composes on a cold start. A store that cannot be
         // read answers with an empty list, so this cannot fail the launch.
-        _uiState.value = _uiState.value.copy(backupHistory = backupStore.history())
+        _uiState.update { it.copy(backupHistory = backupStore.history()) }
     }
 
     private var connection: PrinterService.ConnectionState? = null
 
     /**
-     * Bumped every time the session is replaced or dropped (connect success,
-     * [dropConnection], [onCleared]). A job captures the value at start; when
-     * it fails and the value moved, the session was closed from underneath it
-     * (exit or detach during a write), so the failure is a torn-down transport
-     * rather than a printer verdict and must not surface as READ_BACK_FAILED.
-     * The pre-write backup is already persisted at that point and stays valid.
+     * Serializes EEPROM writes (reset vs. restore). Reads (status) and print
+     * jobs stay outside it: a read overlapping a write only shows transient
+     * values, while two interleaved backup→write→verify runs would corrupt the
+     * accounting. `isBusy` already disables the buttons, so this is the second
+     * lock on a door that is normally closed. Held only around the service
+     * write call itself — never around `refreshStatus()`, which would deadlock
+     * the trailing refresh chained inside a write job.
+     */
+    private val writeMutex = Mutex()
+
+    /**
+     * Bumped every time the session is torn down or replaced ([dropConnection],
+     * [onCleared], and both halves of [connect]). A job captures the value at
+     * start; [SessionGuard] then judges a failure against both counters, and
+     * only transport-shaped write failures (backup/read-back/write, never a
+     * printer verdict) are silenced when it moved. The pre-write backup is
+     * already persisted at that point and stays valid.
      */
     private var sessionEpoch = 0
 
@@ -250,10 +265,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun onPrinterDetached() {
         val current = connection ?: return
-        if (printerService.isStillAttached(current)) return
+        // The check is a Binder round-trip; keep it off Main.
+        viewModelScope.launch {
+            if (printerService.isStillAttached(current)) return@launch
 
-        appendLog("Printer detached; connection dropped")
-        dropConnection()
+            appendLog("Printer detached; connection dropped")
+            dropConnection()
+        }
     }
 
     /**
@@ -268,10 +286,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun onReturnedToForeground() {
         val current = connection ?: return
-        if (printerService.isStillAttached(current)) return
+        // Same Binder-off-Main reason as the detach path above.
+        viewModelScope.launch {
+            if (printerService.isStillAttached(current)) return@launch
 
-        appendLog("Printer is no longer attached; dropping the session")
-        dropConnection()
+            appendLog("Printer is no longer attached; dropping the session")
+            dropConnection()
+        }
     }
 
     /**
@@ -282,12 +303,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun dropConnection() {
         val current = connection ?: return
-        // Local close only: no D4 I/O, Main-safe, minimal race window with a
-        // job that may still hold this session. See closeLocal KDoc.
-        runCatching { printerService.closeLocal(current) }
+        // Local close only: no D4 round-trip, minimal race window with a job
+        // that may still hold this session. closeLocal never throws (single
+        // swallowing layer with logging inside), so no runCatching here.
+        printerService.closeLocal(current)
         connection = null
         sessionEpoch++
-        _uiState.value = _uiState.value.copy(
+        _uiState.update { it.copy(
             status = null,
             connectedDeviceName = null,
             cleaningOptions = emptyList(),
@@ -298,7 +320,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             connectedModelName = null,
             error = null,
             notice = str(R.string.notice_printer_disconnected),
-        )
+        ) }
     }
 
     fun discoverAndConnect() {
@@ -324,9 +346,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun connect(device: UsbDevice) {
         viewModelScope.launch {
             runJob("Connecting to ${device.productName ?: device.deviceName}") {
-                connection?.let { runCatching { printerService.closeLocal(it) } }
+                // Goodbye on the old session before opening the new one, so the
+                // printer closes the old D4 channel first. closeBlocking hops to
+                // IO internally, so this is safe inside the coroutine. The epoch
+                // bumps BEFORE the teardown (not after the new connect), closing
+                // the hole where another job failing in between looked like a
+                // real printer verdict. This cannot silence this job's own
+                // failure: connect errors are UnhandledJobException, which
+                // SessionGuard never suppresses.
+                connection?.let {
+                    sessionEpoch++
+                    // No runCatching: closeBlocking logs its own best-effort
+                    // failures, and wrapping it here would swallow a
+                    // CancellationException and keep connecting a dead job.
+                    printerService.closeBlocking(it)
+                    if (connection === it) connection = null
+                }
                 connection = runCatching { printerService.connectPrinter(device) }
                     .getOrElse {
+                        // The old session is already torn down and nothing new
+                        // replaced it: leave no dangling handle behind.
+                        connection = null
+                        sessionEpoch++
                         throw UnhandledJobException(
                             uiMessage = localizedConnectFailure(it),
                             logMessage = it.message ?: it.javaClass.simpleName,
@@ -353,7 +394,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runJob("Reading printer status") {
                 val status = printerService.readPrinterStatus(current)
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     connectedDeviceName = current.deviceId,
                     status = status,
                     cleaningOptions = current.spec.cleaningOptions.map { it.name },
@@ -363,7 +404,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     wasteCounterSpecs = current.spec.wasteCounters,
                     connectedModelName = current.spec.modelName,
                     error = null,
-                )
+                ) }
                 appendLog("Status read: ${status.state}, ${status.error}")
             }
         }
@@ -378,24 +419,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runJob("Resetting waste counters", BackupOrigin.RESET) {
                 // The previous write's backup describes a state this run is about
                 // to change, so it goes now rather than when the new one arrives.
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     wasteBackup = null, actionSuccessTitle = null, actionSuccessMessage = null,
-                )
-                val outcome = printerService.writeWasteCounters(
-                    current, selectedCounterNames, targetPercentage,
-                    onBackup = { backup ->
-                        persistBackup(current.spec.modelName, backup, BackupOrigin.RESET)
-                        _uiState.value = _uiState.value.copy(wasteBackup = formatBackup(backup))
-                    },
-                )
+                ) }
+                val outcome = writeMutex.withLock {
+                    printerService.writeWasteCounters(
+                        current, selectedCounterNames, targetPercentage,
+                        onBackup = { backup ->
+                            persistBackup(current.spec.modelName, backup, BackupOrigin.RESET)
+                            _uiState.update { it.copy(wasteBackup = formatBackup(backup)) }
+                        },
+                    )
+                }
                 // Returning from the service means every address in the exact
                 // write plan verified, including models with no counter ceiling.
-                appendLog("Waste counters read back: ${outcome.counters.joinToString { "${it.name} raw=${it.rawValue}" }}")
-                _uiState.value = _uiState.value.copy(
+                appendLog("Waste counters read back: ${outcome.counters.joinToString { "${it.name} raw=${it.rawHex.ifBlank { it.rawValue.toString() }}" }}")
+                _uiState.update { it.copy(
                     actionSuccessTitle = str(R.string.dialog_counters_updated_title),
                     actionSuccessMessage = str(R.string.msg_counters_updated),
                     wasteBackup = formatBackup(outcome.backup),
-                )
+                ) }
                 refreshStatus()
             }
         }
@@ -424,22 +467,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
 
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     wasteBackup = null, actionSuccessTitle = null, actionSuccessMessage = null,
-                )
-                val outcome = printerService.restoreWasteBackup(
-                    current, values,
-                    onBackup = { backup ->
-                        persistBackup(connected, backup, BackupOrigin.RESTORE)
-                        _uiState.value = _uiState.value.copy(wasteBackup = formatBackup(backup))
-                    },
-                )
+                ) }
+                val outcome = writeMutex.withLock {
+                    printerService.restoreWasteBackup(
+                        current, values,
+                        onBackup = { backup ->
+                            persistBackup(connected, backup, BackupOrigin.RESTORE)
+                            _uiState.update { it.copy(wasteBackup = formatBackup(backup)) }
+                        },
+                    )
+                }
 
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     actionSuccessTitle = str(R.string.dialog_backup_restored_title),
                     actionSuccessMessage = str(R.string.msg_backup_restored),
                     wasteBackup = formatBackup(outcome.backupBeforeRestore),
-                )
+                ) }
                 refreshStatus()
             }
         }
@@ -453,7 +498,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runJob("Starting head cleaning") {
                 printerService.runHeadCleaning(current, cleaningName)
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     actionSuccessTitle = str(R.string.dialog_job_sent_title),
                     // The notice is read, so it names the mode the way the dialog
                     // did. The log line above keeps the database wording.
@@ -461,7 +506,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         R.string.msg_cleaning_sent_named,
                         cleaningModeLabel(getApplication(), cleaningName),
                     ),
-                )
+                ) }
             }
         }
     }
@@ -478,10 +523,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runJob("Starting head cleaning") {
                 printerService.runPrintJobHeadCleaning(current, groupIndex, powerClean, alternativeMode)
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     actionSuccessTitle = str(R.string.dialog_job_sent_title),
                     actionSuccessMessage = str(R.string.msg_cleaning_sent),
-                )
+                ) }
             }
         }
     }
@@ -494,29 +539,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runJob("Printing nozzle check") {
                 printerService.printNozzleCheck(current)
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     actionSuccessTitle = str(R.string.dialog_job_sent_title),
                     actionSuccessMessage = str(R.string.msg_nozzle_check_sent),
-                )
+                ) }
             }
         }
     }
 
     fun dismissActionSuccess() {
-        _uiState.value = _uiState.value.copy(
+        _uiState.update { it.copy(
             actionSuccessMessage = null,
             actionSuccessTitle = null,
-        )
+        ) }
     }
 
     override fun onCleared() {
         // The ViewModel outlives rotation (see autoScanDone), so this runs on
         // finish/exit, not on rotate. A write may still be in flight in
-        // viewModelScope: close locally without D4 I/O so the transport is not
-        // torn down mid-read as a multi-second round-trip, and bump the epoch
-        // so runJob reports it as a torn-down session rather than a printer
-        // verdict. The pre-write backup is already persisted and stays valid.
-        connection?.let { runCatching { printerService.closeLocal(it) } }
+        // viewModelScope: close locally without D4 round-trip so the transport
+        // is not torn down mid-read as a multi-second goodbye, and bump the
+        // epoch so SessionGuard reads a later torn-down transport failure for
+        // what it is. closeLocal never throws, so no runCatching here. The
+        // pre-write backup is already persisted and stays valid.
+        connection?.let { printerService.closeLocal(it) }
         connection = null
         sessionEpoch++
         super.onCleared()
@@ -675,7 +721,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun persistBackup(model: String, backup: Map<Int, Byte>, origin: BackupOrigin) {
         if (backup.isEmpty()) return
         val outcome = backupStore.save(model, backup, origin)
-        _uiState.value = _uiState.value.copy(backupHistory = outcome.history)
+        _uiState.update { it.copy(backupHistory = outcome.history) }
         val label = model.ifBlank { "unknown model" }
         // A restore writes back a value the list already knows, so it can add no
         // row at all. Saying so is what keeps that from looking like a save that
@@ -716,7 +762,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         origin: BackupOrigin? = null,
         block: suspend () -> Unit,
     ) {
-        _uiState.value = _uiState.value.copy(
+        _uiState.update { it.copy(
             isBusy = true,
             error = null,
             // A notice describes the state before this job. Once something is
@@ -733,7 +779,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // every job meant the refresh that follows a successful write wiped
             // it in the next statement. A new write clears it instead, which is
             // the only moment it stops being true.
-        )
+        ) }
         appendLog(message)
         val epochAtStart = sessionEpoch
         runCatching { block() }
@@ -741,13 +787,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // Cancellation is lifecycle, not a printer verdict. Let the
                 // scope handle it instead of turning it into a callout.
                 if (failure is kotlinx.coroutines.CancellationException) throw failure
-                // The session was replaced or dropped while this job ran (exit
-                // or detach during a write). The transport was torn down from
-                // underneath the read; reporting it as READ_BACK_FAILED would
-                // blame the printer for an app-lifecycle event. The backup is
-                // already persisted and stays valid.
-                if (sessionEpoch != epochAtStart) {
-                    appendLog("Job ended after the session was closed; ignoring torn-down result")
+                // The session was replaced or dropped while this job ran (exit,
+                // detach or reconnect during a write). Only transport-shaped
+                // failures are silenced: REJECTED and NOT_APPLIED are printer
+                // verdicts and always surface, as does anything that is not a
+                // write failure at all (notably this job's own connect errors).
+                // The pre-write backup is already persisted and stays valid.
+                if (SessionGuard.shouldSuppress(failure, epochAtStart, sessionEpoch)) {
+                    appendLog("Job ended after the session was closed; ignoring torn-down transport result")
                     return@onFailure
                 }
                 // The printer may have gone away while the job was running. That
@@ -776,14 +823,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // The complete backup was already saved before the first write.
                 // Keep its copyable text too when verification or transport fails.
                 val partialBackup = (failure as? PrinterService.WasteWriteException)?.backup
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     error = uiMessage,
                     modelReportBody = report?.body,
                     modelReportUrl = report?.url,
-                    wasteBackup = partialBackup?.let(::formatBackup) ?: _uiState.value.wasteBackup,
-                )
+                    wasteBackup = partialBackup?.let(::formatBackup) ?: it.wasteBackup,
+                ) }
             }
-        _uiState.value = _uiState.value.copy(isBusy = false, connectNote = null)
+        _uiState.update { it.copy(isBusy = false, connectNote = null) }
     }
 
     /**
@@ -795,17 +842,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * attempt ends either way, so a failure does not leave it above the error.
      */
     private fun noteSlowConnect() {
-        if (_uiState.value.status != null) return
-        _uiState.value = _uiState.value.copy(connectNote = str(R.string.connect_slow_note))
+        _uiState.update {
+            if (it.status != null) it else it.copy(connectNote = str(R.string.connect_slow_note))
+        }
     }
 
     private fun appendLog(line: String) {
-        _uiState.value = _uiState.value.copy(logs = (_uiState.value.logs + line).takeLast(200))
+        _uiState.update { it.copy(logs = (it.logs + line).takeLast(200)) }
     }
 
     private fun appendError(message: String) {
         appendLog("Error: $message")
-        _uiState.value = _uiState.value.copy(error = message)
+        _uiState.update { it.copy(error = message) }
     }
 
 }

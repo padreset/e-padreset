@@ -69,11 +69,11 @@ complexity:
     thresholdInClasses: 30
     thresholdInFiles: 35
     # EpsonPrinterCatalog is the only object, and it is the catalog: load,
-    # query, and the parsing helpers that belong to loading. 23 functions in
+    # query, and the parsing helpers that belong to loading. 26 functions in
     # one object is what "this is the catalog module" looks like in Kotlin.
     # Set to what the file actually holds, so the next two functions added
     # still get a look.
-    thresholdInObjects: 25
+    thresholdInObjects: 28
   CyclomaticComplexMethod:
     # parseDevicesXml and PrinterStatusScreen are the two, and both are
     # branchy for a stated reason: one parses a vendor XML format full of
@@ -128,6 +128,15 @@ style:
   UnusedImports:
     # Kept on. It is one of the few rules that fires on real leftovers, and it
     # found one (an unused `dp` import in MaintenanceScreen).
+    active: true
+  UnusedPrivateProperty:
+    # Pinned on rather than left to buildUponDefaultConfig: dead state is how
+    # the reportableModel-style misses start, and a default change upstream
+    # must not silently switch this off.
+    active: true
+  UnusedParameter:
+    # Pinned on for the same reason: an ignored parameter is either a leftover
+    # or a contract, and both deserve a look rather than a quiet default flip.
     active: true
   LoopWithTooManyJumpStatements:
     # parseDevicesXml and captureIncoming walk vendor data with early exits

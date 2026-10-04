@@ -63,13 +63,92 @@ object EpsonPrinterCatalog {
     @Volatile
     var logger: ((String) -> Unit)? = null
 
+    /**
+     * Hardened parser factory. The assets are local and the supply-chain risk
+     * is near zero, but two of these files are regenerated from a network
+     * mirror — hardening is free, so it is on everywhere a DOM is built,
+     * including the Gradle-time asset check.
+     */
+    private fun secureFactory() = DocumentBuilderFactory.newInstance().apply {
+        isIgnoringComments = true
+        isNamespaceAware = false
+        isXIncludeAware = false
+        isExpandEntityReferences = false
+        setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+        setFeature("http://xml.org/sax/features/external-general-entities", false)
+        setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+    }
+
     fun resolve(context: Context, deviceId: String): PrinterSpec? {
         val mdl = modelName(deviceId).orEmpty()
+        if (mdl.isBlank()) return null
         val specs = load(context)
+        val name = resolveName(
+            mdl = mdl,
+            deviceId = deviceId,
+            names = specs.map { it.modelName },
+            onAmbiguous = { logger?.invoke(it) },
+        ) ?: return null
+        return specs.firstOrNull { it.modelName == name }
+    }
 
-        return specs.firstOrNull { it.modelName.equals(mdl, ignoreCase = true) }
-            ?: specs.firstOrNull { mdl.contains(it.modelName.removeSuffix(" Series"), ignoreCase = true) }
-            ?: specs.firstOrNull { deviceId.contains(it.modelName, ignoreCase = true) }
+    /**
+     * Picks the catalog name for an MDL without touching Android or assets.
+     *
+     * 1. Exact name, e.g. MDL "PM-4000PX" -> "PM-4000PX".
+     * 2. Suffixed name, e.g. MDL "XP-4200" -> "XP-4200 Series". A bare
+     *    `contains` used to live here and matched "XP-420 Series" for "XP-4200"
+     *    (and "PM-400 Series" for anything starting with it), handing the wrong
+     *    controlModel/keyword/EEPROM addresses to the write path. Never match a
+     *    shorter name inside a longer one.
+     * 3. Longest catalog name found in the MDL at a word boundary (e.g. MDL
+     *    "EPSON XP-420" contains "XP-420" whole). Longest wins so
+     *    "XP-4200 Series" beats "XP-420 Series" if both ever match; ties keep
+     *    catalog order and are reported via [onAmbiguous].
+     * 4. Same rule against the whole device ID, for printers whose MDL is
+     *    known but unmatched, or whose ID carries the model elsewhere.
+     */
+    internal fun resolveName(
+        mdl: String,
+        deviceId: String,
+        names: List<String>,
+        onAmbiguous: (String) -> Unit = {},
+    ): String? {
+        names.firstOrNull { it.equals(mdl, ignoreCase = true) }?.let { return it }
+        names.firstOrNull { it.equals("$mdl Series", ignoreCase = true) }?.let { return it }
+        val stripped = names.map { it to it.removeSuffix(" Series") }
+        val candidates = stripped.filter { (_, name) -> boundaryContains(mdl, name) }
+        if (candidates.size > 1) {
+            onAmbiguous("Ambiguous model '$mdl' matches ${candidates.map { it.first }}; using longest")
+        }
+        candidates.maxByOrNull { it.second.length }?.let { return it.first }
+        val idCandidates = (names.filter { boundaryContains(deviceId, it) } +
+            stripped.filter { (_, name) -> boundaryContains(deviceId, name) }.map { it.first })
+            .distinct()
+        if (idCandidates.size > 1) {
+            onAmbiguous("Ambiguous device ID for '$mdl' matches $idCandidates; using longest")
+        }
+        return idCandidates.maxByOrNull { it.length }
+    }
+
+    /**
+     * Whether [needle] occurs in [haystack] as a whole token: bounded on both
+     * sides by a non-alphanumeric or a string edge. "XP-420" matches
+     * "EPSON XP-420" but not "XP-4200"; "PM-400" matches neither "PM-4000PX"
+     * nor "PM-400 Series"-less prefixes. Case-insensitive; pure for tests.
+     */
+    internal fun boundaryContains(haystack: String, needle: String): Boolean {
+        if (needle.isEmpty()) return false
+        var from = 0
+        while (true) {
+            val i = haystack.indexOf(needle, from, ignoreCase = true)
+            if (i < 0) return false
+            val beforeOk = i == 0 || !haystack[i - 1].isLetterOrDigit()
+            val after = i + needle.length
+            val afterOk = after >= haystack.length || !haystack[after].isLetterOrDigit()
+            if (beforeOk && afterOk) return true
+            from = i + 1
+        }
     }
 
     /**
@@ -155,10 +234,7 @@ object EpsonPrinterCatalog {
         input: InputStream,
         maintenanceBoxModels: Set<String>,
     ): List<PrinterSpec> {
-        val document = DocumentBuilderFactory.newInstance().apply {
-            isIgnoringComments = true
-            isNamespaceAware = false
-        }.newDocumentBuilder().parse(input)
+        val document = secureFactory().newDocumentBuilder().parse(input)
 
         val nodes = document.getElementsByTagName("model")
         val printers = mutableListOf<PrinterSpec>()
@@ -240,10 +316,7 @@ object EpsonPrinterCatalog {
         input: InputStream,
         maintenanceBoxModels: Set<String> = emptySet(),
     ): List<PrinterSpec> {
-        val builder = DocumentBuilderFactory.newInstance().apply {
-            isIgnoringComments = true
-            isNamespaceAware = false
-        }.newDocumentBuilder()
+        val builder = secureFactory().newDocumentBuilder()
         val document = builder.parse(input)
         val root = document.documentElement
         val devicesRoot = root.getElementsByTagName("devices").item(0) as? Element ?: return emptyList()
@@ -262,81 +335,96 @@ object EpsonPrinterCatalog {
         val printers = mutableListOf<PrinterSpec>()
         for (index in 0 until printerNodes.length) {
             val printer = printerNodes.item(index) as? Element ?: continue
-            if (!printer.getAttribute("brand").equals("epson", ignoreCase = true)) continue
-
-            val modelName = printer.getAttribute("model").trim()
-            if (modelName.isEmpty()) continue
-
-            val specNames = printer.getAttribute("specs")
-                .split(',')
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-
-            var controlModel = byteArrayOf()
-            var keyword = byteArrayOf()
-            val wasteCounters = mutableListOf<WasteCounterSpec>()
-            val resetMap = linkedMapOf<Int, Int>()
-            var cleaningOptions: List<CleaningSpec> = emptyList()
-            var cleaningDeclared = false
-
-            specNames.forEach { specName ->
-                val specNode = specByName[specName] ?: return@forEach
-
-                specNode.firstChildElement("service")?.let { service ->
-                    service.firstChildElement("factory")?.let { factory ->
-                        val bytes = parseHexBytes(factory.textContent)
-                        if (bytes.isNotEmpty()) controlModel = bytes
-                    }
-                    service.firstChildElement("keyword")?.let { key ->
-                        val bytes = parseHexBytes(key.textContent)
-                        if (bytes.isNotEmpty()) keyword = bytes
-                    }
-                }
-
-                specNode.firstChildElement("waste")?.let { waste ->
-                    val (counters, resetValues) = parseWasteSection(waste, modelName)
-                    wasteCounters += counters
-                    resetMap.putAll(resetValues)
-                }
-
-                specNode.firstChildElement("cleaning")?.let { cleaningRoot ->
-                    // First spec that declares cleaning wins. A model lists the
-                    // same cleaning jobs under each of its specs, and taking
-                    // them from all of them would show every job several times.
-                    if (!cleaningDeclared) {
-                        cleaningDeclared = true
-                        cleaningOptions = parseCleaningSection(cleaningRoot)
-                    }
-                }
-            }
-
-            // A model is worth keeping if we can open a session with it and then
-            // do something useful. Waste counters are NOT required: models that
-            // collect waste ink in a maintenance box carry no counter, but they
-            // do carry the control model, the keyword and their cleaning jobs,
-            // and head cleaning and the nozzle check still work on them.
-            //
-            // Requiring counters here is what made those models answer
-            // "Unsupported Epson model" instead of connecting — the spec was
-            // dropped before it ever reached the catalog.
-            val canOpenSession = controlModel.isNotEmpty() && keyword.isNotEmpty()
-            val hasWasteJobs = wasteCounters.isNotEmpty() && resetMap.isNotEmpty()
-            val hasCleaningJobs = cleaningOptions.isNotEmpty()
-
-            if (canOpenSession && (hasWasteJobs || hasCleaningJobs)) {
-                printers += PrinterSpec(
-                    modelName = modelName,
-                    controlModel = controlModel,
-                    keyword = keyword,
-                    wasteCounters = wasteCounters.distinctBy { it.name to it.addresses },
-                    resetMap = resetMap,
-                    cleaningOptions = cleaningOptions.distinctBy { it.name to it.payload.contentHashCode() },
-                    usesMaintenanceBox = maintenanceBoxModels.contains(normalizeModelName(modelName)),
-                )
-            }
+            parsePrinterElement(printer, specByName, maintenanceBoxModels)?.let { printers += it }
         }
 
         return printers.distinctBy { it.modelName }
+    }
+
+    /**
+     * One `<printer>` entry, or null when it cannot mean anything.
+     *
+     * Split out of [parseDevicesXml] to keep that function's length and branch
+     * count away from the detekt ceilings: the keep-rule below (session keys
+     * plus some useful job) is what once dropped every maintenance-box model,
+     * so it stays explained where it runs rather than inlined where it hides.
+     */
+    private fun parsePrinterElement(
+        printer: Element,
+        specByName: Map<String, Element>,
+        maintenanceBoxModels: Set<String>,
+    ): PrinterSpec? {
+        if (!printer.getAttribute("brand").equals("epson", ignoreCase = true)) return null
+
+        val modelName = printer.getAttribute("model").trim()
+        if (modelName.isEmpty()) return null
+
+        val specNames = printer.getAttribute("specs")
+            .split(',')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+
+        var controlModel = byteArrayOf()
+        var keyword = byteArrayOf()
+        val wasteCounters = mutableListOf<WasteCounterSpec>()
+        val resetMap = linkedMapOf<Int, Int>()
+        var cleaningOptions: List<CleaningSpec> = emptyList()
+        var cleaningDeclared = false
+
+        specNames.forEach { specName ->
+            val specNode = specByName[specName] ?: return@forEach
+
+            specNode.firstChildElement("service")?.let { service ->
+                service.firstChildElement("factory")?.let { factory ->
+                    val bytes = parseHexBytes(factory.textContent)
+                    if (bytes.isNotEmpty()) controlModel = bytes
+                }
+                service.firstChildElement("keyword")?.let { key ->
+                    val bytes = parseHexBytes(key.textContent)
+                    if (bytes.isNotEmpty()) keyword = bytes
+                }
+            }
+
+            specNode.firstChildElement("waste")?.let { waste ->
+                val (counters, resetValues) = parseWasteSection(waste, modelName)
+                wasteCounters += counters
+                resetMap.putAll(resetValues)
+            }
+
+            specNode.firstChildElement("cleaning")?.let { cleaningRoot ->
+                // First spec that declares cleaning wins. A model lists the
+                // same cleaning jobs under each of its specs, and taking
+                // them from all of them would show every job several times.
+                if (!cleaningDeclared) {
+                    cleaningDeclared = true
+                    cleaningOptions = parseCleaningSection(cleaningRoot)
+                }
+            }
+        }
+
+        // A model is worth keeping if we can open a session with it and then
+        // do something useful. Waste counters are NOT required: models that
+        // collect waste ink in a maintenance box carry no counter, but they
+        // do carry the control model, the keyword and their cleaning jobs,
+        // and head cleaning and the nozzle check still work on them.
+        //
+        // Requiring counters here is what made those models answer
+        // "Unsupported Epson model" instead of connecting — the spec was
+        // dropped before it ever reached the catalog.
+        val canOpenSession = controlModel.isNotEmpty() && keyword.isNotEmpty()
+        val hasWasteJobs = wasteCounters.isNotEmpty() && resetMap.isNotEmpty()
+        val hasCleaningJobs = cleaningOptions.isNotEmpty()
+
+        if (!canOpenSession || !(hasWasteJobs || hasCleaningJobs)) return null
+        return PrinterSpec(
+            modelName = modelName,
+            controlModel = controlModel,
+            keyword = keyword,
+            wasteCounters = wasteCounters.distinctBy { it.name to it.addresses },
+            resetMap = resetMap,
+            cleaningOptions = cleaningOptions.distinctBy { it.name to it.payload.contentHashCode() },
+            usesMaintenanceBox = maintenanceBoxModels.contains(normalizeModelName(modelName)),
+        )
     }
 
     /**
@@ -478,10 +566,7 @@ object EpsonPrinterCatalog {
      * document stands on its own.
      */
     internal fun parseMaintenanceBoxModels(input: InputStream): Set<String> {
-        val document = DocumentBuilderFactory.newInstance().apply {
-            isIgnoringComments = true
-            isNamespaceAware = false
-        }.newDocumentBuilder().parse(input)
+        val document = secureFactory().newDocumentBuilder().parse(input)
         val nodes = document.getElementsByTagName("model")
         return (0 until nodes.length)
             .map { nodes.item(it).textContent }
