@@ -49,11 +49,6 @@ data class MainUiState(
      * must go through [MainViewModel.str].
      */
     val error: String? = null,
-    /**
-     * A missing model to investigate, including maintenance-box models for
-     * cleaning/nozzle support. A request does not guarantee support.
-     */
-    val reportableModel: String? = null,
     /** Ready-to-paste report for a missing model. Null when there is nothing to report. */
     val modelReportBody: String? = null,
     /** Static GitHub template link without model/diagnostic parameters; optional. */
@@ -571,21 +566,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private data class ModelReport(val model: String, val body: String, val url: String?)
+    private data class ModelReport(val body: String, val url: String?)
 
     /** No log is exported; the builder uses an explicit field allowlist. */
     private fun buildModelReport(failure: UnhandledJobException): ModelReport? {
         val deviceId = failure.reportableDeviceId ?: return null
         val report = ModelSupportReport.build(
-            deviceId = deviceId,
-            appVersion = appVersion,
-            androidVersion = Build.VERSION.RELEASE,
-            vendorId = failure.reportVendorId,
-            productId = failure.reportProductId,
-            maintenanceBox = failure.reportMaintenanceBox,
+            ModelSupportReport.Source(
+                deviceId = deviceId,
+                appVersion = appVersion,
+                androidVersion = Build.VERSION.RELEASE,
+                vendorId = failure.reportVendorId,
+                productId = failure.reportProductId,
+                maintenanceBox = failure.reportMaintenanceBox,
+            ),
         )
         return ModelReport(
-            model = report.model,
             body = report.body,
             url = REPORT_REPO_URL?.let(ModelSupportReport::issueUrl),
         )
@@ -708,7 +704,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // Same reasoning: an explanation of the last connection's wait does
             // not describe this one.
             connectNote = null,
-            reportableModel = null,
             modelReportBody = null,
             modelReportUrl = null,
             // wasteBackup is deliberately NOT cleared here. It is a record of
@@ -748,7 +743,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val partialBackup = (failure as? PrinterService.WasteWriteException)?.backup
                 _uiState.value = _uiState.value.copy(
                     error = uiMessage,
-                    reportableModel = report?.model,
                     modelReportBody = report?.body,
                     modelReportUrl = report?.url,
                     wasteBackup = partialBackup?.let(::formatBackup) ?: _uiState.value.wasteBackup,

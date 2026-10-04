@@ -1,0 +1,70 @@
+name: detekt
+
+# Static analysis, on every push and every pull request.
+#
+# It is a separate workflow from a build because it needs no Android SDK and
+# runs in well under a minute. A rule that takes twenty seconds to notice an
+# unused function does not get run, and a check that does not get run is not a
+# check.
+#
+# This is not the same job as lintDebug and does not replace it. lint reads
+# resources, manifests and the merged permissions; detekt reads Kotlin. The
+# one that matters here is that detekt is the only thing that will notice a
+# private function nobody calls.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only. Nothing in this workflow writes to the repository.
+permissions:
+  contents: read
+
+concurrency:
+  # A newer push makes the older run's answer irrelevant, and the wasted
+  # minutes matter more on a self-hosted runner than the queueing does.
+  group: detekt-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detekt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          # The wrapper is Gradle 9.0-milestone-1 and the build sets jvmTarget 17,
+          # so 21 runs it and produces the same bytecode as the local build.
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: detekt-${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            detekt-${{ runner.os }}-gradle-
+
+      # detekt needs to parse Kotlin sources, not compile them, so this runs
+      # without the Android SDK installed. The verifyPrinterData task that
+      # guards the model assets is wired to preBuild and therefore does not
+      # run here; it has its own job in the build workflow.
+      - name: Run detekt
+        run: ./gradlew :app:detekt --console=plain --stacktrace
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          # Uploaded even on success: the report is how someone checks which
+          # rules are active without having to run the analysis themselves.
+          name: detekt-report
+          path: app/build/reports/detekt/**
+          if-no-files-found: ignore
+          retention-days: 14

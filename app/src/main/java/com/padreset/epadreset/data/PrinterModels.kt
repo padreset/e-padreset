@@ -227,9 +227,18 @@ object EpsonPrinterCatalog {
             else -> defaultCounterName(index)
         }
 
-    private fun parseDevicesXml(
+    /**
+     * internal rather than private so [DevicesXmlParserTest] can reach it.
+     *
+     * It stays out of the public surface: [load] is how the app gets here, and
+     * an exposed parser is an invitation to call it with the wrong arguments.
+     * The test needs it because it is the only way to check this parser against
+     * the bundled file without an Android Context, and the waste-counter
+     * extraction below was split into helpers that no other test exercises.
+     */
+    internal fun parseDevicesXml(
         input: InputStream,
-        maintenanceBoxModels: Set<String>,
+        maintenanceBoxModels: Set<String> = emptySet(),
     ): List<PrinterSpec> {
         val builder = DocumentBuilderFactory.newInstance().apply {
             isIgnoringComments = true
@@ -285,64 +294,18 @@ object EpsonPrinterCatalog {
                 }
 
                 specNode.firstChildElement("waste")?.let { waste ->
-                    waste.firstChildElement("query")?.let { query ->
-                        val counters = query.childElements("counter").mapIndexedNotNull { counterIndex, counter ->
-                            val firstEntry = counter.firstChildElement("entry")
-                            val rawAddresses = if (firstEntry != null) {
-                                directText(firstEntry)
-                            } else {
-                                directText(counter)
-                            }
-                            val addresses = rawAddresses
-                                .split(Regex("\\s+"))
-                                .filter { it.isNotBlank() }
-                                .map { parseNumeric(it, "waste address for model '$modelName' counter $counterIndex") }
-                            val maxText = counter.firstChildElement("max")?.textContent?.trim()
-                            val max = maxText?.let {
-                                parseNumeric(it, "max for model '$modelName' counter $counterIndex")
-                            } ?: 0
-                            if (addresses.isEmpty() || max <= 0) {
-                                null
-                            } else {
-                                WasteCounterSpec(
-                                    name = defaultCounterName(counterIndex),
-                                    addresses = addresses,
-                                    max = max,
-                                )
-                            }
-                        }
-                        wasteCounters += counters
-                    }
-
-                    waste.firstChildElement("reset")?.let { reset ->
-                        val values = parseHexInts(directText(reset))
-                        values.chunked(2).forEach { pair ->
-                            if (pair.size == 2) {
-                                resetMap[pair[0]] = pair[1]
-                            }
-                        }
-                    }
+                    val (counters, resetValues) = parseWasteSection(waste, modelName)
+                    wasteCounters += counters
+                    resetMap.putAll(resetValues)
                 }
 
                 specNode.firstChildElement("cleaning")?.let { cleaningRoot ->
+                    // First spec that declares cleaning wins. A model lists the
+                    // same cleaning jobs under each of its specs, and taking
+                    // them from all of them would show every job several times.
                     if (!cleaningDeclared) {
                         cleaningDeclared = true
-                        val parsedCleanings = cleaningRoot.childElements("cleaning").mapNotNull { cleaning ->
-                            val type = cleaning.firstChildElement("type")?.textContent?.trim().orEmpty()
-                            val payloadText = cleaning.firstChildElement("data")?.textContent?.trim().orEmpty()
-                            val payload = parseHexBytes(payloadText)
-                            if (type.equals("service", ignoreCase = true) && payload.isNotEmpty()) {
-                                val name = cleaning.firstChildElement("name")?.textContent?.trim().orEmpty()
-                                CleaningSpec(
-                                    name = name.ifBlank { "Head Cleaning" },
-                                    type = type,
-                                    payload = payload,
-                                )
-                            } else {
-                                null
-                            }
-                        }
-                        cleaningOptions = parsedCleanings
+                        cleaningOptions = parseCleaningSection(cleaningRoot)
                     }
                 }
             }
@@ -374,6 +337,107 @@ object EpsonPrinterCatalog {
         }
 
         return printers.distinctBy { it.modelName }
+    }
+
+    /**
+     * Reads the `<cleaning>` subtree into the jobs this app can run.
+     *
+     * Only service-type jobs with a payload are kept: a generic job would be
+     * dispatched as a head cleaning and send the wrong bytes to the printer,
+     * which is worse than not offering it.
+     */
+    private fun parseCleaningSection(cleaningRoot: Element): List<CleaningSpec> =
+        cleaningRoot.childElements("cleaning").mapNotNull { cleaning ->
+            val type = cleaning.firstChildElement("type")?.textContent?.trim().orEmpty()
+            val payload = parseHexBytes(cleaning.firstChildElement("data")?.textContent?.trim().orEmpty())
+            if (!type.equals("service", ignoreCase = true) || payload.isEmpty()) {
+                null
+            } else {
+                val name = cleaning.firstChildElement("name")?.textContent?.trim().orEmpty()
+                CleaningSpec(
+                    name = name.ifBlank { "Head Cleaning" },
+                    type = type,
+                    payload = payload,
+                )
+            }
+        }
+
+    /**
+     * Reads one spec's `<waste>` element into its counters and its reset values.
+     *
+     * Split out of [parseDevicesXml] because it is a whole sub-format on its
+     * own: the query subtree, the address parsing and the address/value pairing
+     * of the reset list. Read together with the loop around it, the two were
+     * one 120-line function and the loop's own logic was impossible to see.
+     *
+     * The model name is passed in only to make a bad address say which model it
+     * came from. A wrong address in devices.xml is otherwise invisible: it just
+     * produces a model that never reports a level.
+     */
+    private fun parseWasteSection(
+        waste: Element,
+        modelName: String,
+    ): Pair<List<WasteCounterSpec>, Map<Int, Int>> {
+        val counters = waste.firstChildElement("query")
+            ?.let { query ->
+                query.childElements("counter")
+                    .mapIndexedNotNull { counterIndex, counter -> parseCounter(counter, modelName, counterIndex) }
+            }
+            .orEmpty()
+
+        val resetValues = waste.firstChildElement("reset")
+            ?.let { reset -> parseAddressValuePairs(directText(reset)) }
+            .orEmpty()
+
+        return counters to resetValues
+    }
+
+    /**
+     * One `<counter>` entry, or null when it cannot mean anything.
+     *
+     * A counter with no address or no positive maximum is dropped rather than
+     * kept with a zero: a zero maximum would divide by zero when the level is
+     * worked out, and an address-less counter cannot be read at all.
+     */
+    private fun parseCounter(
+        counter: Element,
+        modelName: String,
+        counterIndex: Int,
+    ): WasteCounterSpec? {
+        // The address list moved under <entry> in later revisions of the file,
+        // so both shapes are still in the wild and the bare text is the old one.
+        val firstEntry = counter.firstChildElement("entry")
+        val rawAddresses = if (firstEntry != null) directText(firstEntry) else directText(counter)
+        val addresses = rawAddresses
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+            .map { parseNumeric(it, "waste address for model '$modelName' counter $counterIndex") }
+        val maxText = counter.firstChildElement("max")?.textContent?.trim()
+        val max = maxText?.let {
+            parseNumeric(it, "max for model '$modelName' counter $counterIndex")
+        } ?: 0
+        if (addresses.isEmpty() || max <= 0) return null
+
+        return WasteCounterSpec(
+            name = defaultCounterName(counterIndex),
+            addresses = addresses,
+            max = max,
+        )
+    }
+
+    /**
+     * `A0 B0 A1 B1 ...` as address to value pairs.
+     *
+     * A trailing odd element is dropped rather than guessed at: the list is a
+     * flat hex stream and half a pair means the file is malformed.
+     */
+    private fun parseAddressValuePairs(text: String): Map<Int, Int> {
+        val values = parseHexInts(text)
+        return buildMap {
+            values.chunked(2).forEach { pair ->
+                if (pair.size == 2) put(pair[0], pair[1])
+            }
+        }
     }
 
     /**

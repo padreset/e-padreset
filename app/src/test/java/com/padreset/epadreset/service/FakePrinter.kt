@@ -39,11 +39,11 @@ internal class FakePrinter(
     fun write(address: Int, value: Int): EpsonProtocol.WriteReply {
         calls += "write 0x%04X=0x%02X".format(address, value)
         writeStarted = true
-        if (address in failedWrites) throw IllegalStateException("write timeout")
+        if (address in failedWrites) error("write timeout")
         val reply = replies[address] ?: EpsonProtocol.WriteReply.Applied
-        if (address !in ignoredWrites &&
-            (reply == EpsonProtocol.WriteReply.Applied || (applyUnknown && reply == EpsonProtocol.WriteReply.Unknown))
-        ) memory[address] = value.toByte()
+        val applied = reply == EpsonProtocol.WriteReply.Applied ||
+            (applyUnknown && reply == EpsonProtocol.WriteReply.Unknown)
+        if (address !in ignoredWrites && applied) memory[address] = value.toByte()
         return reply
     }
 

@@ -352,7 +352,35 @@ The unit tests run on the JVM; the UI tests need a device or an emulator:
 ```sh
 ./gradlew :app:testDebugUnitTest           # parsers, protocol and write rules, no device
 ./gradlew :app:connectedDebugAndroidTest   # renders the screens, needs one
+./gradlew :app:detekt                      # static analysis, no device and no Android SDK
 ```
+
+`detekt` also runs on every push and every pull request
+(`.github/workflows/detekt.yml`), in under a minute and without the Android SDK,
+because it parses Kotlin rather than compiling it. It is not a substitute for
+`lintDebug`: lint reads resources, manifests and the merged permissions, and
+detekt reads Kotlin.
+
+What it is actually good for here is small, and worth stating plainly rather than
+implying it catches everything. Measured on this codebase with a probe that was
+added and then deleted:
+
+| Shape | Caught? |
+| --- | --- |
+| private function with no caller | yes, `UnusedPrivateMember` |
+| public function with no caller | no |
+| state field written but never read | no |
+
+The two misses are real. `PrinterService.resetWasteCounters` had no caller and
+shipped through a release; `MainUiState.reportableModel` was written on every
+failure and read by nothing. Both were found by reading the code, not by a tool.
+Detekt is a floor against private dead code and unused imports, not the thing
+that keeps this project tidy.
+
+The configuration is `app/detekt.yml`, an overlay on detekt's recommended
+defaults: a rule is listed only when it is deliberately switched off, and the
+reason is in the file next to it. There is no baseline file, and `build.maxIssues` is
+0, so a new finding fails the build rather than joining a list of tolerated ones.
 
 The UI tests render the status page against states a desk cannot reach — a model
 missing from the catalog, a finished write, a counter with no published ceiling —

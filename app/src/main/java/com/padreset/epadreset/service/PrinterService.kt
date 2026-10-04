@@ -109,7 +109,11 @@ class PrinterService(
         transport.isAttached(connection.session.device)
 
     suspend fun connectPrinter(device: UsbDevice): ConnectionState = withContext(Dispatchers.IO) {
-        log("USB device detected: vendor=0x${device.vendorId.toString(16)} product=0x${device.productId.toString(16)} name=${device.productName ?: device.deviceName}")
+        log(
+            "USB device detected: vendor=0x${device.vendorId.toString(16)} " +
+                "product=0x${device.productId.toString(16)} " +
+                "name=${device.productName ?: device.deviceName}",
+        )
         if (!transport.ensurePermission(device)) {
             throw ConnectException(ConnectFailure.PERMISSION_DENIED)
         }
@@ -288,18 +292,6 @@ class PrinterService(
         cause,
     ) {
         enum class Reason { BACKUP_FAILED, REJECTED, WRITE_FAILED, READ_BACK_FAILED, NOT_APPLIED }
-    }
-
-    suspend fun resetWasteCounters(
-        connection: ConnectionState,
-        onBackup: (Map<Int, Byte>) -> Unit = {},
-    ): WasteWriteOutcome = withContext(Dispatchers.IO) {
-        val plan = connection.spec.resetMap.toSortedMap()
-        require(plan.isNotEmpty()) { "This model publishes no reset values" }
-        log("Resetting waste counters: ${plan.size} EEPROM writes")
-
-        val verified = applyWritePlan(connection, plan, onBackup)
-        WasteWriteOutcome(verified.value.wasteCounters, verified.backup)
     }
 
     suspend fun writeWasteCounters(

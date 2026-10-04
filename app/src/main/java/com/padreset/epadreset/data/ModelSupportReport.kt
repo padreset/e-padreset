@@ -14,15 +14,25 @@ internal object ModelSupportReport {
 
     data class Report(val model: String, val body: String)
 
-    fun build(
-        deviceId: String,
-        appVersion: String,
-        androidVersion: String,
-        vendorId: Int?,
-        productId: Int?,
-        maintenanceBox: Boolean,
-    ): Report {
-        val fields = deviceId.split(';').mapNotNull { field ->
+    /**
+     * Everything a report needs, as one value.
+     *
+     * Six positional parameters of which three are strings is the shape that
+     * gets two app versions transposed at the call site and nothing catches,
+     * because `build(id, version, version, ...)` still compiles. Grouping them
+     * makes the wrong call site a compile error.
+     */
+    data class Source(
+        val deviceId: String,
+        val appVersion: String,
+        val androidVersion: String,
+        val vendorId: Int?,
+        val productId: Int?,
+        val maintenanceBox: Boolean,
+    )
+
+    fun build(source: Source): Report {
+        val fields = source.deviceId.split(';').mapNotNull { field ->
             val parts = field.split(':', limit = 2)
             val key = parts.first().trim().uppercase(Locale.ROOT)
             if (parts.size == 2 && key in allowedFields) key to safeField(parts[1]) else null
@@ -31,14 +41,14 @@ internal object ModelSupportReport {
         val body = buildString {
             appendLine("E-Pad Reset — model support request / petición de modelo")
             appendLine("Printer model / Modelo: $model")
-            appendLine("App version: ${safeField(appVersion)}")
-            appendLine("Android: ${safeField(androidVersion)}")
-            appendLine("USB VID/PID: ${usbId(vendorId)} / ${usbId(productId)}")
+            appendLine("App version: ${safeField(source.appVersion)}")
+            appendLine("Android: ${safeField(source.androidVersion)}")
+            appendLine("USB VID/PID: ${usbId(source.vendorId)} / ${usbId(source.productId)}")
             appendLine("IEEE1284 (MFG, MDL, CMD, CLS only):")
             allowedFields.forEach { key -> fields[key]?.takeIf { it.isNotBlank() }?.let { appendLine("$key: $it") } }
             appendLine()
             appendLine("Result / Resultado: model not in the bundled catalog; maintenance session not opened.")
-            if (maintenanceBox) {
+            if (source.maintenanceBox) {
                 appendLine("Community catalog classification: maintenance box. Request maintenance support only;")
                 appendLine("this app cannot reset a counter on the box chip / no reinicia el chip de la caja.")
             } else {

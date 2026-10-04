@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("io.gitlab.arturbosch.detekt")
 }
 
 /**
@@ -247,3 +248,47 @@ val verifyPrinterData by tasks.registering {
 }
 
 tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(verifyPrinterData) }
+
+//
+// Static analysis. See the note in the root build script for why it is here.
+//
+// Only the JVM sources are analysed, and test sources are analysed too: a
+// finding in a test is a finding about a contract nobody checks. Android
+// resources, manifests and the XML asset databases are lint's business and are
+// left out on purpose, because detekt reading a 2.7 MB asset would be slow and
+// would find nothing.
+//
+detekt {
+    // The default config is ~1500 lines of thresholds this project has no
+    // opinion about. buildUponDefaultConfig keeps detekt's own defaults and
+    // applies only what detekt.yml changes, so a detekt upgrade brings new
+    // rules with their recommended thresholds instead of silently doing nothing.
+    buildUponDefaultConfig = true
+
+    source.setFrom(
+        files(
+            "src/main/java",
+            "src/test/java",
+            "src/androidTest/java",
+        ),
+    )
+
+    // Set explicitly rather than left to detekt's lookup. The default search
+    // path does not include this file's location, and a config that silently
+    // does not load is worse than none: it reports detekt's thresholds as if
+    // they were the project's, so a threshold change appears to do nothing.
+    config.setFrom(files("detekt.yml"))
+
+    // No baseline. The analysis reached zero findings by fixing what it found
+    // or by switching a rule off with the reason written in detekt.yml, so
+    // there is nothing to tolerate and no file to check in. A baseline added
+    // later is a decision to accept debt, and it belongs in a commit that says
+    // so rather than arriving as a side effect of somebody running
+    // `--auto-baseline` to make a red build green.
+    //
+    // The failure threshold is build.maxIssues in detekt.yml, not a property
+    // here: it is a detekt setting, and detekt's own default for it is 0, so
+    // every finding already fails. ignoreFailures is the Gradle-side switch
+    // that would let a broken analysis pass, and it stays off.
+}
+

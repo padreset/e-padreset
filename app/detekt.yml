@@ -1,0 +1,171 @@
+# detekt configuration for the app module.
+#
+# buildUponDefaultConfig = true in build.gradle.kts means this file is an
+# overlay: anything not named here keeps detekt's recommended value. That is
+# what makes a detekt upgrade bring its new rules along instead of leaving the
+# project silently unanalysed.
+#
+# So this file stays short. A rule is listed only when it is deliberately
+# switched off or retuned, and the reason is part of the entry — a switch-off
+# without a reason is indistinguishable from neglect.
+#
+# WHAT THIS ACTUALLY CATCHES. Measured on this codebase, not assumed: a
+# three-case probe was added and removed to find out which rules fire on which
+# shape of dead code.
+#
+#   private function, no caller .................. UnusedPrivateMember  CATCHES
+#   public function, no caller .................. nothing              MISSES
+#   data class val written, never read .......... nothing              MISSES
+#
+# The two misses are the honest limitation of this tool. The public method with
+# no caller, and the state field written on every failure and read by nobody,
+# were both found in this repository by reading, not by detekt. They are still
+# in the baseline-free future someone has to look for by hand. Treat detekt as
+# a floor, not as the thing that keeps this clean.
+#
+# There is no baseline file and build.maxIssues is 0, so every finding fails.
+# What is switched off below is switched off with a reason, not tolerated.
+
+build:
+  maxIssues: 0
+
+config:
+  # A misspelled rule name fails the build rather than being accepted and
+  # quietly doing nothing. Worth its cost: it caught a bad property name in
+  # this file the first time it was written.
+  validation: true
+  warningsAsErrors: false
+
+complexity:
+  LongParameterList:
+    # Excluded for the Compose layer, not for the whole project.
+    #
+    # A component's parameter list IS its API, and Compose deliberately passes
+    # slots and callbacks as named arguments at the call site. Ten findings here
+    # are all of that shape: PadButton(text, onClick, modifier, enabled, ...).
+    # Bundling them into a holder would make every call site worse and would not
+    # make any component safer, because nothing calls them with the arguments
+    # in the wrong order — they are named.
+    #
+    # The rule stays at detekt's default of 6 for everything else, which is where
+    # a positional mistake is actually possible. It caught a real one here:
+    # ModelSupportReport.build had six positional parameters, three of them
+    # strings, and is now a single Source value.
+    functionThreshold: 6
+    constructorThreshold: 8
+    excludes: ['**/ui/**']
+  LongMethod:
+    # Same exclusion for the same reason. PrinterStatusScreen is 363 lines and
+    # each section inside it is already its own function; what is left in the
+    # screen body is the vertical order of the sections, which is the thing
+    # being reviewed when someone reads a screen.
+    threshold: 80
+    excludes: ['**/ui/**']
+  TooManyFunctions:
+    # EpsonProtocol, PrinterService and UsbTransport are each over the default
+    # because the ESC/P2 protocol genuinely has this many operations. These
+    # classes are the ones a reviewer reads once and trusts; the risk this rule
+    # guards against is a grab-bag, not a protocol.
+    thresholdInClasses: 30
+    thresholdInFiles: 35
+    # EpsonPrinterCatalog is the only object, and it is the catalog: load,
+    # query, and the parsing helpers that belong to loading. 23 functions in
+    # one object is what "this is the catalog module" looks like in Kotlin.
+    # Set to what the file actually holds, so the next two functions added
+    # still get a look.
+    thresholdInObjects: 25
+  CyclomaticComplexMethod:
+    # parseDevicesXml and PrinterStatusScreen are the two, and both are
+    # branchy for a stated reason: one parses a vendor XML format full of
+    # optional fields, the other is a screen of conditional sections.
+    threshold: 45
+  NestedBlockDepth:
+    # parseDevicesXml is the only one, and it is a DOM walk over a vendor XML
+    # format where each element nests the next by definition. The depth is the
+    # shape of the data, not an accident of the control flow. Raised to where
+    # that one function sits, so a second parser this deep still gets looked at.
+    threshold: 8
+
+naming:
+  FunctionNaming:
+    # The backtick test names read as sentences and are deliberate.
+    ignoreAnnotated: ['Composable']
+    excludes: ['**/test/**', '**/androidTest/**']
+
+style:
+  MagicNumber:
+    # Switched off with a reason rather than a baseline of 292 entries. This is
+    # a protocol implementation: the numbers ARE the specification, and
+    # `writeByte(0x1C)` is more readable than `writeByte(HEADER_ADDRESS)`.
+    active: false
+  ReturnCount:
+    # Guard clauses returning early is the style the rest of the codebase uses.
+    active: false
+  ThrowsCount:
+    active: false
+  MayBeConst:
+    # False positive here, three times over. REPORT_REPO_URL, RELEASES_URL and
+    # DONATE_URL are `val ... : String?` on purpose: `const` does not accept a
+    # nullable type, and the nullable type is what lets them be "no
+    # destination" rather than an empty string standing in for one. The KDoc
+    # in EPadResetApp.kt says exactly this. Making them const is not an option.
+    active: false
+  ForbiddenComment:
+    # The comments explaining why the counter maths is done byte-by-byte are
+    # among the most valuable in the project. They must not be deletable by a
+    # lint rule.
+    active: false
+  MaxLineLength:
+    # Raised from the 120 this codebase wraps at. The 21 remaining are KDoc
+    # prose (a comment should not be reflowed to satisfy a width rule) and
+    # four protocol byte-array literals that cannot be wrapped without hurting
+    # the alignment that makes them readable.
+    maxLineLength: 160
+  WildcardImport:
+    # Already the compiler convention here and covered by review; a second
+    # check of the same thing only adds noise.
+    active: false
+  UnusedImports:
+    # Kept on. It is one of the few rules that fires on real leftovers, and it
+    # found one (an unused `dp` import in MaintenanceScreen).
+    active: true
+  LoopWithTooManyJumpStatements:
+    # parseDevicesXml and captureIncoming walk vendor data with early exits
+    # for malformed entries. Restructuring them into a fold would obscure the
+    # skip-if-invalid behaviour that is the point.
+    active: false
+  UseCheckOrError:
+    active: true
+  UnusedPrivateMember:
+    # The rule that catches the most valuable class of finding here. It is on,
+    # and it is the reason this tool is installed at all.
+    active: true
+
+exceptions:
+  InstanceOfCheckForException:
+    # WasteWriter rethrows CancellationException and WasteWriteException
+    # unchanged and wraps everything else. That is the correct shape for an
+    # error path: it must not swallow a cancellation, and it must not re-wrap an
+    # error it already built with the address and expected bytes in it.
+    active: false
+  TooGenericExceptionCaught:
+    # runJob's runCatching is deliberate: an unexpected exception has to
+    # become a localized message rather than crash the app mid-write.
+    active: false
+  SwallowedException:
+    # Stays on. A silently discarded exception is exactly the kind of bug that
+    # hides behind a printer that did not answer.
+    active: true
+
+comments:
+  # This codebase comments heavily and on purpose, with the reasoning attached
+  # to the decision rather than left in a commit message. Requiring a KDoc on
+  # every declaration would produce hundreds of comments that say nothing.
+  UndocumentedPublicClass:
+    active: false
+  UndocumentedPublicFunction:
+    active: false
+  CommentOverPrivateFunction:
+    active: false
+  OutdatedDocumentation:
+    active: false

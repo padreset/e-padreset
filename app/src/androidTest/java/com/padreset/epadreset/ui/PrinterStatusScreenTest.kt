@@ -70,7 +70,6 @@ class PrinterStatusScreenTest {
         render(
             MainUiState(
                 error = string(R.string.error_connect_unsupported_model_named, "ET-9999"),
-                reportableModel = "ET-9999",
                 modelReportBody = "Printer model: ET-9999",
                 modelReportUrl = "https://example.test/issues/new",
             ),
@@ -96,7 +95,6 @@ class PrinterStatusScreenTest {
         render(
             MainUiState(
                 error = string(R.string.error_connect_unsupported_model),
-                reportableModel = "ET-9999",
                 modelReportBody = "Printer model: ET-9999",
                 modelReportUrl = null,
             ),
@@ -114,7 +112,6 @@ class PrinterStatusScreenTest {
         render(
             MainUiState(
                 error = string(R.string.error_connect_unsupported_model_box_named, "ET-16600"),
-                reportableModel = "ET-16600",
                 modelReportBody = "Request maintenance support only; cannot reset a counter on the box chip.",
             ),
         )

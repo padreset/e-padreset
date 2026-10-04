@@ -7,13 +7,20 @@ import org.junit.Test
 
 class ModelSupportReportTest {
     private fun report(id: String, box: Boolean = false) = ModelSupportReport.build(
-        deviceId = id, appVersion = "1.0.0", androidVersion = "15",
-        vendorId = 0x04B8, productId = 0x1234, maintenanceBox = box,
+        ModelSupportReport.Source(
+            deviceId = id, appVersion = "1.0.0", androidVersion = "15",
+            vendorId = 0x04B8, productId = 0x1234, maintenanceBox = box,
+        ),
     )
 
     @Test
     fun `only explicitly allowed IEEE1284 fields are included`() {
-        val result = report("MFG:EPSON;MDL:ET-9999;CMD:ESCPL2;CLS:PRINTER;SN:secret-one;SERN:secret-two;SERIALNUMBER:secret-three;DES:private-description;OTHER:secret-four;")
+        // The private fields are the point of the test: each one here had to be
+        // excluded by the allowlist, so none of them may reach the report.
+        val result = report(
+            "MFG:EPSON;MDL:ET-9999;CMD:ESCPL2;CLS:PRINTER;SN:secret-one;SERN:secret-two;" +
+                "SERIALNUMBER:secret-three;DES:private-description;OTHER:secret-four;",
+        )
         assertEquals("ET-9999", result.model)
         assertTrue(result.body.contains("MFG: EPSON"))
         assertTrue(result.body.contains("CMD: ESCPL2"))
@@ -76,7 +83,12 @@ class ModelSupportReportTest {
 
     @Test
     fun `unavailable USB IDs are stated honestly`() {
-        val body = ModelSupportReport.build("MDL:ET-9999;", "1", "15", null, -1, false).body
+        val body = ModelSupportReport.build(
+            ModelSupportReport.Source(
+                deviceId = "MDL:ET-9999;", appVersion = "1", androidVersion = "15",
+                vendorId = null, productId = -1, maintenanceBox = false,
+            ),
+        ).body
         assertTrue(body.contains("USB VID/PID: unknown / unknown"))
     }
 }
