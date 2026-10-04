@@ -6,8 +6,13 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -41,10 +46,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,6 +81,8 @@ import com.padreset.epadreset.data.WasteBackupRecord
 import com.padreset.epadreset.data.WasteCounterSpec
 import com.padreset.epadreset.data.WasteCounterStatus
 import com.padreset.epadreset.data.backupModelMatches
+import com.padreset.epadreset.ui.components.BUSY_PILL_DELAY_MILLIS
+import com.padreset.epadreset.ui.components.BUSY_PILL_FADE_MILLIS
 import com.padreset.epadreset.ui.components.PadAlertDialog
 import com.padreset.epadreset.ui.components.PadButton
 import com.padreset.epadreset.ui.components.PadButtonVariant
@@ -227,21 +236,34 @@ fun PrinterStatusScreen(
             // A statement, not a failure: the printer was unplugged, which is
             // not an operation that went wrong. Sits above the error callout
             // because it explains the state the error would be read against.
-            uiState.notice?.let { notice ->
-                PadCallout(text = notice, tone = PadTone.Info)
-            }
-
-            if (!uiState.error.isNullOrBlank()) {
+            // Animated in and out rather than snapped: the banner pushes the
+            // cards below it down, and an unanimated arrival reads as the page
+            // jumping — the same glitch the Working headline had.
+            AnimatedVisibility(
+                visible = uiState.notice != null || !uiState.error.isNullOrBlank(),
+                enter = fadeIn(tween(BUSY_PILL_FADE_MILLIS)) +
+                    expandVertically(tween(BUSY_PILL_FADE_MILLIS)),
+                exit = fadeOut(tween(BUSY_PILL_FADE_MILLIS)) +
+                    shrinkVertically(tween(BUSY_PILL_FADE_MILLIS)),
+            ) {
                 Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                    PadCallout(
-                        title = stringResource(R.string.callout_operation_failed),
-                        text = uiState.error,
-                        tone = PadTone.Danger,
-                    )
-                    uiState.modelReportBody?.let {
-                        ModelReportActions(
-                            onReview = { showModelReport = true },
-                        )
+                    uiState.notice?.let { notice ->
+                        PadCallout(text = notice, tone = PadTone.Info)
+                    }
+
+                    if (!uiState.error.isNullOrBlank()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
+                            PadCallout(
+                                title = stringResource(R.string.callout_operation_failed),
+                                text = uiState.error,
+                                tone = PadTone.Danger,
+                            )
+                            uiState.modelReportBody?.let {
+                                ModelReportActions(
+                                    onReview = { showModelReport = true },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -616,11 +638,26 @@ private fun StatusHeroCard(
     // non-composable ifBlank lambda below.
     val readyLabel = stringResource(R.string.status_ready)
 
+    // Same threshold as the floating pill, for the same reason: a job faster
+    // than this never announces itself, so the card must not flash "Working"
+    // for it either. Without the delay, a tap with no printer attached flips
+    // the headline for a few frames and the error banner below pops in and
+    // out, which reads as the whole page jumping.
+    var workingVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.isBusy) {
+        if (uiState.isBusy) {
+            delay(BUSY_PILL_DELAY_MILLIS)
+            workingVisible = true
+        } else {
+            workingVisible = false
+        }
+    }
+
     val label: String
     val detail: String
     val accentColor: Color
     when {
-        status == null && uiState.isBusy -> {
+        status == null && workingVisible -> {
             label = stringResource(R.string.status_working)
             // Once the printer has been found, "scanning" is no longer what is
             // happening: the connection is working through its routes, and one

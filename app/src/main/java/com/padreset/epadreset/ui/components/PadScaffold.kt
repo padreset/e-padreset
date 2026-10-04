@@ -107,8 +107,12 @@ fun PadHeaderBar(
  * Note that this is a threshold and not a fixed wait: the timer is cancelled the
  * moment the job ends, so a fast job shows nothing at all rather than something
  * late.
+ *
+ * Shared with the status card, which applies the same rule to its "Working"
+ * headline: one threshold for both, so they can never disagree about whether
+ * a job was worth announcing.
  */
-private const val BUSY_PILL_DELAY_MILLIS = 300L
+internal const val BUSY_PILL_DELAY_MILLIS = 300L
 
 /**
  * How long the pill takes to fade in and out.
@@ -118,8 +122,12 @@ private const val BUSY_PILL_DELAY_MILLIS = 300L
  * - just at a slightly later moment. Fading means that job shows a ghost that
  * never reaches full opacity, which is the difference between a glitch and
  * something nobody can name.
+ *
+ * Shared with the status card's notice/error banner for the same reason: an
+ * unanimated banner arrival pushes the page down in one frame, which reads as
+ * a jump.
  */
-private const val BUSY_PILL_FADE_MILLIS = 150
+internal const val BUSY_PILL_FADE_MILLIS = 150
 
 /**
  * Floating "working" pill, shown while a job runs.
