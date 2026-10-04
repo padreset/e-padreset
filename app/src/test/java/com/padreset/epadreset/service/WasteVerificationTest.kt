@@ -242,6 +242,37 @@ class WasteVerificationTest {
     }
 
     @Test
+    fun `a masked address is untouchable even when only one counter lists it`() {
+        // The shipped catalog only ever puts a <filter> on an address that two
+        // counters share, so this shape does not occur today — every masked
+        // address in devices.xml is also an overlapping one. The guard must not
+        // rest on that: a counter owning half a byte, with the other half
+        // belonging to something the catalog does not model as a counter, is
+        // still a byte a partial write cannot clear without a read-modify-write
+        // that preserves the neighbour. This pins the derivation rather than the
+        // data's good behaviour.
+        val model = spec(
+            listOf(
+                WasteCounterSpec(
+                    name = "Main pad",
+                    addresses = listOf(0x1C, 0x1D, 0x2E),
+                    max = 11000,
+                    masks = mapOf(0x2E to 0x0F),
+                ),
+                WasteCounterSpec("Platen pad", listOf(0x1E, 0x1F), 14000),
+            ),
+            mapOf(0x1C to 0, 0x1D to 0, 0x1E to 0, 0x1F to 0, 0x2E to 0),
+        )
+        // Nothing overlaps: 0x2E is listed by one counter only.
+        assertTrue("0x2E is not shared, so overlap alone cannot see it", model.sharedAddresses.isEmpty())
+        assertEquals(setOf(0x2E), model.untouchableAddresses)
+        assertTrue(
+            runCatching { WasteWriter.planFor(model, setOf("Main pad"), 0) }.exceptionOrNull()
+                is IllegalArgumentException,
+        )
+    }
+
+    @Test
     fun `percentage writes without a ceiling cannot silently write zeros`() {
         val model = spec(listOf(WasteCounterSpec("Main pad", listOf(28, 29), 0)))
         assertTrue(runCatching { WasteWriter.planFor(model, setOf("Main pad"), 50) }.exceptionOrNull() is IllegalArgumentException)

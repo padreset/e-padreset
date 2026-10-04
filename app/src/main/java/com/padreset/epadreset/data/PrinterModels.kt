@@ -72,6 +72,29 @@ data class PrinterSpec(
         get() = wasteCounters.flatMap { it.addresses }
             .groupingBy { it }.eachCount()
             .filter { it.value > 1 }.keys
+
+    /**
+     * The addresses a partial write must not touch.
+     *
+     * Two ways a byte can belong to more than the counter being written: it is
+     * shared with another counter ([sharedAddresses]), or the counter carries a
+     * mask and owns only part of it. Clearing a counter's own part would need a
+     * read-modify-write preserving the sibling, which the write path does not
+     * perform — and the byte-exact verification would still pass on the bytes
+     * written, certifying an incomplete reset.
+     *
+     * The shipped catalog only produces a mask where the address is already
+     * shared, so the masked half adds nothing today. It is derived rather than
+     * assumed so that a catalog which stops holding stays caught: a partial
+     * write that clobbers a neighbour's nibble is the same silent corruption
+     * either way, and the guard should not depend on the data behaving.
+     *
+     * Single source for the UI gate, the ViewModel's localized refusal and the
+     * service backstop, so the three cannot disagree about which models may be
+     * partially reset.
+     */
+    val untouchableAddresses: Set<Int>
+        get() = sharedAddresses + wasteCounters.flatMap { it.masks.keys }
 }
 
 object EpsonPrinterCatalog {

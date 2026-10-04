@@ -88,6 +88,14 @@ data class MainUiState(
      */
     val wasteCounterSpecs: List<WasteCounterSpec> = emptyList(),
     /**
+     * Addresses a partial reset must not touch, for the connected model.
+     *
+     * Carried in the state so the screen gates its per-counter selection on the
+     * same set the service enforces, instead of recomputing the rule from the
+     * counter specs and drifting from it.
+     */
+    val untouchableAddresses: Set<Int> = emptySet(),
+    /**
      * The connected printer's catalog model name, or null when nothing is
      * connected.
      *
@@ -349,6 +357,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             supportsWasteReset = false,
             usesMaintenanceBox = false,
             wasteCounterSpecs = emptyList(),
+            untouchableAddresses = emptySet(),
             connectedModelName = null,
             error = null,
             notice = str(R.string.notice_printer_disconnected),
@@ -456,6 +465,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     supportsWasteReset = current.spec.supportsWasteReset,
                     usesMaintenanceBox = current.spec.usesMaintenanceBox,
                     wasteCounterSpecs = current.spec.wasteCounters,
+                    untouchableAddresses = current.spec.untouchableAddresses,
                     connectedModelName = current.spec.modelName,
                     error = null,
                 ) }
@@ -552,7 +562,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // "operation failed". The dialog already forces the full set on
                 // such models, so this fires only if the catalog drifts under a
                 // saved selection — and then it must explain, not shrug.
-                val shared = current.spec.sharedAddresses
+                val shared = current.spec.untouchableAddresses
                 val selectedAddresses = current.spec.wasteCounters
                     .filter { it.name in selectedCounterNames }
                     .flatMap { it.addresses }
