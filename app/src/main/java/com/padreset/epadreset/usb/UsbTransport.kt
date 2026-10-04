@@ -36,6 +36,16 @@ class UsbTransport(private val context: Context) {
         val bytes: ByteArray,
     )
 
+    /**
+     * The device opened but its interface is held elsewhere — on Android
+     * typically a print service or another printer app. Carries the open
+     * connection so the caller can release it instead of leaking it.
+     */
+    class UsbClaimException(
+        val connection: UsbDeviceConnection,
+        val interfaceId: Int,
+    ) : Exception("USB interface $interfaceId is held by another app")
+
     data class Session(
         val device: UsbDevice,
         val connection: UsbDeviceConnection,
@@ -225,7 +235,9 @@ class UsbTransport(private val context: Context) {
             if (!ensurePermission(device)) permissionFailure(device)
         }
         val connection = usbManager.openDevice(device) ?: error("Unable to open USB device")
-        require(connection.claimInterface(usbInterface, true)) { "Unable to claim interface" }
+        if (!connection.claimInterface(usbInterface, true)) {
+            throw UsbClaimException(connection, usbInterface.id)
+        }
 
         var bulkIn: UsbEndpoint? = null
         var bulkOut: UsbEndpoint? = null

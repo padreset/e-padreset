@@ -59,6 +59,14 @@ class PrinterService(
          * immediately instead of paying the eight second D4 read.
          */
         DOT4_NO_REPLY("Printer did not answer the IEEE 1284.4 handshake"),
+
+        /**
+         * The device opened but another app holds its USB interface (on
+         * Android typically a print service). Other interfaces are still tried;
+         * if all are held, this is the error that must reach the user, because
+         * only closing the other app fixes it.
+         */
+        INTERFACE_BUSY("USB interface is held by another app"),
         UNKNOWN("Unable to connect to printer"),
     }
 
@@ -530,7 +538,15 @@ class PrinterService(
     private suspend fun connectOnce(device: UsbDevice, interfaceId: Int, performSoftReset: Boolean): ConnectionState {
         val usbInterface = transport.candidateInterfaces(device).firstOrNull { it.id == interfaceId }
             ?: error("USB interface $interfaceId not found")
-        val session = transport.openOnInterface(device, usbInterface, permissionAlreadyGranted = true)
+        // A held interface is a named failure, not a generic one: the fix is
+        // closing the other app, and the message must say so. Release the
+        // half-open connection instead of leaking it.
+        val session = try {
+            transport.openOnInterface(device, usbInterface, permissionAlreadyGranted = true)
+        } catch (claimed: UsbTransport.UsbClaimException) {
+            runCatching { claimed.connection.close() }
+            throw ConnectException(ConnectFailure.INTERFACE_BUSY, cause = claimed)
+        }
         try {
             log("USB session opened, claiming interface ${session.usbInterface.id}")
             if (performSoftReset) {

@@ -750,6 +750,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             PrinterService.ConnectFailure.DOT4_NO_REPLY ->
                 str(R.string.error_connect_dot4_no_reply)
 
+            PrinterService.ConnectFailure.INTERFACE_BUSY ->
+                str(R.string.error_connect_interface_busy)
+
             PrinterService.ConnectFailure.UNKNOWN ->
                 str(R.string.error_connect_failed)
         }

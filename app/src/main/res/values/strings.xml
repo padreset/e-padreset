@@ -289,6 +289,7 @@
     <string name="error_connect_unsupported_model_box_named">The Epson model \'%1$s\' is missing from the app\'s database and the community catalog classifies it as using a maintenance box. You can request an investigation of cleaning and nozzle check support, but this app cannot reset the counter on the box\'s chip.</string>
     <string name="error_connect_dot4_nak">The printer refused the maintenance session. Turn it off and on again, then retry.</string>
     <string name="error_connect_dot4_no_reply">The printer did not answer on any USB route. Try another cable or port, turn it off and on again, then retry.</string>
+    <string name="error_connect_interface_busy">Another app is using the printer\'s USB connection (e.g. a print service). Close the other printer apps and retry.</string>
     <string name="error_reset_partial_shared">These counters share memory bytes with another counter, so they can only be reset together. Select all counters to proceed.</string>
 
     <!-- A local draft is reviewed before any external action. -->

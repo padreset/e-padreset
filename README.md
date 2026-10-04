@@ -600,6 +600,20 @@ What that does not settle: the replies are scripted, not observed. The tests pro
 the app behaves correctly *given* an answer. Which answer a real printer gives is
 still the open question, and the `Unknown` branch is where that lands.
 
+**Verification ends at the session, not at the reboot.** A reported success means
+the bytes matched when read back over the same connection. Other tools have
+measured printers that revert a reset after a power cycle plus a print —
+auxiliary or threshold bytes outside the counter query that the firmware
+rebuilds from. If you can run hardware, prove persistence, not just the write:
+
+1. Read the counters and copy the backup the reset publishes.
+2. Reset, and confirm the success dialog.
+3. Power the printer off at the wall for 30 seconds, power on, let it finish
+   starting, print one page.
+4. Reconnect and read again. Pass means every counter still reads the reset
+   values; note any address that moved and its before/after bytes — that is
+   the evidence a persistence bug report needs.
+
 ### Restoring a backup
 
 A reset writes a constant: the model's own baseline. Usually that is zero, but not
