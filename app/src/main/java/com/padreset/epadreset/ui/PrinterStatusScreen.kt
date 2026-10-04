@@ -148,6 +148,13 @@ fun PrinterStatusScreen(
     // from devices.xml — the reset writes the values that model's own record
     // publishes, and there is nothing for the user to aim at.
     val percentageWritable = availableCounters.isNotEmpty() && availableCounters.all { it.scaleKnown }
+    // Per-counter choice additionally needs unshared bytes: a counter holding
+    // only a nibble of a shared address cannot be reset alone without a
+    // read-modify-write preserving the sibling half, which the write path does
+    // not perform. On such models the dialog offers the full set or nothing,
+    // like the no-ceiling case above.
+    val selectableCounters = percentageWritable &&
+        uiState.wasteCounterSpecs.none { it.masks.isNotEmpty() }
 
     // The target field is a development tool, not a feature.
     //
@@ -342,7 +349,7 @@ fun PrinterStatusScreen(
                         // is zero. Passing anything else would compute
                         // max * pct / 100 with max at zero and write zeros.
                         onReset(
-                            if (percentageWritable) {
+                            if (selectableCounters) {
                                 selectedCounters
                             } else {
                                 availableCounters.map { it.name }.toSet()
@@ -354,7 +361,7 @@ fun PrinterStatusScreen(
                             },
                         )
                     },
-                    enabled = if (percentageWritable) {
+                    enabled = if (selectableCounters) {
                         selectedCounters.isNotEmpty()
                     } else {
                         availableCounters.isNotEmpty()
@@ -387,7 +394,7 @@ fun PrinterStatusScreen(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
-                    if (percentageWritable) {
+                    if (selectableCounters) {
                         availableCounters.forEach { counter ->
                             PadSelectableRow(
                                 label = counter.name,
@@ -405,7 +412,8 @@ fun PrinterStatusScreen(
                     } else {
                         // No per-counter selection: the reset covers every address
                         // the model publishes, so a choice here would be one the
-                        // service ignores.
+                        // service ignores — and on shared-byte models a partial
+                        // choice would certify an incomplete reset.
                         Text(stringResource(R.string.dialog_reset_model_values))
                     }
                 }
@@ -1099,7 +1107,10 @@ private fun restoredCounterValue(spec: WasteCounterSpec, values: Map<Int, Byte>)
     var packed = 0
     spec.addresses.forEachIndexed { position, address ->
         val byte = values[address] ?: return null
-        packed = packed or ((byte.toInt() and 0xFF) shl (position * 8))
+        // Same mask the live reading applies: a shared byte only counts the
+        // nibble this counter owns.
+        val masked = (byte.toInt() and 0xFF) and (spec.masks[address] ?: 0xFF)
+        packed = packed or (masked shl (position * 8))
     }
     return packed
 }

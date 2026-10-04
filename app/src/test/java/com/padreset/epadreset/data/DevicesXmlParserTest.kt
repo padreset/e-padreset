@@ -114,6 +114,30 @@ class DevicesXmlParserTest {
     }
 
     /**
+     * Shared-byte counters keep the shared address with its nibble mask.
+     *
+     * The L3110 splits 0x2F in halves between Main (low nibble) and Platen
+     * (high nibble) via <filter> elements. The parser used to read only the
+     * first <entry>, dropping 0x2F entirely: reads understated the level and a
+     * partial reset could certify an incomplete job. Pinned against the real
+     * file, since the shape lives there.
+     */
+    @Test
+    fun `shared nibble counters keep the shared address and its mask`() {
+        val spec = parse().firstOrNull { it.modelName == "L3110 Series" }
+            ?: throw AssertionError("L3110 Series not in devices.xml")
+        val main = spec.wasteCounters.firstOrNull { it.name == "Main pad" }
+            ?: throw AssertionError("L3110 Main pad missing")
+        val platen = spec.wasteCounters.firstOrNull { it.name == "Platen pad" }
+            ?: throw AssertionError("L3110 Platen pad missing")
+
+        assertEquals(listOf(0x30, 0x31, 0x2F), main.addresses)
+        assertEquals(0x0F, main.masks[0x2F])
+        assertEquals(listOf(0x32, 0x33, 0x2F), platen.addresses)
+        assertEquals(0xF0, platen.masks[0x2F])
+    }
+
+    /**
      * Resolves the asset from the working directory, which is the module
      * directory under Gradle but the repository root under some IDE runners.
      * Walking up handles both instead of depending on which one is in use.

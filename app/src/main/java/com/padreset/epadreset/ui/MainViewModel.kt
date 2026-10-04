@@ -719,6 +719,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             PrinterService.ConnectFailure.DOT4_NAK ->
                 str(R.string.error_connect_dot4_nak)
 
+            PrinterService.ConnectFailure.DOT4_NO_REPLY ->
+                str(R.string.error_connect_dot4_no_reply)
+
             PrinterService.ConnectFailure.UNKNOWN ->
                 str(R.string.error_connect_failed)
         }

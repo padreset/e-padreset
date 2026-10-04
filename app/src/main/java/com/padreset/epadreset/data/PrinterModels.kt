@@ -10,6 +10,15 @@ data class WasteCounterSpec(
     val name: String,
     val addresses: List<Int>,
     val max: Int,
+    /**
+     * Per-address read mask for counters that share a byte with another
+     * counter (nibble split, e.g. L3110's `0x2F` low/high halves). Absent
+     * means `0xFF`: the whole byte belongs to this counter. Carried so reads
+     * stop understating shared counters; writes never go through it (a partial
+     * write cannot touch a shared byte without a read-modify-write the app
+     * does not perform — see `WasteWriter.planFor`).
+     */
+    val masks: Map<Int, Int> = emptyMap(),
 )
 
 data class CleaningSpec(
@@ -496,12 +505,34 @@ object EpsonPrinterCatalog {
     ): WasteCounterSpec? {
         // The address list moved under <entry> in later revisions of the file,
         // so both shapes are still in the wild and the bare text is the old one.
-        val firstEntry = counter.firstChildElement("entry")
-        val rawAddresses = if (firstEntry != null) directText(firstEntry) else directText(counter)
-        val addresses = rawAddresses
-            .split(Regex("\\s+"))
-            .filter { it.isNotBlank() }
-            .map { parseNumeric(it, "waste address for model '$modelName' counter $counterIndex") }
+        // Every <entry> counts, not just the first: a counter can spread over
+        // several, and a later one may carry a <filter> narrowing one address
+        // to a nibble it shares with another counter (L3110's 0x2F halves).
+        // Reading only the first entry silently dropped those bytes, showing a
+        // lower level than the printer holds.
+        val entries = counter.childElements("entry")
+        val addresses = mutableListOf<Int>()
+        val masks = mutableMapOf<Int, Int>()
+        if (entries.isEmpty()) {
+            addresses += directText(counter)
+                .split(Regex("\\s+"))
+                .filter { it.isNotBlank() }
+                .map { parseNumeric(it, "waste address for model '$modelName' counter $counterIndex") }
+        } else {
+            entries.forEach { entry ->
+                val entryAddresses = directText(entry)
+                    .split(Regex("\\s+"))
+                    .filter { it.isNotBlank() }
+                    .map { parseNumeric(it, "waste address for model '$modelName' counter $counterIndex") }
+                // A filter's first hex token is the read mask for the addresses
+                // in its own entry (e.g. `0x2F` + filter `0x0F …`). Siblings
+                // keep the full byte.
+                val mask = entry.firstChildElement("filter")
+                    ?.let { parseHexInts(it.textContent).firstOrNull() }
+                addresses += entryAddresses
+                if (mask != null) entryAddresses.forEach { masks[it] = mask }
+            }
+        }
         val maxText = counter.firstChildElement("max")?.textContent?.trim()
         val max = maxText?.let {
             parseNumeric(it, "max for model '$modelName' counter $counterIndex")
@@ -512,6 +543,7 @@ object EpsonPrinterCatalog {
             name = defaultCounterName(counterIndex),
             addresses = addresses,
             max = max,
+            masks = masks,
         )
     }
 

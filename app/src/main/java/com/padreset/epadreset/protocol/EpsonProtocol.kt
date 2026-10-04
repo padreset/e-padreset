@@ -266,21 +266,31 @@ class EpsonProtocol(private val spec: PrinterSpec) {
         )
     }
 
-    fun parseWasteCounter(rawBytes: ByteArray, max: Int, name: String): WasteCounterStatus {
-        val hex = rawBytes.joinToString(" ") { "%02X".format(it) }
+    fun parseWasteCounter(
+        rawBytes: ByteArray,
+        max: Int,
+        name: String,
+        masks: List<Int> = emptyList(),
+    ): WasteCounterStatus {
+        // A mask narrows one byte to the nibble this counter owns inside a
+        // shared address (L3110's 0x2F halves); positions without one read whole.
+        val masked = ByteArray(rawBytes.size) { index ->
+            ((rawBytes[index].toInt() and 0xFF) and (masks.getOrNull(index) ?: 0xFF)).toByte()
+        }
+        val maskedHex = masked.joinToString(" ") { "%02X".format(it) }
         // An Int holds four little-endian bytes; reinkpy groups run to ten, and
         // the JVM masks shifts to 31 bits, so folding more would OR bytes 5..8
         // back over bytes 0..3 into a meaningless mixture. Saturate instead and
-        // let callers show rawHex, which is always exact. Counters with a
+        // let callers show the hex, which is always exact. Counters with a
         // published ceiling never take this branch (two addresses in practice).
-        val value = if (rawBytes.size <= 4) {
-            rawBytes.foldIndexed(0) { index, acc, byte ->
+        val value = if (masked.size <= 4) {
+            masked.foldIndexed(0) { index, acc, byte ->
                 acc or ((byte.toInt() and 0xFF) shl (index * 8))
             }
         } else {
             Int.MAX_VALUE
         }
-        return WasteCounterStatus(name = name, rawValue = value, maxValue = max, rawHex = hex)
+        return WasteCounterStatus(name = name, rawValue = value, maxValue = max, rawHex = maskedHex)
     }
 
     private fun parseStatusParameters(statusPayload: ByteArray): Map<Int, ByteArray> {

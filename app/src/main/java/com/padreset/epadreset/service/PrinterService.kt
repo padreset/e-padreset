@@ -50,6 +50,15 @@ class PrinterService(
         UNSUPPORTED_MODEL_MAINTENANCE_BOX("Unsupported Epson model (maintenance box)"),
 
         DOT4_NAK("Printer rejected IEEE 1284.4 enter sequence with NAK (0x15)"),
+
+        /**
+         * No handshake reply at all on this interface within the enter window.
+         * Kept apart from [DOT4_NAK] because the retry policy differs: a NAK is
+         * worth one retry without the Android soft reset, while silence means
+         * the interface carries no D4 and the next candidate should be tried
+         * immediately instead of paying the eight second D4 read.
+         */
+        DOT4_NO_REPLY("Printer did not answer the IEEE 1284.4 handshake"),
         UNKNOWN("Unable to connect to printer"),
     }
 
@@ -228,12 +237,13 @@ class PrinterService(
         log("Status response parsed: state=${baseSnapshot.state} error=${baseSnapshot.error} inks=${baseSnapshot.inkLevels.size}")
         val wasteCounters = connection.spec.wasteCounters.map { counter ->
             val bytes = counter.addresses.map(readByte).toByteArray()
+            val masks = counter.addresses.map { counter.masks[it] ?: 0xFF }
             log(
                 "Waste counter '${counter.name}' addresses=${
                     counter.addresses.joinToString(prefix = "[", postfix = "]") { "0x%X".format(it) }
                 } bytes=${bytes.joinToString(" ") { "%02X".format(it) }}",
             )
-            connection.protocol.parseWasteCounter(bytes, counter.max, counter.name)
+            connection.protocol.parseWasteCounter(bytes, counter.max, counter.name, masks)
         }
         return baseSnapshot.copy(wasteCounters = wasteCounters)
     }
@@ -547,6 +557,9 @@ class PrinterService(
             if (enterReply.firstOrNull() == 0x15.toByte()) {
                 throw ConnectException(ConnectFailure.DOT4_NAK)
             }
+            if (enterReply.size < 8) {
+                throw ConnectException(ConnectFailure.DOT4_NO_REPLY)
+            }
             log("Entered IEEE 1284.4 mode")
 
             sendD4Command(session, protocol, 0x00, protocol.buildInitCommandPayload())
@@ -584,7 +597,11 @@ class PrinterService(
         transport.drain(session)
         log("Transport drained before entering IEEE 1284.4 mode")
         transport.bulkWrite(session, protocol.buildEnterDot4Packet())
-        val enterChunks = transport.captureIncoming(session, windowMs = 1000, idleTimeoutMs = 120)
+        // Two seconds, not one: printers that do answer can take a while to get
+        // around to it (EWR measured handshakes past the one-second mark on
+        // real hardware), and only dead interfaces pay the full window — the
+        // working one answers in milliseconds either way.
+        val enterChunks = transport.captureIncoming(session, windowMs = 2000, idleTimeoutMs = 120)
         if (enterChunks.isEmpty()) {
             log("1284.4 enter reply: <no data>")
         } else {
@@ -608,10 +625,10 @@ class PrinterService(
         if (enterReply.size < 8) {
             log("1284.4 enter reply shorter than expected (${enterReply.size}/8)")
             // The printer did not answer the handshake on this interface, which
-            // is what a wrong interface looks like. What follows is the D4 init,
-            // whose reply is read with an eight second timeout, so the attempt
-            // is about to fail slowly. Saying so now is the difference between
-            // an explained wait and an unexplained one; the interface that works
+            // is what a wrong interface looks like — and the handshake reply is
+            // the verdict, so there is no point paying the eight second D4 read
+            // that used to follow. Saying so now is the difference between an
+            // explained wait and an unexplained one; the interface that works
             // answers this handshake in about two milliseconds.
             onSlowConnect()
         }

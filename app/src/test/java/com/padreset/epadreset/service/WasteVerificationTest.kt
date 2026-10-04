@@ -197,6 +197,31 @@ class WasteVerificationTest {
     }
 
     @Test
+    fun `partial reset on shared bytes refuses instead of certifying residue`() {
+        // A nibble-shared address cannot be half-cleared without a
+        // read-modify-write the write path does not perform — and the
+        // byte-exact verification would still pass on the written bytes. So a
+        // partial selection on such a model must fail loud, never silently.
+        val model = spec(
+            listOf(
+                WasteCounterSpec("Main pad", listOf(0x30, 0x31, 0x2F), 6346, mapOf(0x2F to 0x0F)),
+                WasteCounterSpec("Platen pad", listOf(0x32, 0x33, 0x2F), 3416, mapOf(0x2F to 0xF0)),
+            ),
+            mapOf(0x30 to 0, 0x31 to 0, 0x2F to 0, 0x32 to 0, 0x33 to 0),
+        )
+        assertTrue(
+            runCatching { WasteWriter.planFor(model, setOf("Main pad"), 0) }.exceptionOrNull()
+                is IllegalArgumentException,
+        )
+        assertTrue(
+            runCatching { WasteWriter.planFor(model, setOf("Main pad"), 50) }.exceptionOrNull()
+                is IllegalArgumentException,
+        )
+        // The full set still plans every published value, shared byte included.
+        assertEquals(model.resetMap, WasteWriter.planFor(model, setOf("Main pad", "Platen pad"), 0))
+    }
+
+    @Test
     fun `percentage writes without a ceiling cannot silently write zeros`() {
         val model = spec(listOf(WasteCounterSpec("Main pad", listOf(28, 29), 0)))
         assertTrue(runCatching { WasteWriter.planFor(model, setOf("Main pad"), 50) }.exceptionOrNull() is IllegalArgumentException)

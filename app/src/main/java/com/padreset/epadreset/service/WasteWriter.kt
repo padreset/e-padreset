@@ -109,13 +109,22 @@ internal class WasteWriter(
                 // live outside every counter's query range.
                 require(spec.resetMap.isNotEmpty()) { "This model publishes no reset values" }
                 if (selected.size == spec.wasteCounters.size) return spec.resetMap.toSortedMap()
+                // No partial writes on counters sharing a byte: clearing our
+                // nibble needs a read-modify-write preserving the sibling half,
+                // which the write path does not perform — and the byte-exact
+                // verification would still pass, certifying an incomplete reset.
+                // The UI only offers the full set on such models; this is the
+                // backstop for any other caller.
+                require(selected.none { it.masks.isNotEmpty() }) {
+                    "Partial reset is not available for counters sharing bytes; reset all counters"
+                }
                 val selectedAddresses = selected.flatMap { it.addresses }.toSet()
                 val plan = spec.resetMap.filterKeys { it in selectedAddresses }.toSortedMap()
                 require(plan.isNotEmpty()) { "Selected counters publish no reset values" }
                 return plan
             }
-            require(selected.all { it.max > 0 && it.addresses.size <= 4 }) {
-                "Percentage writes require a published ceiling and counters of at most four bytes"
+            require(selected.all { it.max > 0 && it.addresses.size <= 4 && it.masks.isEmpty() }) {
+                "Percentage writes require a published ceiling, counters of at most four bytes, and no shared bytes"
             }
             return buildMap {
                 for (counter in selected) {

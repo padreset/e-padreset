@@ -171,4 +171,25 @@ class EpsonProtocolTest {
             protocol.isPlausibleD4Header(byteArrayOf(0x00, 0x00, 0x00, 0x0C, 0x01, 0x00)),
         )
     }
+
+    @Test
+    fun `masked nibbles assemble only the owned half`() {
+        // L3110 shape: Main owns the low nibble of the shared third byte,
+        // Platen the high one. Bytes [0x34, 0x12, 0xAB]: Main reads
+        // 0x34 | 0x12<<8 | (0xAB&0x0F)<<16, Platen the 0xA0 half instead.
+        val main = protocol.parseWasteCounter(
+            rawBytes = byteArrayOf(0x34, 0x12, 0xAB.toByte()),
+            max = 6346,
+            name = "Main pad",
+            masks = listOf(0xFF, 0xFF, 0x0F),
+        )
+        assertEquals(0x34 or (0x12 shl 8) or (0x0B shl 16), main.rawValue)
+        val platen = protocol.parseWasteCounter(
+            rawBytes = byteArrayOf(0x34, 0x12, 0xAB.toByte()),
+            max = 3416,
+            name = "Platen pad",
+            masks = listOf(0xFF, 0xFF, 0xF0),
+        )
+        assertEquals(0x34 or (0x12 shl 8) or (0xA0 shl 16), platen.rawValue)
+    }
 }
