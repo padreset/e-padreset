@@ -36,8 +36,8 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          # The wrapper is Gradle 9.0-milestone-1 and the build sets jvmTarget 17,
-          # so 21 runs it and produces the same bytecode as the local build.
+          # The wrapper is Gradle 9.6.1 and the build sets jvmTarget 17, so 21
+          # runs it and produces the same bytecode as the local build.
           distribution: temurin
           java-version: "21"
 

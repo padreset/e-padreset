@@ -59,8 +59,12 @@ jobs:
       - name: Build the release APK and lint
         run: ./gradlew :app:assembleRelease :app:lintDebug --console=plain --stacktrace
 
-      - name: Run unit tests
-        run: ./gradlew :app:testDebugUnitTest --console=plain --stacktrace
+      # No unit-test step here on purpose. `unit-tests.yml` already runs
+      # `:app:testDebugUnitTest` on the same push and pull_request triggers, so
+      # having it here too ran the whole suite twice per change. That workflow is
+      # the cheap one and gives the faster answer; this one keeps what only it
+      # does — R8, resource shrinking and lint. `verifyPrinterData` still runs in
+      # both, because it hangs off `preBuild`.
 
       # The published docs must not describe the repository as unpublished.
       # These are the phrases that were true while the repository was private and

@@ -5,9 +5,10 @@
 # what makes a detekt upgrade bring its new rules along instead of leaving the
 # project silently unanalysed.
 #
-# So this file stays short. A rule is listed only when it is deliberately
-# switched off or retuned, and the reason is part of the entry — a switch-off
-# without a reason is indistinguishable from neglect.
+# So this file stays short. A rule appears only when it needs a decision —
+# switched off, retuned, or named because it is being relied on — and the reason
+# is part of the entry. A switch without a reason is indistinguishable from
+# neglect.
 #
 # WHAT THIS ACTUALLY CATCHES. Measured on this codebase, not assumed: a
 # three-case probe was added and removed to find out which rules fire on which
@@ -25,6 +26,21 @@
 #
 # There is no baseline file and build.maxIssues is 0, so every finding fails.
 # What is switched off below is switched off with a reason, not tolerated.
+#
+# VERSION. detekt 1.23.8 parses Kotlin with the compiler it ships, which is
+# 2.0.21 — it is not a Kotlin 2.4.10 tool, and the sources compile with 2.4.10.
+# It works because nothing here uses syntax newer than 2.0; the day something
+# does, the failure will look like a parse error, not like a rule problem.
+#
+# The first detekt that understands 2.4.x is 2.0.0-alpha.6, and moving to it is
+# not a version bump: the whole `build` block goes away in favour of
+# `failOnSeverity` on the Gradle extension, and LongParameterList, LongMethod,
+# TooManyFunctions, CyclomaticComplexMethod, NestedBlockDepth, MayBeConst,
+# UnusedImports, UnusedPrivateMember, UseCheckOrError and
+# CommentOverPrivateFunction all change name or ruleset. `config.validation:
+# true` below means those stale keys fail loudly rather than being ignored,
+# which is the good outcome — but it is half a day on a tool still in alpha, so
+# the version is pinned on purpose until 2.x stabilises.
 
 build:
   maxIssues: 0
