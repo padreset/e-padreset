@@ -2,9 +2,11 @@
 <!--
     Auto Backup rules (API 23-30). Mirrors data_extraction_rules.xml, which
     only takes effect on API 31+: without this file the pre-write EEPROM
-    backups in "waste_backup_history" would upload to the user's Google
+    backups in "waste_backup_history.xml" would upload to the user's Google
     account on older devices and restore onto a reinstall.
+    The path is the on-disk SharedPreferences file name, extension included:
+    a rule for the bare preference name matches nothing.
 -->
 <full-backup-content>
-    <exclude domain="sharedpref" path="waste_backup_history" />
+    <exclude domain="sharedpref" path="waste_backup_history.xml" />
 </full-backup-content>

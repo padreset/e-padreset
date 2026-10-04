@@ -1,13 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Cloud backup rules (Android 12+). The pre-write EEPROM backups in
-    "waste_backup_history" stay on the device: uploading them would copy
-    printer internals to the user's Google account and restore them onto a
-    reinstall where the model guard is the only thing stopping a cross-printer
-    write. Everything else keeps the default backup behavior.
+    Cloud backup and device-to-device transfer rules (Android 12+). The
+    pre-write EEPROM backups in "waste_backup_history.xml" stay on the device:
+    uploading or transferring them would copy printer internals to the user's
+    Google account or onto another phone, and restore them onto a reinstall
+    where the model guard is the only thing stopping a cross-printer write.
+    The path must be the on-disk SharedPreferences file name, extension
+    included: a rule for the bare preference name matches nothing. Both
+    sections are needed — a missing <device-transfer> section leaves D2D fully
+    enabled for all content.
+    Everything else keeps the default backup behavior.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <exclude domain="sharedpref" path="waste_backup_history" />
+        <exclude domain="sharedpref" path="waste_backup_history.xml" />
     </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="waste_backup_history.xml" />
+    </device-transfer>
 </data-extraction-rules>
