@@ -181,6 +181,33 @@ class EpsonProtocolTest {
     }
 
     @Test
+    fun `asymmetric channel distinguishes echo from swap`() {
+        // With a symmetric (2, 2) channel, 02 02 passes whether the check
+        // compares straight or swapped — the test cannot fail either way. An
+        // asymmetric (2, 3) channel can: its own header must pass while the
+        // swapped and the symmetric lookalikes must not.
+        val asymmetric = EpsonProtocol.D4ChannelState(psid = 2, ssid = 3, mtu = 64, txCredits = 0)
+        assertTrue(
+            protocol.isPlausibleD4Header(
+                byteArrayOf(0x02, 0x03, 0x00, 0x76, 0x00, 0x01),
+                asymmetric,
+            ),
+        )
+        assertFalse(
+            protocol.isPlausibleD4Header(
+                byteArrayOf(0x03, 0x02, 0x00, 0x76, 0x00, 0x01),
+                asymmetric,
+            ),
+        )
+        assertFalse(
+            protocol.isPlausibleD4Header(
+                byteArrayOf(0x02, 0x02, 0x00, 0x76, 0x00, 0x01),
+                asymmetric,
+            ),
+        )
+    }
+
+    @Test
     fun `masked nibbles assemble only the owned half`() {
         // L3110 shape: Main owns the low nibble of the shared third byte,
         // Platen the high one. Bytes [0x34, 0x12, 0xAB]: Main reads

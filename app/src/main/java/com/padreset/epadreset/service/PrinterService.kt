@@ -749,16 +749,20 @@ class PrinterService(
         // garbage length into a bulk-read timeout.
         val first = transport.bulkRead(session, 6, timeoutMs = 8000)
         require(first.size == 6) { "Incomplete D4 header" }
+        // Name the expected endpoint ids on a mismatch: if hardware ever
+        // answers with asymmetric ids, the protocol log alone must show it —
+        // a bare hex dump cannot tell a swapped channel from garbage.
+        val expectedIds = channel?.let { "expected psid/ssid=${it.psid}/${it.ssid}, " } ?: ""
         val header = if (protocol.isPlausibleD4Header(first, channel)) {
             first
         } else {
-            log("D4 RX header not plausible (${first.joinToString(" ") { "%02X".format(it) }}); draining once and retrying")
+            log("D4 RX header not plausible (${expectedIds}got ${first.joinToString(" ") { "%02X".format(it) }}); draining once and retrying")
             transport.drain(session)
             transport.bulkRead(session, 6, timeoutMs = 8000)
         }
         require(header.size == 6) { "Incomplete D4 header" }
         require(protocol.isPlausibleD4Header(header, channel)) {
-            "D4 reply out of framing; the printer may still be working through print jobs"
+            "D4 reply out of framing (${expectedIds}got ${header.joinToString(" ") { "%02X".format(it) }}); the printer may still be working through print jobs"
         }
         val length = ((header[2].toInt() and 0xFF) shl 8) or (header[3].toInt() and 0xFF)
         log("D4 RX header: ${header.joinToString(" ") { "%02X".format(it) }}")
