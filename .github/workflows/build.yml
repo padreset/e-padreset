@@ -1,0 +1,92 @@
+name: build
+
+# Builds the release APK and runs lint, on every push and every pull request.
+#
+# This exists because nothing else built the release variant. `testDebugUnitTest`
+# compiles debug and detekt parses Kotlin; neither ever runs R8 or resource
+# shrinking, which is most of what the published APK is. The README's 13 MB to
+# 2.5 MB figure is entirely R8, so a rule that breaks shrinking or a library
+# that needs a keep rule would have surfaced only on the machine holding the
+# release keystore — which is the worst possible place to find out.
+#
+# Unsigned on purpose. `app/build.gradle.kts` produces an unsigned release APK
+# when the `epadreset.*` signing properties are absent, and a fresh clone and CI
+# both have to be able to build without holding the shipping key.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only. Nothing in this workflow writes to the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: build-${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            build-${{ runner.os }}-gradle-
+
+      # `verifyPrinterData` is wired to preBuild, so the bundled printer
+      # databases are parsed and checked on this run too. The printer assets are
+      # loaded through `runCatching` in the app, so a file that stops parsing
+      # would otherwise degrade to an empty catalog with nothing visible to the
+      # user — the failure this build-time check exists to move.
+      - name: Build the release APK and lint
+        run: ./gradlew :app:assembleRelease :app:lintDebug --console=plain --stacktrace
+
+      - name: Run unit tests
+        run: ./gradlew :app:testDebugUnitTest --console=plain --stacktrace
+
+      # The published docs must not describe the repository as unpublished.
+      # These are the phrases that were true while the repository was private and
+      # must not survive into a public README, where they would tell a reader the
+      # thing in front of them cannot be looked at. Kept as a check rather than
+      # an intention for the reason `detekt.yml` states: a check that does not
+      # get run is not a check. `private preferences` is a different thing and
+      # is not on this list — the backups really are stored in private
+      # preferences.
+      - name: No unpublished-repository wording in the published docs
+        run: |
+          set -euo pipefail
+          if grep -rniE 'not public yet|not yet public|repository is private|repo is private' \
+            README.md NOTICE docs/; then
+            echo "::error::The published docs still describe the repository as unpublished."
+            exit 1
+          fi
+          echo "OK: no unpublished-repository wording."
+
+      - name: Upload the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports
+          path: |
+            app/build/reports/lint-results-debug.*
+            app/build/reports/tests/**
+          if-no-files-found: ignore
+          retention-days: 14

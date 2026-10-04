@@ -405,8 +405,18 @@ Key identifiers:
 
 ## Releasing
 
-The repository is not public yet. These steps belong to publishing rather than to
-building, and they are written down here so they are not rediscovered later.
+What to do when publishing a release. It is written down here so it is not
+rediscovered later, and so the state of the repository is never described by
+which of these steps have been taken yet.
+
+**Build and lint on CI, continuously rather than at release time.** `build.yml`
+runs `assembleRelease` and `lintDebug` on every push and every pull request,
+unsigned. This is the only place the release variant is ever built: neither
+`testDebugUnitTest` nor `detekt` runs R8 or resource shrinking, which is most of
+what the published APK is, so a ProGuard rule that breaks something used to
+surface only on the machine holding the release keystore. What it proves is that
+the APK still *builds* and passes lint — not that it runs. Nothing short of
+hardware does that, and the rest of this file is careful about saying so.
 
 **Turn on the repository's security features.** `gh-secure` is a GitHub CLI
 extension from the GitHub Security Lab that does it in one command:
@@ -429,7 +439,7 @@ this repository's workflow, and not swapped for something else along the way.
 Artifact attestations answer exactly that, and they are free for public
 repositories on the Free, Pro and Team plans.
 
-Add to the release workflow:
+The release workflow needs these permissions:
 
 ```yaml
 permissions:
@@ -475,6 +485,10 @@ why both are here rather than one instead of the other.
 
 **Tag the release `vX.Y.Z`.** The badge at the top of this file reads the GitHub
 release tag rather than the manifest, so it stays blank until a release exists.
+
+**After publishing, nothing above should be re-checked per release except the
+attestation and the checksum**, which are per-artifact by nature. The security
+features are repository settings and are set once.
 
 ## Usage
 

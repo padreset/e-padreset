@@ -1,9 +1,14 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    // No `org.jetbrains.kotlin.android`: AGP 9 ships built-in Kotlin support
+    // and the plugin is no longer applied there — asking for it fails the build
+    // rather than degrading quietly. The Compose compiler plugin is still
+    // required, because AGP's built-in Kotlin does not carry one.
     id("org.jetbrains.kotlin.plugin.compose")
     id("io.gitlab.arturbosch.detekt")
 }
+
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 /**
  * Release signing, read from the machine rather than from the repository.
@@ -48,7 +53,7 @@ val hasReleaseSigning: Boolean = listOf(
 
 android {
     namespace = "com.padreset.epadreset"
-    compileSdk = 35
+    compileSdk = 36
 
     signingConfigs {
         if (hasReleaseSigning) {
@@ -64,7 +69,10 @@ android {
     defaultConfig {
         applicationId = "com.padreset.epadreset"
         minSdk = 24
-        targetSdk = 35
+        // Google Play has required targeting API 36 since 31 August 2026 for
+        // every new app and every update. On 35 this app simply could not be
+        // published, or could not be updated once published.
+        targetSdk = 36
         // The first public release. Nothing had shipped under this fork, so the
         // number was free to choose, and 1.0.0 is what it should say: 0.y.z
         // promises that anything may change, which is not what a published app
@@ -124,8 +132,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        // AGP 9 removed `android.kotlinOptions`, because AGP 9 also brings its
+        // own Kotlin support: there is no longer a Kotlin Gradle plugin whose
+        // `kotlinOptions` extension this could be delegating to. The target
+        // moved to the `kotlin` block, and it still has to be stated explicitly
+        // or the JVM target stops matching `compileOptions` above.
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_17
+        }
     }
 
     buildFeatures {
@@ -191,7 +206,7 @@ dependencies {
  * Parsing here moves the failure to build time, where it is loud, and gives the
  * model lists a floor so a truncated file cannot ship either.
  */
-val verifyPrinterData by tasks.registering {
+val verifyPrinterData = tasks.register("verifyPrinterData") {
     group = "verification"
     description = "Parses the bundled printer assets and checks they are not empty."
     val assetsDir = layout.projectDirectory.dir("src/main/assets")

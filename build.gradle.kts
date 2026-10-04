@@ -1,7 +1,12 @@
 plugins {
-    id("com.android.application") version "8.5.2" apply false
-    id("org.jetbrains.kotlin.android") version "2.0.21" apply false
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21" apply false
+    // Toolchain, not preference. Google's own table puts API 36 at AGP 8.9.1 as
+    // the floor, and Play has required targeting 36 since 31 August 2026, so
+    // staying on the 8.5 line meant the app could not be updated at all. These
+    // are the versions documented together for AGP 9.4 (which requires Gradle
+    // 9.6+), and the Compose compiler plugin rides on Kotlin, so they move
+    // together rather than being pinned apart.
+    id("com.android.application") version "9.4.0" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.10" apply false
     id("io.gitlab.arturbosch.detekt") version "1.23.8" apply false
 }
 
