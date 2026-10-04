@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -64,9 +65,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.padreset.epadreset.BuildConfig
 import com.padreset.epadreset.R
+import com.padreset.epadreset.data.BackupOrigin
+import com.padreset.epadreset.data.BackupTextParser
 import com.padreset.epadreset.data.InkLevel
+import com.padreset.epadreset.data.ParsedBackup
 import com.padreset.epadreset.data.PrinterStatusSnapshot
+import com.padreset.epadreset.data.WasteBackupRecord
+import com.padreset.epadreset.data.WasteCounterSpec
 import com.padreset.epadreset.data.WasteCounterStatus
+import com.padreset.epadreset.data.backupModelMatches
 import com.padreset.epadreset.ui.components.PadAlertDialog
 import com.padreset.epadreset.ui.components.PadButton
 import com.padreset.epadreset.ui.components.PadButtonVariant
@@ -88,6 +95,8 @@ import com.padreset.epadreset.ui.theme.PadSeverity
 import com.padreset.epadreset.ui.theme.PadSpace
 import com.padreset.epadreset.ui.theme.PadTheme
 import com.padreset.epadreset.ui.theme.severityFor
+import java.text.DateFormat
+import java.util.Date
 import java.util.Locale
 
 /**
@@ -112,6 +121,7 @@ fun PrinterStatusScreen(
     onConnect: () -> Unit,
     onRefresh: () -> Unit,
     onReset: (Set<String>, Int) -> Unit,
+    onRestore: (String?, Map<Int, Byte>) -> Unit,
     onOpenMaintenance: () -> Unit,
 ) {
     val pad = PadTheme.colors
@@ -120,6 +130,11 @@ fun PrinterStatusScreen(
     var showAbout by remember { mutableStateOf(false) }
     var showExitDialog by remember { mutableStateOf(false) }
     var showWasteUnsupported by remember { mutableStateOf(false) }
+    var showPasteBackup by remember { mutableStateOf(false) }
+    var showModelReport by remember(uiState.modelReportBody) { mutableStateOf(false) }
+    // The record waiting on a confirmation. Held here rather than in the card so
+    // the dialog survives the card recomposing, and so the BackHandler can see it.
+    var pendingRestore by remember { mutableStateOf<PendingRestore?>(null) }
     val availableCounters = uiState.status?.wasteCounters.orEmpty()
     var selectedCounters by remember(availableCounters) {
         mutableStateOf(availableCounters.map { it.name }.toSet())
@@ -147,7 +162,10 @@ fun PrinterStatusScreen(
     // gate guarantees is reachability, not absence.
     val targetValueAllowed = BuildConfig.DEBUG && percentageWritable
 
-    BackHandler(enabled = !showWarning && !showAbout && !showExitDialog && !showWasteUnsupported) {
+    BackHandler(
+        enabled = !showWarning && !showAbout && !showExitDialog && !showWasteUnsupported &&
+            !showPasteBackup && !showModelReport && pendingRestore == null,
+    ) {
         showExitDialog = true
     }
 
@@ -206,10 +224,9 @@ fun PrinterStatusScreen(
                         text = uiState.error,
                         tone = PadTone.Danger,
                     )
-                    uiState.modelReportBody?.let { report ->
+                    uiState.modelReportBody?.let {
                         ModelReportActions(
-                            reportBody = report,
-                            reportUrl = uiState.modelReportUrl,
+                            onReview = { showModelReport = true },
                         )
                     }
                 }
@@ -254,6 +271,28 @@ fun PrinterStatusScreen(
                 }
             }
 
+            // The backups that were saved to disk, as opposed to the one taken
+            // just above. A sibling card rather than part of that block, because
+            // that one only exists after a write in this session — and the record
+            // a user reaches for is usually the one from a session that has
+            // already ended. That is the whole reason the history is persisted.
+            if (uiState.status != null && uiState.supportsWasteReset) {
+                RestoreBackupCard(
+                    history = uiState.backupHistory,
+                    connectedModel = uiState.connectedModelName.orEmpty(),
+                    specs = uiState.wasteCounterSpecs,
+                    busy = uiState.isBusy,
+                    onRestore = { record ->
+                        pendingRestore = PendingRestore(
+                            model = record.model,
+                            values = record.values,
+                            timestamp = record.timestamp,
+                        )
+                    },
+                    onPaste = { showPasteBackup = true },
+                )
+            }
+
             PadCard {
                 PadSectionLabel(
                     text = stringResource(R.string.section_protocol_log),
@@ -274,6 +313,16 @@ fun PrinterStatusScreen(
             // its text.
             label = uiState.connectNote?.let { stringResource(R.string.connect_slow_brief) },
         )
+    }
+
+    if (showModelReport) {
+        uiState.modelReportBody?.let { report ->
+            ModelSupportDialog(
+                reportBody = report,
+                reportUrl = uiState.modelReportUrl,
+                onDismiss = { showModelReport = false },
+            )
+        }
     }
 
     if (showWarning) {
@@ -387,6 +436,35 @@ fun PrinterStatusScreen(
                 Button(onClick = { showWasteUnsupported = false }) {
                     Text(stringResource(R.string.action_close))
                 }
+            },
+        )
+    }
+
+    if (showPasteBackup) {
+        PasteBackupDialog(
+            onDismiss = { showPasteBackup = false },
+            onParsed = { parsed ->
+                showPasteBackup = false
+                // No timestamp: this record was never saved, so there is no time
+                // to show and nothing to select in the list afterwards.
+                pendingRestore = PendingRestore(
+                    model = parsed.model,
+                    values = parsed.values,
+                    timestamp = null,
+                )
+            },
+        )
+    }
+
+    pendingRestore?.let { pending ->
+        RestoreConfirmDialog(
+            pending = pending,
+            counters = availableCounters,
+            specs = uiState.wasteCounterSpecs,
+            onDismiss = { pendingRestore = null },
+            onConfirm = {
+                pendingRestore = null
+                onRestore(pending.model, pending.values)
             },
         )
     }
@@ -771,56 +849,322 @@ private fun CopyBackupButton(backup: String) {
 }
 
 /**
- * The way out of a "model not in the database" failure.
+ * A record waiting on the user's confirmation.
  *
- * The callout above it already says the situation is fixable. This is the part
- * that makes that true: without a way to hand over the model and the log, "we
- * would like to hear about it" is a sentence with no address on it.
+ * [timestamp] is null for a pasted backup, which was never saved and so has no
+ * time to show.
+ */
+private data class PendingRestore(
+    val model: String?,
+    val values: Map<Int, Byte>,
+    val timestamp: Long?,
+)
+
+/**
+ * The backups saved to disk, and the two ways to put one back.
  *
- * The note is shown before either action on purpose. The privacy policy says
- * the app transmits nothing, and it still does — the text goes to the clipboard
- * or to the browser, at the user's press, never on its own.
+ * The note says the backup is saved automatically rather than offering a save
+ * button, because the feature only works if the record already exists by the time
+ * the user knows they need it — which is usually long after the app was closed.
+ *
+ * The restore button is a danger variant for the same reason the reset one is:
+ * both write to the printer, and this one writes the counters upward.
  */
 @Composable
-private fun ModelReportActions(reportBody: String, reportUrl: String?) {
+private fun RestoreBackupCard(
+    history: List<WasteBackupRecord>,
+    connectedModel: String,
+    specs: List<WasteCounterSpec>,
+    busy: Boolean,
+    onRestore: (WasteBackupRecord) -> Unit,
+    onPaste: () -> Unit,
+) {
     val pad = PadTheme.colors
-    val clipboard = LocalClipboardManager.current
-    val context = LocalContext.current
-    // Resolved up front: the click lambdas below are not composable scopes.
-    val copiedMessage = stringResource(R.string.report_copied)
+    // The newest record starts selected: it is the one a user who has just
+    // realised a mistake almost always wants.
+    var selected by remember(history) { mutableStateOf(history.firstOrNull()?.timestamp) }
 
+    PadCard {
+        PadSectionLabel(stringResource(R.string.section_restore_backup))
+        Text(
+            text = stringResource(R.string.restore_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = pad.muted,
+        )
+
+        if (history.isEmpty()) {
+            Text(
+                text = stringResource(R.string.restore_no_history),
+                style = MaterialTheme.typography.bodySmall,
+                color = pad.muted,
+            )
+        } else {
+            history.forEach { record ->
+                // What produced this record, and what it holds. Without both, two
+                // records of the same model a few minutes apart are
+                // indistinguishable, and the user cannot tell which one undoes
+                // their mistake without restoring it to find out.
+                val origin = stringResource(record.origin.labelRes())
+                val reading = recordCounterReadout(record, connectedModel, specs)
+                PadSelectableRow(
+                    label = stringResource(
+                        R.string.restore_record_label,
+                        record.model.ifBlank { stringResource(R.string.restore_unknown_model) },
+                        formatBackupTimestamp(record.timestamp),
+                    ),
+                    supporting = if (reading == null) {
+                        origin
+                    } else {
+                        stringResource(
+                            R.string.restore_record_detail,
+                            origin,
+                            stringResource(R.string.restore_record_reads, reading),
+                        )
+                    },
+                    selected = record.timestamp == selected,
+                    multi = false,
+                    onSelect = { selected = record.timestamp },
+                )
+            }
+        }
+
+        PadButton(
+            text = stringResource(R.string.action_restore_selected),
+            variant = PadButtonVariant.Danger,
+            enabled = !busy && history.isNotEmpty() && selected != null,
+            onClick = { history.firstOrNull { it.timestamp == selected }?.let(onRestore) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        PadButton(
+            text = stringResource(R.string.action_restore_paste),
+            enabled = !busy,
+            onClick = onPaste,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/**
+ * Takes a backup the user pasted.
+ *
+ * The text is parsed as it is typed and the result is what enables the confirm
+ * button, so a paste that cannot be read says so where the user is looking
+ * instead of failing later with no explanation. One dialog rather than a chain
+ * for the same reason.
+ */
+@Composable
+private fun PasteBackupDialog(
+    onDismiss: () -> Unit,
+    onParsed: (ParsedBackup) -> Unit,
+) {
+    val pad = PadTheme.colors
+    var text by remember { mutableStateOf("") }
+    val parsed = remember(text) { BackupTextParser.parse(text) }
+
+    PadAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.dialog_paste_backup_title)) },
+        confirmButton = {
+            Button(
+                onClick = { parsed?.let(onParsed) },
+                enabled = parsed != null,
+            ) {
+                Text(stringResource(R.string.action_restore))
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
+                Text(
+                    text = stringResource(R.string.paste_backup_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = pad.muted,
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text(stringResource(R.string.field_paste_backup)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (text.isNotBlank()) {
+                    Text(
+                        text = if (parsed == null) {
+                            stringResource(R.string.paste_backup_invalid)
+                        } else {
+                            stringResource(R.string.paste_backup_parsed, parsed.values.size)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (parsed == null) pad.danger else pad.ok,
+                    )
+                }
+            }
+        },
+    )
+}
+
+/**
+ * The confirmation before a restore, and the change it would make.
+ *
+ * Restoring raises the counters, which is the opposite of everything else the app
+ * does, so the numbers are shown rather than described. The delta is worked out
+ * from the record's bytes over each counter's own addresses — the same
+ * little-endian packing the write path uses — so what is promised here is what the
+ * printer will read afterwards.
+ *
+ * A counter the record has no bytes for is skipped rather than shown as a guess.
+ */
+@Composable
+private fun RestoreConfirmDialog(
+    pending: PendingRestore,
+    counters: List<WasteCounterStatus>,
+    specs: List<WasteCounterSpec>,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    PadAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.dialog_restore_title)) },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(stringResource(R.string.action_restore))
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
+                val model = pending.model
+                Text(
+                    text = if (model.isNullOrBlank()) {
+                        stringResource(R.string.dialog_restore_no_model)
+                    } else {
+                        stringResource(R.string.dialog_restore_model, model)
+                    },
+                )
+                Text(stringResource(R.string.dialog_restore_addresses, pending.values.size))
+
+                counters.forEach { counter ->
+                    val spec = specs.firstOrNull { it.name == counter.name }
+                    val restored = spec?.let { restoredCounterValue(it, pending.values) }
+                    if (restored != null) {
+                        Text(
+                            stringResource(
+                                R.string.dialog_restore_counter_delta,
+                                counter.name,
+                                counterReadout(counter),
+                                restoredReadout(counter, restored),
+                            ),
+                        )
+                    }
+                }
+
+                PadCallout(
+                    text = stringResource(R.string.dialog_restore_body),
+                    tone = PadTone.Danger,
+                )
+            }
+        },
+    )
+}
+
+/**
+ * The value a recorded backup would give a counter.
+ *
+ * Little-endian over the counter's own addresses, which is how the write path
+ * packs a value into them. Null when the record holds no byte for one of them: a
+ * counter that would be written only in part has no single value to show, and
+ * showing the part that is present would be a number the printer never reports.
+ */
+private fun restoredCounterValue(spec: WasteCounterSpec, values: Map<Int, Byte>): Int? {
+    var packed = 0
+    spec.addresses.forEachIndexed { position, address ->
+        val byte = values[address] ?: return null
+        packed = packed or ((byte.toInt() and 0xFF) shl (position * 8))
+    }
+    return packed
+}
+
+/** A counter as it reads now, in the units the restore preview uses. */
+private fun counterReadout(counter: WasteCounterStatus): String =
+    if (counter.scaleKnown) counter.percentage.formatPercent() else counter.rawValue.toString()
+
+/** A counter as it would read after the restore, in the same units. */
+private fun restoredReadout(counter: WasteCounterStatus, restoredValue: Int): String =
+    readoutFor(restoredValue, counter.maxValue)
+
+/**
+ * A value in the units the model publishes: a percentage when it publishes a
+ * ceiling, the raw reading otherwise.
+ *
+ * One function so the list row and the confirmation dialog can never disagree
+ * about what a record holds. `scaleKnown` is `maxValue > 0`, so the two callers
+ * agree by construction.
+ */
+private fun readoutFor(value: Int, max: Int): String =
+    if (max > 0) {
+        (value.toDouble() * 100.0 / max.toDouble()).formatPercent()
+    } else {
+        value.toString()
+    }
+
+@StringRes
+private fun BackupOrigin.labelRes(): Int = when (this) {
+    BackupOrigin.RESET -> R.string.restore_origin_reset
+    BackupOrigin.RESTORE -> R.string.restore_origin_restore
+    BackupOrigin.UNKNOWN -> R.string.restore_origin_unknown
+}
+
+/**
+ * What the counters in [record] read, as text for the restore list.
+ *
+ * Null when the record's model is not the connected one — the addresses mean
+ * something else on another printer, which is also why restoring such a record is
+ * blocked — or when the record holds no counter in full. The reading is the
+ * pre-write state the record stores, so it is what the printer would go back to.
+ */
+private fun recordCounterReadout(
+    record: WasteBackupRecord,
+    connectedModel: String,
+    specs: List<WasteCounterSpec>,
+): String? {
+    if (specs.isEmpty() || !backupModelMatches(record.model, connectedModel)) return null
+    val readings = specs.mapNotNull { spec ->
+        val value = restoredCounterValue(spec, record.values) ?: return@mapNotNull null
+        "${spec.name} ${readoutFor(value, spec.max)}"
+    }
+    return readings.takeIf { it.isNotEmpty() }?.joinToString(", ")
+}
+
+/** A saved record's time, in the device's own locale and format. */
+private fun formatBackupTimestamp(timestamp: Long): String =
+    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(timestamp))
+
+/**
+ * The way out of a "model not in the database" failure.
+ *
+ * Opens a local preview, not a browser. Investigation is possible, not promised;
+ * the user reviews the limited report before choosing a sharing channel.
+ */
+@Composable
+private fun ModelReportActions(onReview: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
         Text(
             text = stringResource(R.string.report_model_note),
             style = MaterialTheme.typography.bodySmall,
-            color = pad.muted,
+            color = PadTheme.colors.muted,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-            // Offered only when there is somewhere to file it. Until this fork
-            // has a repository of its own there is no destination its maintainer
-            // controls, and filing reports in the upstream's tracker would mean
-            // opening issues about a build that author never made. Copying is
-            // the honest fallback, and it is the whole feature while that holds.
-            if (reportUrl != null) {
-                PadButton(
-                    text = stringResource(R.string.action_report_model),
-                    variant = PadButtonVariant.Primary,
-                    onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(reportUrl)))
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            PadButton(
-                text = stringResource(R.string.action_copy_report),
-                variant = if (reportUrl != null) PadButtonVariant.Secondary else PadButtonVariant.Primary,
-                onClick = {
-                    clipboard.setText(AnnotatedString(reportBody))
-                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
-                },
-                modifier = Modifier.weight(1f),
-            )
-        }
+        PadButton(
+            text = stringResource(R.string.action_report_model),
+            onClick = onReview,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

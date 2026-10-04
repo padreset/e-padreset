@@ -100,6 +100,46 @@
     <string name="error_write_rejected">La impresora ha rechazado la escritura. No se ha escrito nada más.</string>
     <string name="error_write_rejected_at">La impresora ha rechazado la escritura en %1$s. Ya se habían escrito %2$d direcciones; no se ha escrito ninguna más. El respaldo está abajo.</string>
 
+    <!-- Restaurar un respaldo guardado.
+         La aplicación guarda el respaldo antes de cada escritura, así que el caso
+         que cubre esto es el que se descubre más tarde, normalmente con la
+         aplicación ya cerrada. Por eso es automático y por eso vive en disco, y el
+         texto lo dice en vez de presentarse como un botón.
+         Restaurar sube los contadores, que es lo contrario de un reinicio, así que
+         el diálogo lo dice claramente en vez de dejar que se descubra. -->
+    <string name="section_restore_backup">Restaurar un respaldo</string>
+    <string name="restore_note">Se guarda uno automáticamente antes de cada escritura. Elige uno para devolver aquellos valores, o pega un respaldo que hayas conservado.</string>
+    <string name="restore_no_history">Todavía no hay respaldos guardados. Se guarda uno automáticamente antes de cada escritura.</string>
+    <string name="action_restore_selected">Restaurar respaldo seleccionado</string>
+    <string name="action_restore_paste">Restaurar desde texto pegado</string>
+    <string name="restore_record_label">%1$s — %2$s</string>
+    <string name="restore_unknown_model">Modelo desconocido</string>
+    <!-- Qué escritura encontró el estado que guarda un respaldo, y qué lee.
+         Dos respaldos pueden parecer idénticos por modelo y fecha, así que sin
+         esto la lista no da forma de saber cuál deshace el error. El texto de
+         «desconocido» cubre los respaldos guardados antes de registrar el origen. -->
+    <string name="restore_origin_reset">Respaldo previo a un reinicio</string>
+    <string name="restore_origin_restore">Respaldo previo a una restauración</string>
+    <string name="restore_origin_unknown">Respaldo previo a una escritura</string>
+    <string name="restore_record_detail">%1$s · %2$s</string>
+    <string name="restore_record_reads">Lee %1$s</string>
+    <string name="dialog_restore_title">¿Restaurar este respaldo?</string>
+    <string name="dialog_restore_body">Esto devuelve los valores registrados antes de una escritura anterior. Sube los contadores, que es lo contrario de un restablecimiento. Úsalo solo para deshacer uno.</string>
+    <string name="dialog_restore_model">Respaldo de: %1$s</string>
+    <string name="dialog_restore_no_model">Este respaldo no indica ningún modelo de impresora. Asegúrate de que proviene de esta impresora.</string>
+    <string name="dialog_restore_addresses">Se escribirán %1$d direcciones.</string>
+    <string name="dialog_restore_counter_delta">%1$s: %2$s → %3$s</string>
+    <string name="action_restore">Restaurar</string>
+    <string name="dialog_paste_backup_title">Pegar un respaldo</string>
+    <string name="field_paste_backup">Texto del respaldo</string>
+    <string name="paste_backup_hint">Pega el respaldo que copiaste antes, con o sin su línea de encabezado.</string>
+    <string name="paste_backup_invalid">No se ha encontrado ninguna línea de respaldo. Pega el texto que te dio la aplicación, o al menos sus líneas «0x001C = 0x3F».</string>
+    <string name="paste_backup_parsed">Se han encontrado %1$d direcciones.</string>
+    <!-- Se bloquea en vez de avisar: las direcciones son del modelo, así que
+         escribir el respaldo de una impresora en otra escribiría en direcciones
+         que allí significan otra cosa. -->
+    <string name="error_restore_model_mismatch">Este respaldo es de %1$s, pero la impresora conectada es %2$s. Restaurar en un modelo distinto podría escribir direcciones equivocadas, así que se ha bloqueado.</string>
+
     <!-- Se muestra cuando el modelo está en la lista curada de cajas de
          mantenimiento, así que la causa se conoce en vez de suponerse. El
          diálogo que sigue es el específico de abajo, no el de dos causas. -->
@@ -206,6 +246,7 @@
          decía lo mismo de los dos, y era cierto para uno y una afirmación para
          el otro. -->
     <string name="dialog_counters_updated_title">Contadores actualizados</string>
+    <string name="dialog_backup_restored_title">Respaldo restaurado</string>
     <string name="dialog_job_sent_title">Trabajo enviado</string>
 
     <!-- Aviso de error. El título es fijo; el cuerpo es o bien un mensaje ya
@@ -243,30 +284,42 @@
          el aviso indique la causa real y no un fallo genérico. -->
     <string name="error_connect_permission_denied">Se ha denegado el acceso por USB. Vuelve a conectar la impresora y acepta la solicitud de permiso.</string>
     <string name="error_connect_no_interfaces">Este dispositivo USB no tiene ninguna interfaz que la aplicación pueda usar. Puede que no sea una impresora Epson compatible.</string>
-    <string name="error_connect_unsupported_model">Este modelo de Epson no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. A diferencia de una impresora con caja de mantenimiento, esto no es definitivo: se podrá añadir compatibilidad para este modelo cuando se incluyan sus datos.</string>
-    <string name="error_connect_unsupported_model_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. A diferencia de una impresora con caja de mantenimiento, esto no es definitivo: se podrá añadir compatibilidad para este modelo cuando se incluyan sus datos.</string>
+    <string name="error_connect_unsupported_model">Este modelo de Epson no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. Puedes solicitar que se investigue; la compatibilidad requiere datos verificados y pruebas en hardware y no está garantizada.</string>
+    <string name="error_connect_unsupported_model_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. Puedes solicitar que se investigue; la compatibilidad requiere datos verificados y pruebas en hardware y no está garantizada.</string>
     <!-- El espejo de las dos líneas de arriba. El modelo también falta en la base
          de datos, pero la base comunitaria lo clasifica como uso de caja de
          mantenimiento, así que añadirlo nunca habilitaría un reinicio. Se separa
          para que la aplicación no prometa un resultado que el hardware no puede dar. -->
-    <string name="error_connect_unsupported_model_box">Este modelo de Epson no está en la base de datos de la aplicación, y la base de datos comunitaria lo clasifica como uso de caja de mantenimiento. Añadirlo permitiría la limpieza de cabezal y la comprobación de inyectores, pero nunca reiniciar el contador: el recuento vive en el chip de la propia caja.</string>
-    <string name="error_connect_unsupported_model_box_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación, y la base de datos comunitaria lo clasifica como uso de caja de mantenimiento. Añadirlo permitiría la limpieza de cabezal y la comprobación de inyectores, pero nunca reiniciar el contador: el recuento vive en el chip de la propia caja.</string>
+    <string name="error_connect_unsupported_model_box">Este modelo de Epson no está en la base de datos de la aplicación y el catálogo comunitario lo clasifica como uso de caja de mantenimiento. Puedes solicitar que se investigue la limpieza y la comprobación de inyectores, pero esta aplicación no puede reiniciar el contador del chip de la caja.</string>
+    <string name="error_connect_unsupported_model_box_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación y el catálogo comunitario lo clasifica como uso de caja de mantenimiento. Puedes solicitar que se investigue la limpieza y la comprobación de inyectores, pero esta aplicación no puede reiniciar el contador del chip de la caja.</string>
     <string name="error_connect_dot4_nak">La impresora ha rechazado la sesión de mantenimiento. Apágala y vuelve a encenderla, y reinténtalo.</string>
 
-    <!-- Se ofrecen bajo el aviso cuando el modelo falta en la base de datos y no
-         es de caja de mantenimiento: el único caso en el que un informe del
-         usuario es lo que consigue que el modelo acabe soportado.
-         La nota es deliberadamente independiente del destino: el botón de
-         incidencia solo aparece cuando el fork tenga repositorio propio, y hasta
-         entonces el portapapeles es la función entera. -->
-    <string name="action_report_model">Reportar este modelo</string>
+    <!-- El borrador local se revisa antes de cualquier acción externa. -->
+    <string name="action_report_model">Ayudar a añadir este modelo</string>
     <string name="action_copy_report">Copiar informe</string>
-    <string name="report_model_note">El informe incluye el modelo, el identificador de dispositivo de la impresora sin su número de serie y las últimas líneas del registro de protocolo. Nada sale de tu dispositivo por sí solo.</string>
+    <string name="report_model_note">Prepara un informe limitado en el dispositivo, revísalo y elige cómo compartirlo. La aplicación no se conecta a Internet.</string>
+    <string name="dialog_model_support_title">Solicitar soporte de modelo</string>
+    <string name="field_model_report">Informe para revisar y editar</string>
+    <string name="action_choose_report_channel">Elegir cómo compartir</string>
+    <string name="action_review_report">Volver a revisar el informe</string>
+    <string name="action_report_discord">Abrir Discord</string>
+    <string name="action_report_github">Abrir petición en GitHub</string>
+    <string name="action_share_report">Compartir informe</string>
+    <string name="report_privacy_note">La compatibilidad no está garantizada. El borrador solo incluye campos del modelo, identificadores USB y versiones de la app y Android, no logs crudos, números de serie ni respaldos EEPROM. Revisa lo que añadas. Nada se envía automáticamente; otra app o el navegador realizan el envío según su propia política de privacidad.</string>
+    <string name="report_discord_help">Discord requiere cuenta. Copia el informe revisado, abre la comunidad y pregunta dónde publicar una petición de modelo. Abrir la invitación no lo pega ni lo publica.</string>
+    <string name="report_github_help">GitHub requiere cuenta. Copia el informe revisado y pégalo en la plantilla de petición de modelo. El enlace no incluye datos de diagnóstico.</string>
+    <string name="report_share_help">Sin cuenta de GitHub o Discord, compártelo por una app que ya uses con alguien que pueda trasladar la petición. No hay una bandeja de recepción configurada. Elige tú el destinatario; abrir el menú de compartir no significa que un mantenedor lo haya recibido.</string>
+    <string name="report_external_unavailable">Ninguna app pudo abrir esta acción. Puedes copiar el informe y elegir un destino por tu cuenta.</string>
     <string name="report_copied">Informe copiado</string>
     <string name="msg_counters_updated">Los contadores de tinta residual se han actualizado. Reinicia la impresora si el modelo lo requiere.</string>
-    <!-- Se lanza cuando los contadores leídos tras la escritura no coinciden con
-         el valor pedido, lo que significa que la impresora no lo aplicó. -->
-    <string name="error_counters_not_applied">La impresora no ha aplicado los valores nuevos: los contadores siguen en %1$s. No se ha cambiado nada. Lo más probable es que la escritura fuera rechazada.</string>
+    <!-- La verificación por byte nombra direcciones. Una discrepancia no implica
+         que nada haya cambiado: otras escrituras pueden haberse aplicado. -->
+    <string name="error_counters_not_applied">Los bytes releídos en %1$s no coinciden con los valores de reset enviados. Algunos valores pueden haber cambiado. El respaldo está abajo; los bytes esperados y leídos están en el registro de protocolo.</string>
+    <string name="error_restore_not_applied">Los bytes releídos en %1$s no coinciden con los valores de restauración enviados. Algunos valores pueden haber cambiado. El respaldo está abajo; los bytes esperados y leídos están en el registro de protocolo.</string>
+    <string name="error_write_failed">No se ha podido completar la escritura en %1$s o leer su respuesta. Ya se habían escrito %2$d direcciones; esta dirección también puede haber cambiado. No se ha escrito ninguna más. El respaldo está abajo.</string>
+    <string name="error_read_back_failed">La escritura ha terminado, pero no se han podido releer los valores. El resultado no está verificado; algunos valores pueden haber cambiado. El respaldo está abajo.</string>
+    <string name="error_read_back_failed_at">La escritura ha terminado, pero no se ha podido releer el byte en %1$s. El resultado no está verificado; algunos valores pueden haber cambiado. El respaldo está abajo.</string>
+    <string name="msg_backup_restored">Se han devuelto los valores guardados. Reinicia la impresora si el modelo lo requiere.</string>
     <string name="msg_cleaning_sent_named">Se ha enviado el comando de limpieza de cabezal \'%1$s\'. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>
     <string name="msg_cleaning_sent">Se ha enviado el trabajo de limpieza de cabezal. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>
     <string name="msg_nozzle_check_sent">Se ha enviado el trabajo de comprobación de inyectores. Espera a que se imprima la página.</string>

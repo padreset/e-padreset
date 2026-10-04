@@ -1,0 +1,70 @@
+name: "Model support / Soporte de modelo"
+description: "Request investigation of an unsupported Epson model / Solicitar investigación de un modelo Epson."
+title: "[Model / Modelo]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing requests for your model first. You do not need to open another issue if you already asked in Discord: a maintainer can relay it here.
+        Busca primero tu modelo. Si ya pediste ayuda en Discord, un mantenedor puede trasladarlo aquí; no hace falta duplicar la petición.
+
+        Support is not guaranteed. Model data needs a verified source and hardware tests. A maintenance-box chip cannot be reset by this app; cleaning/nozzle support can still be investigated.
+        La compatibilidad no está garantizada. Se necesitan datos de procedencia verificada y pruebas. La app no reinicia el chip de una caja de mantenimiento; sí se puede investigar limpieza e inyectores.
+
+        Do not upload serial numbers, raw protocol logs, EEPROM backups/dumps, passwords or photos showing personal information. Do not try guessed EEPROM addresses, keys or experimental writes.
+        No publiques números de serie, logs crudos, respaldos/volcados EEPROM, contraseñas ni fotos con datos personales. No pruebes direcciones, claves o escrituras adivinadas.
+  - type: input
+    id: model
+    attributes:
+      label: "Printer model / Modelo de impresora"
+      description: "Detected model and commercial name if different; no serial number. / Modelo detectado y nombre comercial si es distinto; sin número de serie."
+    validations:
+      required: true
+  - type: dropdown
+    id: features
+    attributes:
+      label: "Requested functions / Funciones solicitadas"
+      multiple: true
+      options:
+        - "Read counters / Leer contadores"
+        - "Reset internal pad counters / Resetear contadores de almohadillas internas"
+        - "Head cleaning / Limpieza de cabezal"
+        - "Nozzle check / Comprobación de inyectores"
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: "Reviewed app report / Informe revisado de la app"
+      description: "In the app, choose Help add this model, review, then Copy report. Paste only that limited report, not Copy log or an EEPROM backup. If unavailable, describe the message and your app/Android versions. / En la app: Ayudar a añadir este modelo, revisar y Copiar informe. Pega solo ese informe limitado, no Copiar log ni un respaldo. Si no lo tienes, indica el mensaje y las versiones de app/Android."
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: box
+    attributes:
+      label: "Replaceable maintenance box / Caja de mantenimiento reemplazable"
+      options:
+        - "Unknown / No sé"
+        - "Yes / Sí"
+        - "No"
+  - type: dropdown
+    id: help
+    attributes:
+      label: "Can you help? / ¿Puedes ayudar?"
+      options:
+        - "Information only / Solo información"
+        - "Read-only tests / Pruebas solo de lectura"
+        - "Not now / Ahora no"
+  - type: textarea
+    id: sources
+    attributes:
+      label: "Public sources and context / Fuentes públicas y contexto"
+      description: "Optional links to documented support or tools; do not upload proprietary files or private identifiers. / Enlaces opcionales a soporte documentado o herramientas; no adjuntes archivos propietarios ni identificadores privados."
+  - type: checkboxes
+    id: review
+    attributes:
+      label: "Privacy and safety / Privacidad y seguridad"
+      options:
+        - label: "I reviewed the report and removed private information; I understand this is a public request, not a guarantee of support. / Revisé el informe y eliminé datos privados; entiendo que es una petición pública, no una garantía de soporte."
+          required: true

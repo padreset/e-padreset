@@ -24,34 +24,6 @@ import org.junit.Test
  */
 class WasteWriterTest {
 
-    private class FakePrinter(
-        initial: Map<Int, Int> = emptyMap(),
-        private val unreadable: Set<Int> = emptySet(),
-        private val replies: Map<Int, EpsonProtocol.WriteReply> = emptyMap(),
-    ) {
-        val memory: MutableMap<Int, Byte> =
-            initial.mapValues { (_, value) -> value.toByte() }.toMutableMap()
-        val calls = mutableListOf<String>()
-        val lines = mutableListOf<String>()
-
-        fun read(address: Int): Byte {
-            calls += "read 0x%04X".format(address)
-            if (address in unreadable) {
-                throw IllegalStateException("no answer for 0x%04X".format(address))
-            }
-            return memory[address] ?: 0x00
-        }
-
-        fun write(address: Int, value: Int): EpsonProtocol.WriteReply {
-            calls += "write 0x%04X=0x%02X".format(address, value)
-            val reply = replies[address] ?: EpsonProtocol.WriteReply.Applied
-            if (reply == EpsonProtocol.WriteReply.Applied) memory[address] = value.toByte()
-            return reply
-        }
-
-        fun writer() = WasteWriter(::read, ::write) { line -> lines += line }
-    }
-
     private fun failureFrom(block: () -> Unit): PrinterService.WasteWriteException? =
         runCatching(block).exceptionOrNull() as? PrinterService.WasteWriteException
 

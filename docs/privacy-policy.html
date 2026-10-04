@@ -80,20 +80,38 @@
 
       <h2>Data Sharing</h2>
       <p>
-        E-Pad Reset does not transmit your data to the developer or to any third-party server.
+        E-Pad Reset has no INTERNET permission and does not make network requests or automatically send diagnostic data.
         Printer communication takes place directly between your Android device and the connected printer over USB.
+      </p>
+
+      <p>
+        For an unsupported model you may review and edit a limited report locally. It contains only
+        model-related IEEE1284 fields (MFG, MDL, CMD, CLS), USB vendor/product IDs, app and Android versions,
+        and a summary of the catalog failure. Raw protocol logs, serial-number fields and EEPROM backups
+        are not attached. Review any information you add; automatic filtering cannot judge your additions.
+      </p>
+      <p>
+        Copying places your chosen draft on the system clipboard. Sharing hands it to the application
+        and recipient you choose, which may use the network under its own privacy policy. Opening Discord
+        or GitHub uses an external app or browser, requires their accounts, and does not publish or paste
+        the report automatically. The GitHub link selects a template without report data in its URL.
+        Requests you post may be visible publicly or to the community. There is no dedicated intake inbox
+        configured; choosing a share target does not guarantee delivery to a maintainer.
       </p>
 
       <h2>Data Storage</h2>
       <p>
         The app does not require user account registration and does not maintain a remote user database.
-        Diagnostic information shown in the app is intended for local use only.
+        Protocol logs are kept locally for troubleshooting. The model report draft is held in memory
+        for review, not sent automatically. Pre-write EEPROM backups are kept in private app preferences
+        (up to five distinct records) to allow restoration; they are never attached to model requests.
       </p>
 
       <h2>Permissions</h2>
       <p>
         The app requests USB permission from Android only when needed to communicate with a connected printer.
-        This permission is used exclusively for printer access.
+        This permission is used exclusively for printer access. Preparing, copying and sharing a model
+        report or opening an external link does not add an INTERNET permission to this app.
       </p>
 
       <h2>Third-Party Links</h2>
@@ -115,7 +133,9 @@
       <h2>Contact</h2>
       <p>
         Project repository:
-        <a href="https://github.com/DSGM-GMSD/e-padreset">DSGM-GMSD/e-padreset</a>
+        <a href="https://github.com/DSGM-GMSD/e-padreset">DSGM-GMSD/e-padreset</a>.
+        Community: <a href="https://discord.gg/NYqqn4b25">Discord</a>. Do not post personal information,
+        raw logs or EEPROM backups in community requests.
       </p>
     </div>
   </main>

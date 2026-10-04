@@ -25,11 +25,12 @@ This app is aimed at Epson inkjet printers that expose the same service protocol
 - Reads waste ink counters from EEPROM
 - Writes or resets waste ink counters using model-specific reset values
 - Reads and keeps the bytes it is about to overwrite before any write, and stops at the first write the printer refuses
+- Saves those bytes to private preferences before every write, and writes them back on request, so a reset can be undone after the app has been closed
 - Runs model-dependent head cleaning commands over Epson service protocol where supported
 - Falls back to USB ESC/P2 maintenance jobs for head cleaning on models that reject service cleaning
 - Prints nozzle check patterns over USB
 - Connects to models that have no resettable counter — maintenance-box printers — so head cleaning and the nozzle check still work, and explains why there is nothing to reset
-- Names the reason a connection failed instead of reporting a generic error, and offers a prefilled report when the model is missing from the database and could be added
+- Names connection failures and offers a local, editable model-support report with copying, Discord, GitHub and Android sharing; no diagnostic data in browser URLs and no in-app networking
 - Distinguishes "no Epson printer attached" from "a printer is attached, but it is not an Epson"
 - Scans for a printer on launch instead of waiting for the refresh button, and drops the connection when it is unplugged
 - Shows its own version in About, and can open a releases page once the fork publishes one — the app holds no network permission and never checks by itself
@@ -44,6 +45,7 @@ Two pages, reached from the header.
 
 - `Ink Levels` panel with adaptive single-row gauges for 4 to 8 inks
 - `Waste Levels` panel with dynamic counter rows, or an explanation when the model has no counter to reset
+- `Restore a backup` panel listing the saved backups, newest first, each saying which write found it and what its counters read, with a box for pasting one that was copied out earlier
 - Protocol log with a copy action, read top to bottom: first event at the top, latest at the bottom, anchored on the latest
 
 The log scrolls inside a page that also scrolls, which is two scrollables in one
@@ -214,10 +216,10 @@ possible causes. The list only ever makes the message more specific.
 The list also answers one question the catalog otherwise cannot. When a
 connected printer is **not** in `devices.xml`, resolution fails and the app used
 to say only that the model was missing. It now asks the list first: if the model
-is on it, adding the model would enable head cleaning but never a counter reset,
-and the callout says so instead of promising an outcome the hardware cannot
-deliver. That is why the report action below is not offered for those models —
-there would be nothing for the report to change.
+is on it, the model request is scoped to investigating cleaning/nozzle support,
+not a counter reset, and the callout avoids promising an outcome the hardware cannot
+deliver. Those models can now request investigation of cleaning/nozzle support,
+but the report explicitly rules out resetting the maintenance-box chip.
 
 ### The models reinkpy has and `devices.xml` does not
 
@@ -283,6 +285,34 @@ empty or truncated, and checks that every extension model carries a readable
 `rkey` and `keyword` — a model without them would resolve, open no session, and
 report the printer as unsupported, which is the exact failure the file exists to
 fix.
+
+## Community model requests
+
+When a connected Epson model is missing, **Help add this model** opens a local
+editable draft before any external action. The report uses an explicit allowlist
+of IEEE1284 fields (`MFG`, `MDL`, `CMD`, `CLS`), numeric USB VID/PID, app/Android
+versions and a catalog-failure summary. It does **not** attach arbitrary protocol
+logs, serial-number fields or EEPROM backups: redacting a serial in the header
+alone cannot remove the same data from hex packets or old log sessions. Users
+must review anything they add themselves. Missing model names remain reportable.
+
+After review the user can copy, open the existing Discord community, open the
+GitHub model-request template or use Android's Sharesheet. Discord/GitHub require
+accounts; sharing can use another app with someone willing to relay the request.
+There is no dedicated email/form inbox configured and no guaranteed delivery
+from choosing a share target. The GitHub URL includes only the static template
+name, not the model or report, and opening a channel never pastes or publishes
+anything automatically. The Android app keeps no `INTERNET` permission.
+
+GitHub is the canonical technical tracker, with one issue per model. Discord is
+an entry point and a place to help volunteers; maintainers can relay reviewed
+technical data without making the user register for GitHub too. The issue form
+lives in `.github/ISSUE_TEMPLATE/01-model-support.yml`. The bilingual setup,
+copyable Discord template and triage guide are in [docs/model-support.md](docs/model-support.md).
+Creating a forum on the server is a separate administrator action; this checkout
+does not configure Discord or publish the templates. No email address or bot is
+invented. Missing maintenance-box models may request maintenance support, never
+a chip reset. Reports request investigation, not a guarantee or release date.
 
 ## Project Structure
 
@@ -421,7 +451,9 @@ release tag rather than the manifest, so it stays blank until a release exists.
 3. Open the app. It scans for a printer on launch and connects to the first one it
    finds; the refresh button is for a rescan afterwards.
 4. Review ink and waste counter values.
-5. Use `Reset Counters` only if you understand the maintenance implications.
+5. Use `Reset Counters` only if you understand the maintenance implications. The
+   values that were there are saved automatically, and can be put back from
+   `Restore a backup` if the reset turns out to have been a mistake.
 6. Use `Head Cleaning` or `Nozzle Check` for supported maintenance operations.
 
 Unplugging the printer drops the connection and clears the readings, so what is
@@ -490,12 +522,39 @@ counters as copyable text, and it survives failure as well as success — a run 
 printer refused partway through has already overwritten part of what was there,
 which is exactly when it matters.
 
-What a successful run still does not do: restore a backup. The text is there to
-be applied by someone who has decided to, not to be replayed automatically.
+What a successful run does now do: restore a backup. Every write saves the bytes
+it was about to overwrite, and the status page offers them back. The section below
+covers why that is a write in its own right and what keeps it honest.
 
-A reported success still means the counters read back at the value asked for. It
-does not yet mean the printer confirmed each individual write — only that none of
-them was refused.
+**Every written byte is verified.** Reset, percentage writes in debug builds and
+restore all compare the exact plan sent with the bytes read back at every address.
+The post-write status read keeps its bytes by address, so verification reuses those
+reads and only queries plan addresses outside the displayed counters. Missing or
+invalid readings fail the operation; an unknown or even positive acknowledgement
+cannot turn a byte mismatch into success.
+
+Verification does not use a counter ceiling, percentage tolerance or packed
+`rawValue`: reinkpy counter groups can exceed the four bytes an `Int` can preserve,
+and reset plans include auxiliary addresses absent from the counter query. The
+expected values are the actual plan, including nonzero model reset baselines.
+Mismatches name the addresses in the callout and show expected/read unsigned bytes
+in the protocol log. A mismatch can follow partial changes, so the message never
+claims that nothing changed.
+
+The complete pre-write backup is published and saved with a synchronous preferences
+commit on the IO dispatcher before the first EEPROM write. It remains available
+when writing, status parsing or verification fails, and when the printer is
+unplugged. Persistence is still best effort if storage fails; that failure is logged
+and the copyable in-memory backup remains. A reported success means every byte in
+the plan matched, not that the physical pads are empty or that the printer accepted
+every individual command. Hardware validation of replies and any firmware
+normalization remains necessary.
+
+`WasteVerificationTest` covers ignored writes with accepted/unknown replies, wide
+counter collisions, auxiliary reset addresses, nonzero baselines, partial/debug
+plans, read failures, transport failures and backup publication order. It also pins
+the read count: one post-write EEPROM read per distinct status/plan address, not a
+second full verification pass.
 
 Both rules are covered by `WasteWriterTest`, which drives them against a scripted
 fake printer. The rules live in `WasteWriter` rather than in `PrinterService` for
@@ -508,6 +567,68 @@ taken too late would also produce.
 What that does not settle: the replies are scripted, not observed. The tests prove
 the app behaves correctly *given* an answer. Which answer a real printer gives is
 still the open question, and the `Unknown` branch is where that lands.
+
+### Restoring a backup
+
+A reset writes a constant: the model's own baseline. Usually that is zero, but not
+always — of the 299 `<reset>` blocks in `devices.xml`, 195 write something other
+than `0x00`, values like 500, 1500 or 4300. Re-running a reset therefore lands on
+the same number every time, which is why it cannot undo anything: it is idempotent,
+not reversible. Restoring is the only operation that writes a value which is not
+the baseline, and it can, because the value is not chosen — it is what the app
+itself read from that printer before an earlier write.
+
+That is worth having in two cases. The first is a reset applied to a printer whose
+pads are actually full: the counter now reads its baseline, the "service required"
+warning is gone, and the owner keeps printing until the pad overflows. Re-running
+the reset zeroes it again. Only the backup puts the warning back. The second is a
+write the printer refused partway through. A counter's bytes are spread over two to
+twenty-four addresses, so a half-written counter reads a number that is neither the
+old value nor the new one — and re-running the reset meets the same refusal, while
+restoring rewrites the whole set.
+
+The backup lives in private preferences, which need no permission and no manifest
+entry — the same mechanism `UsbTransport` already uses to remember the USB
+interface that worked. It is written automatically before every write, successful
+or refused, because the mistake it undoes is almost never noticed at the moment it
+is made: it is noticed later, usually with the app closed. Five records are kept,
+newest first. A record that cannot be parsed is dropped rather than allowed to take
+the list down with it, and a store that cannot be read or written logs and returns
+what it has — persistence must never abort a write the user asked for.
+
+A state the list already holds is not recorded again. Restoring writes a value that
+is by definition already in the list, so without that check a reset, restore,
+restore… sequence would fill the five slots with copies of the same two states and
+push out the one that matters. The states in such a sequence alternate, so skipping
+the repeat settles the list on the two that count instead of letting it churn.
+Nothing already stored is touched when a repeat arrives: a record's time and origin
+are facts about when and why that state was captured, and re-stamping them would
+quietly turn "the state before my reset" into "the state before a restore".
+
+Each record says which write found it — before a reset, or before a restore — and
+what its counters read. Without both, two records of the same model a few minutes
+apart are indistinguishable, and the only way to learn which one undoes a mistake
+is to restore it and find out. Records saved before the origin existed read as
+"before a write"; the origin is an optional line inside the same block, so nothing
+already on disk had to be rewritten or re-versioned to add it, and the block
+delimiter is unchanged on purpose — changing it would make every stored block fail
+to start and silently drop the whole history.
+
+Three things keep it from becoming the write-up the release build otherwise
+refuses. The record is matched against the connected model before anything is
+written, because the addresses belong to the model and a record from another
+printer would write to addresses that mean something else there. The confirmation
+shows what each counter reads now and what it would read afterwards, so the
+increase is visible rather than described. And addresses the connected model does
+not publish are skipped rather than written, with the count reported.
+
+What it is not is a guarantee. A refusal that comes from the address or the key
+fails for a restore exactly as it failed for the reset. It is a best-effort undo,
+and the app says so rather than promising it.
+
+A restore is a write like any other, so it is backed up like any other: the record
+it saves on the way in is how a restore is itself undone. That is why the history
+gains a step with every restore, and why it is capped at five.
 
 ## Upstream Basis
 

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "Community help / Ayuda de la comunidad (Discord)"
+    url: "https://discord.gg/NYqqn4b25"
+    about: "Ask for help or relay a reviewed model report; Discord requires an account. / Pide ayuda o entrega un informe revisado; Discord requiere cuenta."

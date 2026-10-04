@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -187,6 +188,10 @@ fun PadBusyIndicator(
  * The original used a checkbox for every group, including the ones that are
  * single-choice. Radio buttons now carry that meaning, checkboxes are kept only
  * where multiple selections are genuinely allowed.
+ *
+ * [supporting] is a quieter second line under the label, for the detail a caller
+ * needs to show without letting it compete with the label itself. Optional, so
+ * the groups that have nothing to add are unchanged.
  */
 @Composable
 fun PadSelectableRow(
@@ -194,6 +199,7 @@ fun PadSelectableRow(
     selected: Boolean,
     multi: Boolean,
     onSelect: (Boolean) -> Unit,
+    supporting: String? = null,
 ) {
     val pad = PadTheme.colors
     Row(
@@ -203,12 +209,20 @@ fun PadSelectableRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(
-            text = label,
-            color = pad.fg,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                color = pad.fg,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (supporting != null) {
+                Text(
+                    text = supporting,
+                    color = pad.muted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
         Spacer(Modifier.width(PadSpace.sm))
         if (multi) {
             Checkbox(checked = selected, onCheckedChange = onSelect)

@@ -429,8 +429,14 @@ object EpsonPrinterCatalog {
     /**
      * Model names in the catalog carry a " Series" suffix that the curated list
      * does not, so both sides are compared without it.
+     *
+     * Visible beyond this file because the restore guard compares a saved record's
+     * model against the connected printer's, and that comparison has to be the
+     * same one the catalog makes. Duplicating it would let the two drift, and a
+     * drifted comparison would either block a matching printer or, worse, allow a
+     * mismatched one through.
      */
-    private fun normalizeModelName(name: String): String =
+    internal fun normalizeModelName(name: String): String =
         name.trim().uppercase().removeSuffix(" SERIES").trim()
 
     private fun parseDeviceId(deviceId: String): Map<String, String> {

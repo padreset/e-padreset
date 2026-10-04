@@ -1,7 +1,10 @@
 package com.padreset.epadreset.protocol
 
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Calendar
+import java.util.GregorianCalendar
 
 /**
  * Pins the nozzle check sequence.
@@ -23,6 +26,15 @@ class Escp2MaintenanceProtocolTest {
      */
     private fun jobBytes(): List<Int> =
         Escp2MaintenanceProtocol.buildNozzleCheckJob().map { it.toInt() and 0xFF }
+
+    @Test
+    fun `maintenance timer keeps its wire format on Android 7 compatible APIs`() {
+        val now = GregorianCalendar(2026, Calendar.OCTOBER, 3, 21, 34, 56)
+        assertArrayEquals(
+            byteArrayOf(0x54, 0x49, 0x08, 0x00, 0x00, 0x07, 0xEA.toByte(), 10, 3, 21, 34, 56),
+            Escp2MaintenanceProtocol.setTimer(now),
+        )
+    }
 
     @Test
     fun `nozzle check sends VI, then both NC commands, in that order`() {

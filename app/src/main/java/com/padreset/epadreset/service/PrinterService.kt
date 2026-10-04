@@ -185,12 +185,9 @@ class PrinterService(
     /**
      * Names the reason an unknown model cannot be used.
      *
-     * Both outcomes end in no session, but they mean opposite things to the
-     * user: a model missing from the catalog can be added and then reset, while
-     * one that reinkpy classifies as collecting waste in a maintenance box
-     * never will be, because its count lives on the box's chip. Telling them
-     * apart is what lets the UI stop promising a reset that cannot arrive, and
-     * what keeps it from asking for a model report that would change nothing.
+     * Both outcomes can request model investigation. Keeping the box
+     * classification separate lets the UI scope those requests to maintenance,
+     * rather than promising this app can reset a counter on the box chip.
      */
     private fun unknownModelFailure(deviceId: String): ConnectException {
         val model = EpsonPrinterCatalog.modelName(deviceId)
@@ -204,12 +201,19 @@ class PrinterService(
     }
 
     suspend fun readPrinterStatus(connection: ConnectionState): PrinterStatusSnapshot = withContext(Dispatchers.IO) {
+        readStatus(connection) { address -> readEepromByte(connection, address) }
+    }
+
+    private fun readStatus(
+        connection: ConnectionState,
+        readByte: (Int) -> Byte,
+    ): PrinterStatusSnapshot {
         log("Requesting printer status")
         val statusResponse = sendControlPayload(connection, connection.protocol.buildStatusRequest())
         val baseSnapshot = connection.protocol.parseStatusResponse(statusResponse, connection.deviceId)
         log("Status response parsed: state=${baseSnapshot.state} error=${baseSnapshot.error} inks=${baseSnapshot.inkLevels.size}")
         val wasteCounters = connection.spec.wasteCounters.map { counter ->
-            val bytes = counter.addresses.map { address -> readEepromByte(connection, address) }.toByteArray()
+            val bytes = counter.addresses.map(readByte).toByteArray()
             log(
                 "Waste counter '${counter.name}' addresses=${
                     counter.addresses.joinToString(prefix = "[", postfix = "]") { "0x%X".format(it) }
@@ -217,7 +221,7 @@ class PrinterService(
             )
             connection.protocol.parseWasteCounter(bytes, counter.max, counter.name)
         }
-        baseSnapshot.copy(wasteCounters = wasteCounters)
+        return baseSnapshot.copy(wasteCounters = wasteCounters)
     }
 
     /**
@@ -232,6 +236,30 @@ class PrinterService(
     )
 
     /**
+     * What a restore did, and the state it found on the way in.
+     *
+     * [backupBeforeRestore] is the bytes the addresses held *before* the restore
+     * ran. A restore is a write like any other, so it is backed up like any other
+     * — and that backup is how a restore is itself undone, which is why the caller
+     * is expected to keep it.
+     *
+     * [skipped] counts record addresses the connected model does not publish.
+     * They are not written: a record is taken from a model the guard already
+     * matched, but the catalog can change between builds, and writing an address
+     * whose meaning has moved is the one outcome worth refusing.
+     * A result is returned only after every byte in the applied plan verifies.
+     */
+    data class WasteRestoreOutcome(
+        val counters: List<WasteCounterStatus>,
+        val backupBeforeRestore: Map<Int, Byte>,
+        val written: Int,
+        val skipped: Int,
+    )
+
+    /** Unsigned values retained for both the localized error and protocol log. */
+    data class WasteByteMismatch(val expected: Int, val actual: Int)
+
+    /**
      * The write path refusing to go on.
      *
      * [writtenBefore] is how many addresses the run had already written when it
@@ -244,51 +272,85 @@ class PrinterService(
         val address: Int? = null,
         val writtenBefore: Int = 0,
         val backup: Map<Int, Byte> = emptyMap(),
+        val mismatches: Map<Int, WasteByteMismatch> = emptyMap(),
         cause: Throwable? = null,
-    ) : Exception(reason.name, cause) {
-        enum class Reason { BACKUP_FAILED, REJECTED }
+    ) : Exception(
+        buildString {
+            append(reason.name)
+            address?.let { append(" at 0x%04X".format(it)) }
+            mismatches.forEach { (address, mismatch) ->
+                append("; 0x%04X expected 0x%02X, read 0x%02X".format(
+                    address, mismatch.expected, mismatch.actual,
+                ))
+            }
+            cause?.message?.let { append(": $it") }
+        },
+        cause,
+    ) {
+        enum class Reason { BACKUP_FAILED, REJECTED, WRITE_FAILED, READ_BACK_FAILED, NOT_APPLIED }
     }
 
-    suspend fun resetWasteCounters(connection: ConnectionState): WasteWriteOutcome = withContext(Dispatchers.IO) {
+    suspend fun resetWasteCounters(
+        connection: ConnectionState,
+        onBackup: (Map<Int, Byte>) -> Unit = {},
+    ): WasteWriteOutcome = withContext(Dispatchers.IO) {
         val plan = connection.spec.resetMap.toSortedMap()
         require(plan.isNotEmpty()) { "This model publishes no reset values" }
         log("Resetting waste counters: ${plan.size} EEPROM writes")
 
-        val backup = applyWritePlan(connection, plan)
-        WasteWriteOutcome(readPrinterStatus(connection).wasteCounters, backup)
+        val verified = applyWritePlan(connection, plan, onBackup)
+        WasteWriteOutcome(verified.value.wasteCounters, verified.backup)
     }
 
     suspend fun writeWasteCounters(
         connection: ConnectionState,
         selectedCounterNames: Set<String>,
         targetPercentage: Int,
+        onBackup: (Map<Int, Byte>) -> Unit = {},
     ): WasteWriteOutcome = withContext(Dispatchers.IO) {
-        require(targetPercentage in 0..100) { "Target percentage must be between 0 and 100" }
-        val selectedCounters = connection.spec.wasteCounters.filter { it.name in selectedCounterNames }
-        require(selectedCounters.isNotEmpty()) { "No waste counter selected" }
+        val plan = WasteWriter.planFor(connection.spec, selectedCounterNames, targetPercentage)
+        log("Writing waste counter plan: ${plan.size} EEPROM bytes")
 
-        if (
-            targetPercentage == 0 &&
-            selectedCounters.size == connection.spec.wasteCounters.size
-        ) {
-            return@withContext resetWasteCounters(connection)
-        }
+        val verified = applyWritePlan(connection, plan, onBackup)
+        WasteWriteOutcome(verified.value.wasteCounters, verified.backup)
+    }
 
-        log(
-            "Writing waste counters ${selectedCounters.joinToString { it.name }} to $targetPercentage%",
+    /**
+     * Writes a recorded backup back to the printer.
+     *
+     * This is the inverse of a reset, and the only operation in the app that
+     * raises a counter. That is deliberate and bounded: the values are not chosen
+     * by the user, they are the bytes this app itself read from this printer
+     * before an earlier write, so the outcome is a state the hardware was already
+     * in. The guards that keep it to that live above this call — the model match
+     * and the confirmation — because they are policy, not protocol.
+     *
+     * Reuses [applyWritePlan], so the restore is backed up before it writes and
+     * stops at the first address the printer refuses, exactly like a reset.
+     */
+    suspend fun restoreWasteBackup(
+        connection: ConnectionState,
+        backup: Map<Int, Byte>,
+        onBackup: (Map<Int, Byte>) -> Unit = {},
+    ): WasteRestoreOutcome = withContext(Dispatchers.IO) {
+        require(backup.isNotEmpty()) { "Nothing to restore" }
+
+        val knownAddresses = connection.spec.wasteCounters.flatMap { it.addresses }.toSet() +
+            connection.spec.resetMap.keys
+        val applicable = backup.filterKeys { it in knownAddresses }
+        require(applicable.isNotEmpty()) { "This backup holds no address the model uses" }
+
+        val plan = WasteRestore.planFrom(applicable)
+        val skipped = backup.size - applicable.size
+        log("Restoring ${plan.size} EEPROM bytes; $skipped address(es) not used by this model")
+
+        val verified = applyWritePlan(connection, plan, onBackup)
+        WasteRestoreOutcome(
+            counters = verified.value.wasteCounters,
+            backupBeforeRestore = verified.backup,
+            written = plan.size,
+            skipped = skipped,
         )
-        // One plan for the whole run, so the backup covers exactly the addresses
-        // that are about to change and nothing else.
-        val plan = linkedMapOf<Int, Int>()
-        for (counter in selectedCounters) {
-            val targetValue = ((counter.max.toLong() * targetPercentage.toLong()) / 100L).toInt()
-            counter.addresses.forEachIndexed { position, address ->
-                plan[address] = (targetValue shr (position * 8)) and 0xFF
-            }
-        }
-
-        val backup = applyWritePlan(connection, plan)
-        WasteWriteOutcome(readPrinterStatus(connection).wasteCounters, backup)
     }
 
     /**
@@ -300,11 +362,12 @@ class PrinterService(
     private fun applyWritePlan(
         connection: ConnectionState,
         plan: Map<Int, Int>,
-    ): Map<Int, Byte> = WasteWriter(
+        onBackup: (Map<Int, Byte>) -> Unit,
+    ): WasteWriter.VerifiedWrite<PrinterStatusSnapshot> = WasteWriter(
         readByte = { address -> readEepromByte(connection, address) },
         writeByte = { address, value -> writeEeprom(connection, address, value) },
         log = { line -> log(line) },
-    ).write(plan)
+    ).writeAndVerify(plan, onBackup) { readByte -> readStatus(connection, readByte) }
 
     /** Reads one EEPROM byte. */
     private fun readEepromByte(connection: ConnectionState, address: Int): Byte {

@@ -2,7 +2,7 @@ package com.padreset.epadreset.protocol
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.time.LocalDateTime
+import java.util.Calendar
 
 object Escp2MaintenanceProtocol {
     private val exitPacketMode = byteArrayOf(
@@ -97,15 +97,16 @@ object Escp2MaintenanceProtocol {
             exitRemoteMode
     }
 
-    private fun setTimer(now: LocalDateTime = LocalDateTime.now()): ByteArray {
+    // Calendar is available on Android 7 (minSdk 24); java.time requires API 26.
+    internal fun setTimer(now: Calendar = Calendar.getInstance()): ByteArray {
         val payload = ByteArray(8)
         payload[0] = 0x00
-        ByteBuffer.wrap(payload, 1, 2).order(ByteOrder.BIG_ENDIAN).putShort(now.year.toShort())
-        payload[3] = now.monthValue.toByte()
-        payload[4] = now.dayOfMonth.toByte()
-        payload[5] = now.hour.toByte()
-        payload[6] = now.minute.toByte()
-        payload[7] = now.second.toByte()
+        ByteBuffer.wrap(payload, 1, 2).order(ByteOrder.BIG_ENDIAN).putShort(now.get(Calendar.YEAR).toShort())
+        payload[3] = (now.get(Calendar.MONTH) + 1).toByte()
+        payload[4] = now.get(Calendar.DAY_OF_MONTH).toByte()
+        payload[5] = now.get(Calendar.HOUR_OF_DAY).toByte()
+        payload[6] = now.get(Calendar.MINUTE).toByte()
+        payload[7] = now.get(Calendar.SECOND).toByte()
         return remoteCommand("TI", payload)
     }
 

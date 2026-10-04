@@ -39,15 +39,17 @@ internal const val REPO_URL = "https://github.com/DSGM-GMSD/e-padreset"
  * would have landed a report about a build that author never made in a third
  * party's tracker.
  *
- * Null switches the report action down to the clipboard alone: the text is still
- * assembled and handed to the user, and nothing is addressed anywhere. Set this
- * to a repository and the prefilled-issue button appears on its own.
+ * Null hides GitHub only; preview, copying, sharing and Discord remain available.
+ * The issue URL selects a template without putting diagnostics in the URL.
  *
  * Not a `const`: a nullable constant is not something Kotlin allows, and an
  * empty string standing in for "no destination" would be a trap of exactly the
  * kind this file is trying to avoid.
  */
 internal val REPORT_REPO_URL: String? = "https://github.com/DSGM-GMSD/e-padreset"
+
+/** Opened by the user's browser/Discord app, never by an in-app network client. */
+internal const val COMMUNITY_URL = "https://discord.gg/NYqqn4b25"
 
 /**
  * Where releases are published, or null while there is nowhere to publish them.
@@ -98,6 +100,7 @@ fun EPadResetApp(
     onConnect: () -> Unit,
     onRefresh: () -> Unit,
     onReset: (Set<String>, Int) -> Unit,
+    onRestore: (String?, Map<Int, Byte>) -> Unit,
     onServiceClean: (String) -> Unit,
     onGenericClean: (Int, Boolean, Boolean) -> Unit,
     onNozzleCheck: () -> Unit,
@@ -111,6 +114,7 @@ fun EPadResetApp(
             onConnect = onConnect,
             onRefresh = onRefresh,
             onReset = onReset,
+            onRestore = onRestore,
             onOpenMaintenance = { page = AppPage.Maintenance },
         )
 

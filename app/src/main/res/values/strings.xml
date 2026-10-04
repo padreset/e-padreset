@@ -97,6 +97,46 @@
     <string name="error_write_rejected">The printer refused the write. Nothing further was written.</string>
     <string name="error_write_rejected_at">The printer refused the write at %1$s. %2$d address(es) had already been written; nothing further was written. The backup is below.</string>
 
+    <!-- Restoring a saved backup.
+         The backup is saved by the app before every write, so the case this
+         covers is the one where the mistake is noticed later - usually with the
+         app already closed. That is why it is automatic and why it is kept on
+         disk, and the wording says so rather than presenting a button.
+         Restoring raises the counters, which is the opposite of a reset, so the
+         dialog says that plainly instead of leaving it to be discovered. -->
+    <string name="section_restore_backup">Restore a backup</string>
+    <string name="restore_note">A backup is saved automatically before every write. Pick one to put those values back, or paste a backup you kept.</string>
+    <string name="restore_no_history">No backups saved yet. One is saved automatically before each write.</string>
+    <string name="action_restore_selected">Restore selected backup</string>
+    <string name="action_restore_paste">Restore from pasted text</string>
+    <string name="restore_record_label">%1$s — %2$s</string>
+    <string name="restore_unknown_model">Unknown model</string>
+    <!-- Which write found the state a saved record holds, and what it reads.
+         Two records can look identical by model and time, so without these the
+         list gives no way to tell which one undoes the mistake. The "unknown"
+         wording covers records saved before the origin was recorded at all. -->
+    <string name="restore_origin_reset">Saved before a reset</string>
+    <string name="restore_origin_restore">Saved before a restore</string>
+    <string name="restore_origin_unknown">Saved before a write</string>
+    <string name="restore_record_detail">%1$s · %2$s</string>
+    <string name="restore_record_reads">Reads %1$s</string>
+    <string name="dialog_restore_title">Restore this backup?</string>
+    <string name="dialog_restore_body">This writes back the values recorded before an earlier write. It raises the counters, which is the opposite of a reset. Use it only to undo one.</string>
+    <string name="dialog_restore_model">Backup from: %1$s</string>
+    <string name="dialog_restore_no_model">This backup does not name a printer model. Make sure it came from this printer.</string>
+    <string name="dialog_restore_addresses">%1$d address(es) will be written.</string>
+    <string name="dialog_restore_counter_delta">%1$s: %2$s → %3$s</string>
+    <string name="action_restore">Restore</string>
+    <string name="dialog_paste_backup_title">Paste a backup</string>
+    <string name="field_paste_backup">Backup text</string>
+    <string name="paste_backup_hint">Paste the backup you copied earlier, with or without its header line.</string>
+    <string name="paste_backup_invalid">No backup lines found. Paste the text the app gave you, or at least its "0x001C = 0x3F" lines.</string>
+    <string name="paste_backup_parsed">Found %1$d address(es).</string>
+    <!-- Blocked rather than warned: the addresses belong to the model, so
+         writing one printer's record onto another would write to addresses that
+         mean something else there. -->
+    <string name="error_restore_model_mismatch">This backup is from %1$s, but the connected printer is %2$s. Restoring onto a different model could write the wrong addresses, so it is blocked.</string>
+
     <!-- Shown when the model is on the curated maintenance-box list, so the
          cause is known rather than guessed. The dialog that follows is the
          tailored one below, not the two-cause one. -->
@@ -181,7 +221,7 @@
          network permission, so this opens the page rather than checking. -->
     <string name="action_check_updates">Check for updates</string>
     <string name="about_updates_note">Opens the releases page in your browser. The app itself never goes online.</string>
-    <string name="about_repo_label">GitHub: DSGM-GMSD/e-padreset</string>
+    <string name="about_repo_label" translatable="false">GitHub: DSGM-GMSD/e-padreset</string>
     <string name="action_open_repo">Open Repo</string>
     <!-- Shown with the support button, and only while DONATE_URL has a value:
          the app does not ask for money it has nowhere to send. The button opens
@@ -202,6 +242,7 @@
          acknowledgement to wait for. A single title said the same thing about
          both, which was true for one and a claim for the other. -->
     <string name="dialog_counters_updated_title">Counters updated</string>
+    <string name="dialog_backup_restored_title">Backup restored</string>
     <string name="dialog_job_sent_title">Job sent</string>
 
     <!-- Error callout. The title is fixed; the body is either a localized
@@ -238,30 +279,42 @@
          callout can name the actual cause instead of a generic failure. -->
     <string name="error_connect_permission_denied">USB access was denied. Reconnect the printer and accept the permission request.</string>
     <string name="error_connect_no_interfaces">This USB device has no interface the app can use. It may not be a supported Epson printer.</string>
-    <string name="error_connect_unsupported_model">This Epson model is not in the app\'s database, so no maintenance session can be opened. Unlike a printer with a maintenance box, this is not permanent: the model can be supported once its data is added.</string>
-    <string name="error_connect_unsupported_model_named">The Epson model \'%1$s\' is not in the app\'s database, so no maintenance session can be opened. Unlike a printer with a maintenance box, this is not permanent: the model can be supported once its data is added.</string>
+    <string name="error_connect_unsupported_model">This Epson model is not in the app\'s database, so no maintenance session can be opened. You can request an investigation; support requires verified model data and hardware tests and is not guaranteed.</string>
+    <string name="error_connect_unsupported_model_named">The Epson model \'%1$s\' is not in the app\'s database, so no maintenance session can be opened. You can request an investigation; support requires verified model data and hardware tests and is not guaranteed.</string>
     <!-- The mirror image of the two lines above. The model is missing from the
          database as well, but the community database classifies it as using a
          maintenance box, so adding it would never enable a reset. Kept apart so
          the app does not promise an outcome the hardware cannot deliver. -->
-    <string name="error_connect_unsupported_model_box">This Epson model is not in the app\'s database, and the community database classifies it as using a maintenance box. Adding it would enable head cleaning and the nozzle check, but never a counter reset: the count lives on the box\'s own chip.</string>
-    <string name="error_connect_unsupported_model_box_named">The Epson model \'%1$s\' is not in the app\'s database, and the community database classifies it as using a maintenance box. Adding it would enable head cleaning and the nozzle check, but never a counter reset: the count lives on the box\'s own chip.</string>
+    <string name="error_connect_unsupported_model_box">This Epson model is missing from the app\'s database and the community catalog classifies it as using a maintenance box. You can request an investigation of cleaning and nozzle check support, but this app cannot reset the counter on the box\'s chip.</string>
+    <string name="error_connect_unsupported_model_box_named">The Epson model \'%1$s\' is missing from the app\'s database and the community catalog classifies it as using a maintenance box. You can request an investigation of cleaning and nozzle check support, but this app cannot reset the counter on the box\'s chip.</string>
     <string name="error_connect_dot4_nak">The printer refused the maintenance session. Turn it off and on again, then retry.</string>
 
-    <!-- Offered under the callout when the model is missing from the database
-         and is not a maintenance-box model: the one case where a report from
-         the user is what gets the model supported.
-         The note is deliberately destination-agnostic: the issue button only
-         appears once the fork has a repository of its own, and until then the
-         clipboard is the whole feature. -->
-    <string name="action_report_model">Report this model</string>
+    <!-- A local draft is reviewed before any external action. -->
+    <string name="action_report_model">Help add this model</string>
     <string name="action_copy_report">Copy report</string>
-    <string name="report_model_note">The report carries the model, the printer\'s device ID without its serial number, and the last lines of the protocol log. Nothing leaves your device on its own.</string>
+    <string name="report_model_note">Prepare a limited report locally, then review it and choose how to share it. The app does not connect to the Internet.</string>
+    <string name="dialog_model_support_title">Request model support</string>
+    <string name="field_model_report">Report to review and edit</string>
+    <string name="action_choose_report_channel">Choose how to share</string>
+    <string name="action_review_report">Review report again</string>
+    <string name="action_report_discord">Open Discord</string>
+    <string name="action_report_github">Open GitHub request</string>
+    <string name="action_share_report">Share report</string>
+    <string name="report_privacy_note">Support is not guaranteed. This draft includes only model fields, USB IDs and app/Android versions, not raw logs, serial numbers or EEPROM backups. Review anything you add. Nothing is sent automatically; another app or your browser handles external sharing under its own privacy policy.</string>
+    <string name="report_discord_help">Discord requires an account. Copy the reviewed report, open the community and ask where to post a model request. Opening the invite does not paste or publish it.</string>
+    <string name="report_github_help">GitHub requires an account. Copy the reviewed report and paste it into the model request template. No diagnostic data is placed in the link.</string>
+    <string name="report_share_help">Without a GitHub or Discord account, share through an app you already use with someone who can relay the request. There is no dedicated inbox configured. Choose the recipient yourself; opening the share sheet does not mean a maintainer received it.</string>
+    <string name="report_external_unavailable">No app could open this action. You can still copy the report and choose a destination yourself.</string>
     <string name="report_copied">Report copied</string>
     <string name="msg_counters_updated">Waste ink counters have been updated. Restart the printer if required by the model.</string>
-    <!-- Raised when the counters read back after a write do not match the value
-         that was asked for, which means the printer did not apply it. -->
-    <string name="error_counters_not_applied">The printer did not apply the new values: the counters still read %1$s. Nothing was changed. The write was most likely rejected.</string>
+    <!-- Byte-level verification names addresses, not derived percentages. A
+         mismatch does not mean nothing changed: other writes may have applied. -->
+    <string name="error_counters_not_applied">The bytes read back at %1$s do not match the reset values sent. Some values may have changed. The backup is below; expected and read bytes are in the protocol log.</string>
+    <string name="error_restore_not_applied">The bytes read back at %1$s do not match the restored values sent. Some values may have changed. The backup is below; expected and read bytes are in the protocol log.</string>
+    <string name="error_write_failed">The write at %1$s could not be completed or its reply could not be read. %2$d earlier address(es) were written; this address may also have changed. Nothing further was written. The backup is below.</string>
+    <string name="error_read_back_failed">The write finished, but the values could not be read back. The result is not verified; some values may have changed. The backup is below.</string>
+    <string name="error_read_back_failed_at">The write finished, but the byte at %1$s could not be read back. The result is not verified; some values may have changed. The backup is below.</string>
+    <string name="msg_backup_restored">The saved values have been written back. Restart the printer if the model requires it.</string>
     <string name="msg_cleaning_sent_named">Head cleaning \'%1$s\' command has been sent. Wait for the printer to start the routine, then refresh status manually.</string>
     <string name="msg_cleaning_sent">Head cleaning job has been sent. Wait for the printer to start the routine, then refresh status manually.</string>
     <string name="msg_nozzle_check_sent">Nozzle check print job has been sent. Wait for the page to print.</string>

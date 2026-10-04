@@ -48,12 +48,16 @@ class PrinterStatusScreenTest {
     private fun render(state: MainUiState) {
         compose.setContent {
             EPadResetTheme {
-                PrinterStatusScreen(
+                EPadResetApp(
                     uiState = state,
                     onConnect = {},
                     onRefresh = {},
                     onReset = { _, _ -> },
-                    onOpenMaintenance = {},
+                    onRestore = { _, _ -> },
+                    onServiceClean = {},
+                    onGenericClean = { _, _, _ -> },
+                    onNozzleCheck = {},
+                    onDismissActionSuccess = {},
                 )
             }
         }
@@ -62,7 +66,7 @@ class PrinterStatusScreenTest {
     // -- the report block ---------------------------------------------------
 
     @Test
-    fun aMissingModelOffersBothWaysToHandItOver() {
+    fun aMissingModelRequiresLocalReviewBeforeOfferingChannels() {
         render(
             MainUiState(
                 error = string(R.string.error_connect_unsupported_model_named, "ET-9999"),
@@ -75,18 +79,20 @@ class PrinterStatusScreenTest {
         compose.onNodeWithText(string(R.string.action_report_model))
             .performScrollTo()
             .assertIsDisplayed()
-        compose.onNodeWithText(string(R.string.action_copy_report))
-            .performScrollTo()
-            .assertIsDisplayed()
-        compose.onNodeWithText(string(R.string.report_model_note))
-            .performScrollTo()
-            .assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.action_report_github)).assertDoesNotExist()
+        compose.onNodeWithText(string(R.string.action_report_discord)).assertDoesNotExist()
+        compose.onNodeWithText(string(R.string.action_report_model)).performClick()
+        compose.onNodeWithText(string(R.string.field_model_report)).assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.action_report_github)).assertDoesNotExist()
+        compose.onNodeWithText(string(R.string.action_choose_report_channel)).performScrollTo().performClick()
+        compose.onNodeWithText(string(R.string.action_copy_report)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.action_report_discord)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.action_report_github)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.action_share_report)).performScrollTo().assertIsDisplayed()
     }
 
     @Test
-    fun withNoDestinationTheReportIsOnlyCopyable() {
-        // The state the app ships in today: no repository of its own, so the
-        // issue button must not appear and nothing is addressed anywhere.
+    fun withNoGitHubDestinationOtherChannelsRemainAvailable() {
         render(
             MainUiState(
                 error = string(R.string.error_connect_unsupported_model),
@@ -96,28 +102,29 @@ class PrinterStatusScreenTest {
             ),
         )
 
-        compose.onNodeWithText(string(R.string.action_copy_report))
-            .performScrollTo()
-            .assertIsDisplayed()
-        compose.onNodeWithText(string(R.string.action_report_model)).assertDoesNotExist()
+        compose.onNodeWithText(string(R.string.action_report_model)).performScrollTo().performClick()
+        compose.onNodeWithText(string(R.string.action_choose_report_channel)).performScrollTo().performClick()
+        compose.onNodeWithText(string(R.string.action_copy_report)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.action_report_github)).assertDoesNotExist()
+        compose.onNodeWithText(string(R.string.action_share_report)).performScrollTo().assertIsDisplayed()
     }
 
     @Test
-    fun aMaintenanceBoxModelIsNotOfferedForReport() {
-        // Same callout shape, opposite promise: adding this model would never
-        // enable a reset, so there is nothing for a report to change.
+    fun aMaintenanceBoxModelCanRequestMaintenanceWithoutPromisingReset() {
         render(
             MainUiState(
                 error = string(R.string.error_connect_unsupported_model_box_named, "ET-16600"),
-                reportableModel = null,
-                modelReportBody = null,
+                reportableModel = "ET-16600",
+                modelReportBody = "Request maintenance support only; cannot reset a counter on the box chip.",
             ),
         )
 
         compose.onNodeWithText(string(R.string.error_connect_unsupported_model_box_named, "ET-16600"))
             .performScrollTo()
             .assertIsDisplayed()
-        compose.onNodeWithText(string(R.string.action_copy_report)).assertDoesNotExist()
+        compose.onNodeWithText(string(R.string.action_report_model)).performScrollTo().performClick()
+        compose.onNodeWithText("Request maintenance support only; cannot reset a counter on the box chip.")
+            .assertIsDisplayed()
     }
 
     // -- the backup ---------------------------------------------------------
@@ -138,6 +145,55 @@ class PrinterStatusScreenTest {
             .performScrollTo()
             .assertIsDisplayed()
         compose.onNodeWithText("0x001C = 0x3F").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun aVerifiedWriteShowsTheSuccessDialog() {
+        render(
+            MainUiState(
+                status = snapshot(WasteCounterStatus("Main pad", 500, 7800)),
+                supportsWasteReset = true,
+                wasteBackup = "0x000D = 0xFF",
+                actionSuccessTitle = string(R.string.dialog_counters_updated_title),
+                actionSuccessMessage = string(R.string.msg_counters_updated),
+            ),
+        )
+        compose.onNodeWithText(string(R.string.dialog_counters_updated_title)).assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.msg_counters_updated)).assertIsDisplayed()
+    }
+
+    @Test
+    fun aByteMismatchShowsItsAddressesAndKeepsTheBackupWithoutSuccess() {
+        val error = string(R.string.error_counters_not_applied, "0x001C, 0x0032")
+        render(
+            MainUiState(
+                status = snapshot(WasteCounterStatus("Main pad", 2, 0)),
+                supportsWasteReset = true,
+                error = error,
+                wasteBackup = "0x001C = 0x3F",
+                logs = listOf("EEPROM mismatch at 0x001C: expected 0x00, read 0x02"),
+            ),
+        )
+        compose.onNodeWithText(error).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("0x001C = 0x3F").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.dialog_counters_updated_title)).assertDoesNotExist()
+        compose.onNodeWithText(string(R.string.msg_counters_updated)).assertDoesNotExist()
+    }
+
+    @Test
+    fun aReadbackFailureSaysTheResultIsUnverifiedAndKeepsTheBackup() {
+        val error = string(R.string.error_read_back_failed_at, "0x0037")
+        render(
+            MainUiState(
+                status = snapshot(WasteCounterStatus("Main pad", 63, 13000)),
+                supportsWasteReset = true,
+                error = error,
+                wasteBackup = "0x0037 = 0x5E",
+            ),
+        )
+        compose.onNodeWithText(error).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("0x0037 = 0x5E").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.msg_counters_updated)).assertDoesNotExist()
     }
 
     @Test

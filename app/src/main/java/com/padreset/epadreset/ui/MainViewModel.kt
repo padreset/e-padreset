@@ -2,21 +2,24 @@ package com.padreset.epadreset.ui
 
 import android.app.Application
 import android.hardware.usb.UsbDevice
-import android.net.Uri
 import android.os.Build
 import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.padreset.epadreset.R
+import com.padreset.epadreset.data.BackupOrigin
+import com.padreset.epadreset.data.BackupStore
 import com.padreset.epadreset.data.EpsonPrinterCatalog
+import com.padreset.epadreset.data.ModelSupportReport
 import com.padreset.epadreset.data.PrinterStatusSnapshot
+import com.padreset.epadreset.data.WasteBackupRecord
+import com.padreset.epadreset.data.WasteCounterSpec
+import com.padreset.epadreset.data.backupModelMatches
 import com.padreset.epadreset.service.PrinterService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
 data class MainUiState(
     val connectedDeviceName: String? = null,
@@ -47,18 +50,13 @@ data class MainUiState(
      */
     val error: String? = null,
     /**
-     * The model to offer a report for, when the failure is one the user can
-     * actually fix by reporting it.
-     *
-     * Null for every other outcome, and deliberately null for a
-     * maintenance-box model: that one cannot be reset even after it is added,
-     * so asking for a report there would be asking for work that changes
-     * nothing.
+     * A missing model to investigate, including maintenance-box models for
+     * cleaning/nozzle support. A request does not guarantee support.
      */
     val reportableModel: String? = null,
     /** Ready-to-paste report for a missing model. Null when there is nothing to report. */
     val modelReportBody: String? = null,
-    /** The same report as a prefilled GitHub issue. Null alongside [modelReportBody]. */
+    /** Static GitHub template link without model/diagnostic parameters; optional. */
     val modelReportUrl: String? = null,
     /**
      * The EEPROM bytes a write found, as text the user can keep.
@@ -68,6 +66,34 @@ data class MainUiState(
      * been overwritten and this is the only record of what was there.
      */
     val wasteBackup: String? = null,
+    /**
+     * Saved pre-write backups, newest first.
+     *
+     * Read once when the ViewModel is built and refreshed on every save, so the
+     * restore card is populated on a cold start. That is the whole point of
+     * keeping them: the mistake a backup undoes is usually noticed long after the
+     * app was closed, and an in-memory copy would be gone by then.
+     */
+    val backupHistory: List<WasteBackupRecord> = emptyList(),
+    /**
+     * The connected model's counter specifications, or empty when nothing is
+     * connected.
+     *
+     * The status snapshot carries what each counter reads but not the addresses it
+     * lives at, and the restore confirmation needs those addresses to work out
+     * what a recorded set of bytes would turn each counter into.
+     */
+    val wasteCounterSpecs: List<WasteCounterSpec> = emptyList(),
+    /**
+     * The connected printer's catalog model name, or null when nothing is
+     * connected.
+     *
+     * Kept apart from [PrinterStatusSnapshot.modelName], which is the printer's
+     * raw MDL string: the restore guard compares against the catalog name, and the
+     * restore list must gate its counter reading on exactly the same string, or
+     * the two could disagree about which records can be restored.
+     */
+    val connectedModelName: String? = null,
     /**
      * The build's version name, shown in About.
      *
@@ -123,11 +149,23 @@ private class UnhandledJobException(
      * fix by reporting their model. Everything else leaves it null.
      */
     val reportableDeviceId: String? = null,
+    val reportVendorId: Int? = null,
+    val reportProductId: Int? = null,
+    val reportMaintenanceBox: Boolean = false,
     cause: Throwable? = null,
 ) : Exception(logMessage, cause)
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val printerService = PrinterService(application, ::appendLog, ::noteSlowConnect)
+
+    /**
+     * Where the pre-write backups live between sessions.
+     *
+     * Private preferences, which need no permission and no manifest entry — the
+     * same reason [com.padreset.epadreset.usb.UsbTransport] can remember the USB
+     * interface that worked without asking the user for anything.
+     */
+    private val backupStore = BackupStore.from(application)
 
     /**
      * Read once, from the package manager rather than from `BuildConfig`: the
@@ -140,6 +178,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(MainUiState(appVersion = appVersion))
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+
+    init {
+        // Read once, at construction, so the restore card is already populated the
+        // first time the screen composes on a cold start. A store that cannot be
+        // read answers with an empty list, so this cannot fail the launch.
+        _uiState.value = _uiState.value.copy(backupHistory = backupStore.history())
+    }
 
     private var connection: PrinterService.ConnectionState? = null
 
@@ -241,6 +286,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             supportsGenericMaintenanceJobs = false,
             supportsWasteReset = false,
             usesMaintenanceBox = false,
+            wasteCounterSpecs = emptyList(),
+            connectedModelName = null,
             error = null,
             notice = str(R.string.notice_printer_disconnected),
         )
@@ -276,6 +323,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             uiMessage = localizedConnectFailure(it),
                             logMessage = it.message ?: it.javaClass.simpleName,
                             reportableDeviceId = reportableDeviceId(it),
+                            reportVendorId = device.vendorId,
+                            reportProductId = device.productId,
+                            reportMaintenanceBox = (it as? PrinterService.ConnectException)?.failure ==
+                                PrinterService.ConnectFailure.UNSUPPORTED_MODEL_MAINTENANCE_BOX,
                             cause = it,
                         )
                     }
@@ -300,6 +351,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     supportsGenericMaintenanceJobs = true,
                     supportsWasteReset = current.spec.supportsWasteReset,
                     usesMaintenanceBox = current.spec.usesMaintenanceBox,
+                    wasteCounterSpecs = current.spec.wasteCounters,
+                    connectedModelName = current.spec.modelName,
                     error = null,
                 )
                 appendLog("Status read: ${status.state}, ${status.error}")
@@ -313,56 +366,70 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         viewModelScope.launch {
-            runJob("Resetting waste counters") {
+            runJob("Resetting waste counters", BackupOrigin.RESET) {
                 // The previous write's backup describes a state this run is about
                 // to change, so it goes now rather than when the new one arrives.
-                _uiState.value = _uiState.value.copy(wasteBackup = null)
-                val outcome = printerService.writeWasteCounters(current, selectedCounterNames, targetPercentage)
-                val counters = outcome.counters
-                appendLog("Waste counters read back: ${counters.joinToString { "${it.name}=${it.percentage}%" }}")
-
-                // The service already reads the counters back after writing. Until
-                // now nobody looked at them, so a write the printer rejected was
-                // followed by a success message and a log line showing the old
-                // values — the evidence was returned and thrown away.
-                //
-                // The comparison is against the value that was asked for, so it
-                // needs no knowledge of the printer's reply format. The tolerance
-                // absorbs the rounding in value -> percentage: the target is
-                // stored as max * pct / 100 and read back through the inverse.
-                // Only counters with a published ceiling can be checked this
-                // way. The rest report no percentage, so comparing one would
-                // pass trivially at a zero target and fail for the wrong reason
-                // at any other. The write still goes out; what changes is that
-                // the app stops claiming to have verified it, and says so in the
-                // log rather than in a message the user cannot act on.
-                val unverifiable = counters.filter {
-                    it.name in selectedCounterNames && !it.scaleKnown
-                }
-                if (unverifiable.isNotEmpty()) {
-                    appendLog(
-                        "Not verifying ${unverifiable.joinToString { it.name }}: " +
-                            "this model publishes no counter ceiling",
-                    )
-                }
-
-                val notApplied = counters.filter { counter ->
-                    counter.scaleKnown &&
-                        counter.name in selectedCounterNames &&
-                        abs(counter.percentage - targetPercentage) > 2.0
-                }
-                if (notApplied.isNotEmpty()) {
-                    val actual = notApplied.joinToString { "${it.name}=${it.percentage.roundToInt()}%" }
-                    throw UnhandledJobException(
-                        uiMessage = str(R.string.error_counters_not_applied, actual),
-                        logMessage = "Counters not applied: asked for $targetPercentage%, read back $actual",
-                    )
-                }
-
+                _uiState.value = _uiState.value.copy(
+                    wasteBackup = null, actionSuccessTitle = null, actionSuccessMessage = null,
+                )
+                val outcome = printerService.writeWasteCounters(
+                    current, selectedCounterNames, targetPercentage,
+                    onBackup = { backup ->
+                        persistBackup(current.spec.modelName, backup, BackupOrigin.RESET)
+                        _uiState.value = _uiState.value.copy(wasteBackup = formatBackup(backup))
+                    },
+                )
+                // Returning from the service means every address in the exact
+                // write plan verified, including models with no counter ceiling.
+                appendLog("Waste counters read back: ${outcome.counters.joinToString { "${it.name} raw=${it.rawValue}" }}")
                 _uiState.value = _uiState.value.copy(
                     actionSuccessTitle = str(R.string.dialog_counters_updated_title),
                     actionSuccessMessage = str(R.string.msg_counters_updated),
                     wasteBackup = formatBackup(outcome.backup),
+                )
+                refreshStatus()
+            }
+        }
+    }
+
+    /**
+     * Writes a saved backup back to the printer.
+     *
+     * [model] is the record's model and is used only as a guard: the addresses in a
+     * record belong to the model it came from, so restoring one printer's record
+     * onto another would write to addresses that mean something else there. A blank
+     * model — a paste that carried no header — is allowed, because the user may
+     * hold only the address lines; the confirmation warns instead of blocking.
+     */
+    fun restoreBackup(model: String?, values: Map<Int, Byte>) {
+        val current = connection ?: run {
+            appendError(str(R.string.error_printer_not_connected))
+            return
+        }
+        viewModelScope.launch {
+            runJob("Restoring EEPROM backup", BackupOrigin.RESTORE) {
+                val connected = current.spec.modelName
+                if (!backupModelMatches(model, connected)) {
+                    throw UserFacingException(
+                        str(R.string.error_restore_model_mismatch, model.orEmpty(), connected),
+                    )
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    wasteBackup = null, actionSuccessTitle = null, actionSuccessMessage = null,
+                )
+                val outcome = printerService.restoreWasteBackup(
+                    current, values,
+                    onBackup = { backup ->
+                        persistBackup(connected, backup, BackupOrigin.RESTORE)
+                        _uiState.value = _uiState.value.copy(wasteBackup = formatBackup(backup))
+                    },
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    actionSuccessTitle = str(R.string.dialog_backup_restored_title),
+                    actionSuccessMessage = str(R.string.msg_backup_restored),
+                    wasteBackup = formatBackup(outcome.backupBeforeRestore),
                 )
                 refreshStatus()
             }
@@ -469,11 +536,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            // Same shape as the branch above, opposite promise. The catalog
-            // does not know this model either, but reinkpy classifies it as
-            // collecting waste in a maintenance box, so adding it would enable
-            // head cleaning and never a counter reset. Saying "this is not
-            // permanent" here would be a promise the hardware cannot keep.
+            // Maintenance support may be investigated, but never promise a reset
+            // of the maintenance-box chip based on adding a catalog entry.
             PrinterService.ConnectFailure.UNSUPPORTED_MODEL_MAINTENANCE_BOX -> {
                 val model = connect.detail?.let(EpsonPrinterCatalog::modelName)
                 if (model.isNullOrBlank()) {
@@ -495,90 +559,48 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * The device ID to carry into a report, for the one failure where a report
      * can change the outcome.
      *
-     * Only a model missing from the catalog can be added. A maintenance-box
-     * model returns null on purpose: its count lives on the box's chip, so no
-     * amount of model data would make it resettable, and offering to report it
-     * would send the user to do work that cannot pay off.
+     * Missing maintenance-box models can request cleaning/nozzle support too.
+     * The report carries the classification so it never promises a box reset.
      */
     private fun reportableDeviceId(failure: Throwable): String? {
         val connect = failure as? PrinterService.ConnectException ?: return null
-        return if (connect.failure == PrinterService.ConnectFailure.UNSUPPORTED_MODEL) {
-            connect.detail
-        } else {
-            null
+        return when (connect.failure) {
+            PrinterService.ConnectFailure.UNSUPPORTED_MODEL,
+            PrinterService.ConnectFailure.UNSUPPORTED_MODEL_MAINTENANCE_BOX -> connect.detail
+            else -> null
         }
     }
 
     private data class ModelReport(val model: String, val body: String, val url: String?)
 
-    /**
-     * Builds the report a user can hand over when their model is missing.
-     *
-     * Three things shape what goes in. The device ID is the only part of this
-     * that identifies the printer, and IEEE 1284 device IDs can carry a serial
-     * number, so any SN field is stripped before the text leaves the device.
-     * The log is what makes the report actionable — a model name alone tells a
-     * maintainer nothing about which protocol the printer answered with. And
-     * the URL is a prefilled new-issue page rather than an API call, so nothing
-     * is transmitted until the user presses submit in their own browser.
-     */
-    private fun buildModelReport(deviceId: String): ModelReport? {
-        val model = EpsonPrinterCatalog.modelName(deviceId) ?: return null
-        val safeId = redactDeviceId(deviceId)
-        val log = _uiState.value.logs.takeLast(REPORT_LOG_LINES).joinToString("\n")
-        val app = getApplication<Application>()
-
-        val body = buildString {
-            appendLine("Printer model: $model")
-            appendLine("Device ID: $safeId")
-            appendLine("App: ${app.getString(R.string.app_name)} $appVersion (Android ${Build.VERSION.RELEASE})")
-            appendLine()
-            appendLine("What happened")
-            appendLine("The app could not find this model in its database, so it could not open a")
-            appendLine("maintenance session. It is not classified as a maintenance-box model, so")
-            appendLine("support can be added once the model's data is included.")
-            appendLine()
-            appendLine("Protocol log (last $REPORT_LOG_LINES lines)")
-            appendLine("```")
-            appendLine(log)
-            appendLine("```")
-        }
-
-        // Only built when the fork has a repository of its own to file it in.
-        // Without one the body is still assembled, because the clipboard path
-        // does not need a destination — but nothing is addressed anywhere.
-        val url = REPORT_REPO_URL?.let { base ->
-            Uri.parse("$base/issues/new")
-                .buildUpon()
-                .appendQueryParameter("title", "Add support for $model")
-                .appendQueryParameter("body", body)
-                .build()
-                .toString()
-        }
-
-        return ModelReport(model = model, body = body, url = url)
+    /** No log is exported; the builder uses an explicit field allowlist. */
+    private fun buildModelReport(failure: UnhandledJobException): ModelReport? {
+        val deviceId = failure.reportableDeviceId ?: return null
+        val report = ModelSupportReport.build(
+            deviceId = deviceId,
+            appVersion = appVersion,
+            androidVersion = Build.VERSION.RELEASE,
+            vendorId = failure.reportVendorId,
+            productId = failure.reportProductId,
+            maintenanceBox = failure.reportMaintenanceBox,
+        )
+        return ModelReport(
+            model = report.model,
+            body = report.body,
+            url = REPORT_REPO_URL?.let(ModelSupportReport::issueUrl),
+        )
     }
-
-    /**
-     * Drops any serial-number field from an IEEE 1284 device ID.
-     *
-     * The ID is a semicolon-separated list of KEY:value pairs. The app needs
-     * MDL, MFG, CMD and CLS to be useful; SN is the one field that identifies
-     * the physical unit, so it is removed rather than sent.
-     */
-    private fun redactDeviceId(deviceId: String): String =
-        deviceId.split(';')
-            .filterNot { it.substringBefore(':').trim().equals("SN", ignoreCase = true) }
-            .joinToString(";")
 
     /**
      * Names why the write path stopped.
      *
-     * Both cases deserve their own line rather than a generic failure: one says
-     * nothing was written at all, the other says the printer refused partway
-     * through and how far it got.
+     * Distinguishes an incomplete backup (nothing written), a rejected or failed
+     * write, a failed re-read and bytes that did not match the exact plan.
      */
-    private fun localizedWriteFailure(failure: PrinterService.WasteWriteException): String {
+    private fun localizedWriteFailure(
+        failure: PrinterService.WasteWriteException,
+        origin: BackupOrigin?,
+    ): String {
         val address = failure.address?.let { "0x%04X".format(it) }
         return when (failure.reason) {
             PrinterService.WasteWriteException.Reason.BACKUP_FAILED ->
@@ -594,6 +616,56 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     str(R.string.error_write_rejected_at, address, failure.writtenBefore)
                 }
+
+            PrinterService.WasteWriteException.Reason.WRITE_FAILED ->
+                str(R.string.error_write_failed, address.orEmpty(), failure.writtenBefore)
+
+            PrinterService.WasteWriteException.Reason.READ_BACK_FAILED ->
+                if (address == null) {
+                    str(R.string.error_read_back_failed)
+                } else {
+                    str(R.string.error_read_back_failed_at, address)
+                }
+
+            PrinterService.WasteWriteException.Reason.NOT_APPLIED -> {
+                val addresses = failure.mismatches.keys.joinToString { "0x%04X".format(it) }
+                str(
+                    if (origin == BackupOrigin.RESTORE) R.string.error_restore_not_applied
+                    else R.string.error_counters_not_applied,
+                    addresses,
+                )
+            }
+        }
+    }
+
+    /**
+     * Saves a pre-write backup so it outlives the session.
+     *
+     * Called with the complete backup before the first EEPROM write, so a
+     * failed re-read, mismatch or unplug cannot prevent it from being saved.
+     * The history comes from the store's return value rather than a re-read, so
+     * the list updates without a second trip to disk.
+     *
+     * [origin] says which write found the state, so the list can label it. It is
+     * never guessed: a caller that does not know passes [BackupOrigin.UNKNOWN] and
+     * the record is stored without one, which reads as "before a write" rather
+     * than claiming something false.
+     *
+     * The store remains best effort if preferences cannot be written; the
+     * session still keeps the complete backup as copyable text.
+     */
+    private fun persistBackup(model: String, backup: Map<Int, Byte>, origin: BackupOrigin) {
+        if (backup.isEmpty()) return
+        val outcome = backupStore.save(model, backup, origin)
+        _uiState.value = _uiState.value.copy(backupHistory = outcome.history)
+        val label = model.ifBlank { "unknown model" }
+        // A restore writes back a value the list already knows, so it can add no
+        // row at all. Saying so is what keeps that from looking like a save that
+        // failed.
+        if (outcome.deduplicated) {
+            appendLog("Backup already saved: ${backup.size} bytes for $label; state already held")
+        } else {
+            appendLog("Backup saved: ${backup.size} bytes for $label")
         }
     }
 
@@ -616,7 +688,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }.trimEnd()
     }
 
-    private suspend fun runJob(message: String, block: suspend () -> Unit) {
+    /**
+     * [origin] selects the localized reset/restore verification error. It is a
+     * job parameter rather than shared mutable state, since jobs can overlap.
+     * Backups are persisted by the pre-write callback, not this failure handler.
+     */
+    private suspend fun runJob(
+        message: String,
+        origin: BackupOrigin? = null,
+        block: suspend () -> Unit,
+    ) {
         _uiState.value = _uiState.value.copy(
             isBusy = true,
             error = null,
@@ -658,22 +739,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val uiMessage = when (failure) {
                     is UserFacingException -> failure.uiMessage
                     is UnhandledJobException -> failure.uiMessage
-                    is PrinterService.WasteWriteException -> localizedWriteFailure(failure)
+                    is PrinterService.WasteWriteException -> localizedWriteFailure(failure, origin)
                     else -> str(R.string.callout_operation_failed)
                 }
-                val report = (failure as? UnhandledJobException)
-                    ?.reportableDeviceId
-                    ?.let(::buildModelReport)
+                val report = (failure as? UnhandledJobException)?.let(::buildModelReport)
+                // The complete backup was already saved before the first write.
+                // Keep its copyable text too when verification or transport fails.
+                val partialBackup = (failure as? PrinterService.WasteWriteException)?.backup
                 _uiState.value = _uiState.value.copy(
                     error = uiMessage,
                     reportableModel = report?.model,
                     modelReportBody = report?.body,
                     modelReportUrl = report?.url,
-                    // Carried through on failure as well as success: a refused
-                    // run has already overwritten part of what was there.
-                    wasteBackup = (failure as? PrinterService.WasteWriteException)
-                        ?.backup
-                        ?.let(::formatBackup),
+                    wasteBackup = partialBackup?.let(::formatBackup) ?: _uiState.value.wasteBackup,
                 )
             }
         _uiState.value = _uiState.value.copy(isBusy = false, connectNote = null)
@@ -701,12 +779,4 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(error = message)
     }
 
-    private companion object {
-        /**
-         * How much of the protocol log a model report carries. Enough to show
-         * which commands the printer answered and where it stopped, without
-         * pasting a full session into an issue.
-         */
-        const val REPORT_LOG_LINES = 40
-    }
 }
