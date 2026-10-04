@@ -1407,7 +1407,6 @@ private fun WasteLevelsPanel(
     onExplainUnsupported: () -> Unit,
 ) {
     val pad = PadTheme.colors
-    val context = LocalContext.current
 
     // Three states, not two. An empty list used to always draw the placeholders
     // that are meant for "no printer yet", so a connected model with no counter
@@ -1439,16 +1438,20 @@ private fun WasteLevelsPanel(
 
     val displayCounters = if (counters.isEmpty()) {
         listOf(
-            WasteCounterStatus(context.getString(R.string.waste_counter_default_name, 0), 0, 100),
-            WasteCounterStatus(context.getString(R.string.waste_counter_default_name, 1), 0, 100),
+            WasteCounterStatus(stringResource(R.string.waste_counter_default_name, 0), 0, 100),
+            WasteCounterStatus(stringResource(R.string.waste_counter_default_name, 1), 0, 100),
         )
     } else {
-        counters.mapIndexed { index, counter ->
-            val normalizedName = counter.name
-                .takeIf { it.isNotBlank() }
-                ?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
-                ?: context.getString(R.string.waste_counter_default_name, index)
-            counter.copy(name = normalizedName)
+        // stringResource must run in composition, and forEachIndexed is inline,
+        // so its lambda can call it where mapIndexed's could not.
+        buildList {
+            counters.forEachIndexed { index, counter ->
+                val normalizedName = counter.name
+                    .takeIf { it.isNotBlank() }
+                    ?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
+                    ?: stringResource(R.string.waste_counter_default_name, index)
+                add(counter.copy(name = normalizedName))
+            }
         }
     }
 
