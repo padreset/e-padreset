@@ -294,6 +294,7 @@
     <string name="error_connect_unsupported_model_box_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación y el catálogo comunitario lo clasifica como uso de caja de mantenimiento. Puedes solicitar que se investigue la limpieza y la comprobación de inyectores, pero esta aplicación no puede reiniciar el contador del chip de la caja.</string>
     <string name="error_connect_dot4_nak">La impresora ha rechazado la sesión de mantenimiento. Apágala y vuelve a encenderla, y reinténtalo.</string>
     <string name="error_connect_dot4_no_reply">La impresora no ha respondido por ninguna vía USB. Prueba con otro cable o puerto, apágala y vuelve a encenderla, y reinténtalo.</string>
+    <string name="error_reset_partial_shared">Estos contadores comparten bytes de memoria con otro contador, así que solo pueden reiniciarse juntos. Selecciona todos los contadores para continuar.</string>
 
     <!-- El borrador local se revisa antes de cualquier acción externa. -->
     <string name="action_report_model">Ayudar a añadir este modelo</string>

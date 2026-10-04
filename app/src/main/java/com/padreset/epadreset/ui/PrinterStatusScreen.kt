@@ -148,13 +148,17 @@ fun PrinterStatusScreen(
     // from devices.xml — the reset writes the values that model's own record
     // publishes, and there is nothing for the user to aim at.
     val percentageWritable = availableCounters.isNotEmpty() && availableCounters.all { it.scaleKnown }
-    // Per-counter choice additionally needs unshared bytes: a counter holding
-    // only a nibble of a shared address cannot be reset alone without a
-    // read-modify-write preserving the sibling half, which the write path does
-    // not perform. On such models the dialog offers the full set or nothing,
-    // like the no-ceiling case above.
-    val selectableCounters = percentageWritable &&
-        uiState.wasteCounterSpecs.none { it.masks.isNotEmpty() }
+    // Per-counter choice additionally needs unshared bytes: touching one
+    // counter must not rewrite another, whether whole shared bytes (RX700's
+    // 0x2E/0x2F in two counters) or shared nibbles (L3110's 0x2F halves). On
+    // such models the dialog offers the full set or nothing, like the
+    // no-ceiling case above.
+    val sharedAddresses = remember(uiState.wasteCounterSpecs) {
+        uiState.wasteCounterSpecs.flatMap { it.addresses }
+            .groupingBy { it }.eachCount()
+            .filter { it.value > 1 }.keys
+    }
+    val selectableCounters = percentageWritable && sharedAddresses.isEmpty()
 
     // The target field is a development tool, not a feature.
     //

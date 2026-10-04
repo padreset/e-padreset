@@ -161,6 +161,14 @@ private class UnhandledJobException(
 /** Silent status re-read cadence while the printer reports a live state. */
 private const val STATUS_POLL_INTERVAL_MS = 10_000L
 
+/**
+ * Silent watch ceiling: 90 rounds at the cadence above is 15 minutes, past
+ * any cleaning cycle worth following from the app. Past it the watch stops
+ * with a log line instead of polling a stuck printer — and its USB traffic —
+ * forever, including in the background.
+ */
+private const val STATUS_POLL_MAX_ROUNDS = 90
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val printerService = PrinterService(application, ::appendLog, ::noteSlowConnect)
 
@@ -466,10 +474,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         var mine: Job? = null
         mine = viewModelScope.launch {
             var settled = false
+            var rounds = 0
             try {
                 while (isActive) {
                     delay(STATUS_POLL_INTERVAL_MS)
                     if (_uiState.value.isBusy) continue
+                    rounds++
+                    if (rounds > STATUS_POLL_MAX_ROUNDS) {
+                        appendLog("Watch ended: printer still busy after $STATUS_POLL_MAX_ROUNDS checks")
+                        break
+                    }
                     val live = connection
                     if (live == null || live !== session) break
                     val next = try {
@@ -517,6 +531,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Resetting waste counters", BackupOrigin.RESET) {
+                // Shared-address guard in the user's language: the service
+                // backstop throws a bare require, which would surface as a bare
+                // "operation failed". The dialog already forces the full set on
+                // such models, so this fires only if the catalog drifts under a
+                // saved selection — and then it must explain, not shrug.
+                val shared = current.spec.sharedAddresses
+                val selectedAddresses = current.spec.wasteCounters
+                    .filter { it.name in selectedCounterNames }
+                    .flatMap { it.addresses }
+                if (selectedCounterNames.size != current.spec.wasteCounters.size &&
+                    selectedAddresses.any { it in shared }
+                ) {
+                    throw UserFacingException(str(R.string.error_reset_partial_shared))
+                }
                 // The previous write's backup describes a state this run is about
                 // to change, so it goes now rather than when the new one arrives.
                 _uiState.update { it.copy(

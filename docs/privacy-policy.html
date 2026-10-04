@@ -104,7 +104,9 @@
         The app does not require user account registration and does not maintain a remote user database.
         Protocol logs are kept locally for troubleshooting. The model report draft is held in memory
         for review, not sent automatically. Pre-write EEPROM backups are kept in private app preferences
-        (up to five distinct records) to allow restoration; they are never attached to model requests.
+        (up to five distinct records) to allow restoration; they are never attached to model requests,
+        and they are excluded from Android's app-data cloud backup on all API levels, so they never
+        leave the device through a backup restore either.
       </p>
 
       <h2>Permissions</h2>

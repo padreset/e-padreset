@@ -13,8 +13,9 @@ data class WasteCounterSpec(
     /**
      * Per-address read mask for counters that share a byte with another
      * counter (nibble split, e.g. L3110's `0x2F` low/high halves). Absent
-     * means `0xFF`: the whole byte belongs to this counter. Carried so reads
-     * stop understating shared counters; writes never go through it (a partial
+     * means `0xFF`: the whole byte belongs to this counter — a `<filter>0xFF`
+     * is stored as absent for the same reason. Carried so reads stop
+     * understating shared counters; writes never go through it (a partial
      * write cannot touch a shared byte without a read-modify-write the app
      * does not perform — see `WasteWriter.planFor`).
      */
@@ -58,6 +59,19 @@ data class PrinterSpec(
      * the catalog either way.
      */
     val supportsWasteReset: Boolean get() = wasteCounters.isNotEmpty() && resetMap.isNotEmpty()
+
+    /**
+     * EEPROM addresses appearing in more than one waste counter of this model.
+     *
+     * Shared whole bytes (RX700's 0x2E/0x2F in two counters) and shared nibbles
+     * (L3110's 0x2F halves) alike: writing one counter's selection would touch
+     * another counter, so partial resets touching these are refused and only
+     * the full set is offered. Derived, so every construction path agrees.
+     */
+    val sharedAddresses: Set<Int>
+        get() = wasteCounters.flatMap { it.addresses }
+            .groupingBy { it }.eachCount()
+            .filter { it.value > 1 }.keys
 }
 
 object EpsonPrinterCatalog {
@@ -526,9 +540,11 @@ object EpsonPrinterCatalog {
                     .map { parseNumeric(it, "waste address for model '$modelName' counter $counterIndex") }
                 // A filter's first hex token is the read mask for the addresses
                 // in its own entry (e.g. `0x2F` + filter `0x0F …`). Siblings
-                // keep the full byte.
+                // keep the full byte. A full-byte mask (0xFF) is no mask at all
+                // and is not stored, so a non-empty map always means sharing.
                 val mask = entry.firstChildElement("filter")
                     ?.let { parseHexInts(it.textContent).firstOrNull() }
+                    ?.takeUnless { it and 0xFF == 0xFF }
                 addresses += entryAddresses
                 if (mask != null) entryAddresses.forEach { masks[it] = mask }
             }

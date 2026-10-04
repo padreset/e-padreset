@@ -82,9 +82,8 @@ ignores the vendor-specific one, which is the order the app would otherwise try
 first.
 
 Getting it wrong is not fatal, because the remaining candidates are tried, but
-the failed attempt has to run into its read timeouts before the fallback — the
-IEEE 1284.4 reply window plus the 8 s D4 header read. That is several seconds of
-spinner on every launch, which is what the user sees as a slow read.
+the failed attempt has to run out its IEEE 1284.4 reply window (two seconds)
+before the fallback. That is the wait the user sees on a first launch.
 
 So the interface that worked is written to `SharedPreferences` and tried first
 next time. It is keyed on vendor and product id, not on the device path, which
@@ -96,8 +95,9 @@ remember yet. Every one after it is not.
 While that happens the status card says so instead of leaving the wait
 unexplained. The note is raised at the one point where the wait is knowable
 before it happens: the printer did not answer the IEEE 1284.4 handshake on the
-interface being tried. That is what a wrong interface looks like, and it is
-immediately followed by the eight second read, so saying so at that moment is
+interface being tried. That is what a wrong interface looks like, and the
+attempt moves straight on to the next candidate instead of paying the eight
+second D4 read, so saying so at that moment is
 the difference between an explained wait and a spinner with no reason given.
 
 It cannot be raised any earlier. Before the handshake there is no evidence

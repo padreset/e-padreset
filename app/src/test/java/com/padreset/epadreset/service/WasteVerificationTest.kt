@@ -222,6 +222,26 @@ class WasteVerificationTest {
     }
 
     @Test
+    fun `partial reset on whole shared bytes refuses without any mask`() {
+        // RX700 shape: 0x2E/0x2F plain entries in two counters, no <filter>
+        // anywhere. Masks are empty on both sides, so only the overlap rule
+        // can see it — a mask-based guard certifies this corruption.
+        val model = spec(
+            listOf(
+                WasteCounterSpec("Main pad", listOf(0x1C, 0x1D, 0x2E, 0x2F), 11000),
+                WasteCounterSpec("Platen pad", listOf(0x1E, 0x1F, 0x2E, 0x2F), 14000),
+            ),
+            mapOf(0x1C to 0, 0x1D to 0, 0x2E to 0, 0x2F to 0),
+        )
+        assertEquals(setOf(0x2E, 0x2F), model.sharedAddresses)
+        assertTrue(
+            runCatching { WasteWriter.planFor(model, setOf("Main pad"), 0) }.exceptionOrNull()
+                is IllegalArgumentException,
+        )
+        assertEquals(model.resetMap, WasteWriter.planFor(model, setOf("Main pad", "Platen pad"), 0))
+    }
+
+    @Test
     fun `percentage writes without a ceiling cannot silently write zeros`() {
         val model = spec(listOf(WasteCounterSpec("Main pad", listOf(28, 29), 0)))
         assertTrue(runCatching { WasteWriter.planFor(model, setOf("Main pad"), 50) }.exceptionOrNull() is IllegalArgumentException)

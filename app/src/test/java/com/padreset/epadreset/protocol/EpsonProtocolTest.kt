@@ -170,6 +170,14 @@ class EpsonProtocolTest {
         assertTrue(
             protocol.isPlausibleD4Header(byteArrayOf(0x00, 0x00, 0x00, 0x0C, 0x01, 0x00)),
         )
+        // A well-formed header for another channel is equally unusable here —
+        // pinned as rejected until hardware with asymmetric ids says otherwise.
+        assertFalse(
+            protocol.isPlausibleD4Header(
+                byteArrayOf(0x02, 0x03, 0x00, 0x76, 0x00, 0x01),
+                channel,
+            ),
+        )
     }
 
     @Test

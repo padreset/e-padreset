@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Auto Backup rules (API 23-30). Mirrors data_extraction_rules.xml, which
+    only takes effect on API 31+: without this file the pre-write EEPROM
+    backups in "waste_backup_history" would upload to the user's Google
+    account on older devices and restore onto a reinstall.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="waste_backup_history" />
+</full-backup-content>
