@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -238,30 +239,42 @@ fun PrinterStatusScreen(
             // because it explains the state the error would be read against.
             // Animated in and out rather than snapped: the banner pushes the
             // cards below it down, and an unanimated arrival reads as the page
-            // jumping — the same glitch the Working headline had.
+            // jumping — the same glitch the Working headline had. The reveal is
+            // explicitly top-down, and content swaps crossfade instead of
+            // replaying the expand: a refresh replaces the banner within
+            // milliseconds, and an expand interrupted by another expand reads
+            // as sliding in from an edge.
             AnimatedVisibility(
                 visible = uiState.notice != null || !uiState.error.isNullOrBlank(),
                 enter = fadeIn(tween(BUSY_PILL_FADE_MILLIS)) +
-                    expandVertically(tween(BUSY_PILL_FADE_MILLIS)),
+                    expandVertically(tween(BUSY_PILL_FADE_MILLIS), expandFrom = Alignment.Top),
                 exit = fadeOut(tween(BUSY_PILL_FADE_MILLIS)) +
-                    shrinkVertically(tween(BUSY_PILL_FADE_MILLIS)),
+                    shrinkVertically(tween(BUSY_PILL_FADE_MILLIS), shrinkTowards = Alignment.Top),
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                    uiState.notice?.let { notice ->
-                        PadCallout(text = notice, tone = PadTone.Info)
-                    }
+                Crossfade(
+                    targetState = Triple(
+                        uiState.notice,
+                        uiState.error,
+                        uiState.modelReportBody != null,
+                    ),
+                ) { (notice, error, hasReport) ->
+                    Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
+                        notice?.let {
+                            PadCallout(text = it, tone = PadTone.Info)
+                        }
 
-                    if (!uiState.error.isNullOrBlank()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                            PadCallout(
-                                title = stringResource(R.string.callout_operation_failed),
-                                text = uiState.error,
-                                tone = PadTone.Danger,
-                            )
-                            uiState.modelReportBody?.let {
-                                ModelReportActions(
-                                    onReview = { showModelReport = true },
+                        if (!error.isNullOrBlank()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
+                                PadCallout(
+                                    title = stringResource(R.string.callout_operation_failed),
+                                    text = error,
+                                    tone = PadTone.Danger,
                                 )
+                                if (hasReport) {
+                                    ModelReportActions(
+                                        onReview = { showModelReport = true },
+                                    )
+                                }
                             }
                         }
                     }

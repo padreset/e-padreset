@@ -134,8 +134,16 @@ data class MainUiState(
  * Anything else thrown inside [MainViewModel.runJob] is treated as a technical
  * fault: its exception message goes to the diagnostic log only, and the callout
  * shows the generic "operation failed" line instead of untranslated English.
+ *
+ * [logMessage] is the English technical line for the diagnostic log, which is
+ * always English no matter the UI language: never let UI copy reach the log
+ * through here. Notes aimed at the user (like the no-Wi-Fi note on the
+ * no-printer error) belong in [uiMessage] only.
  */
-private class UserFacingException(val uiMessage: String) : Exception(uiMessage)
+private class UserFacingException(
+    val uiMessage: String,
+    val logMessage: String,
+) : Exception(uiMessage)
 
 /**
  * Tells [MainViewModel.runJob] which localized line the callout should show for
@@ -351,17 +359,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runJob("Scanning for Epson USB printers") {
                 val device = printerService.detectPrinters().firstOrNull()
-                    ?: throw UserFacingException(
-                        // "No printer detected" is the wrong answer for someone
-                        // holding a printer. Before falling back to it, check
-                        // whether there is a printer of another brand attached
-                        // and say so: the limitation is the app's, not a fault.
-                        if (printerService.detectNonEpsonPrinters().isNotEmpty()) {
-                            str(R.string.error_non_epson_printer_detected)
-                        } else {
-                            str(R.string.error_no_printer_detected)
-                        },
-                    )
+                if (device == null) {
+                    // "No printer detected" is the wrong answer for someone
+                    // holding a printer. Before falling back to it, check
+                    // whether there is a printer of another brand attached
+                    // and say so: the limitation is the app's, not a fault.
+                    // The log keeps the English technical line; UI-only
+                    // notes (like the no-Wi-Fi note) stay out of it.
+                    if (printerService.detectNonEpsonPrinters().isNotEmpty()) {
+                        throw UserFacingException(
+                            str(R.string.error_non_epson_printer_detected),
+                            "Non-Epson USB printer detected; only Epson is supported",
+                        )
+                    } else {
+                        throw UserFacingException(
+                            str(R.string.error_no_printer_detected),
+                            "No Epson printer detected on USB",
+                        )
+                    }
+                }
                 connectNow(device)
             }
         }
@@ -426,7 +442,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshStatus() {
         val current = connection ?: run {
-            appendError(str(R.string.error_printer_not_connected))
+            appendError(str(R.string.error_printer_not_connected), "Printer not connected")
             return
         }
         viewModelScope.launch {
@@ -526,7 +542,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetWasteCounters(selectedCounterNames: Set<String>, targetPercentage: Int) {
         val current = connection ?: run {
-            appendError(str(R.string.error_printer_not_connected))
+            appendError(str(R.string.error_printer_not_connected), "Printer not connected")
             return
         }
         viewModelScope.launch {
@@ -543,7 +559,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (selectedCounterNames.size != current.spec.wasteCounters.size &&
                     selectedAddresses.any { it in shared }
                 ) {
-                    throw UserFacingException(str(R.string.error_reset_partial_shared))
+                    throw UserFacingException(
+                        str(R.string.error_reset_partial_shared),
+                        "Partial reset blocked by shared bytes on ${current.spec.modelName}",
+                    )
                 }
                 // The previous write's backup describes a state this run is about
                 // to change, so it goes now rather than when the new one arrives.
@@ -583,7 +602,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun restoreBackup(model: String?, values: Map<Int, Byte>) {
         val current = connection ?: run {
-            appendError(str(R.string.error_printer_not_connected))
+            appendError(str(R.string.error_printer_not_connected), "Printer not connected")
             return
         }
         viewModelScope.launch {
@@ -592,6 +611,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (!backupModelMatches(model, connected)) {
                     throw UserFacingException(
                         str(R.string.error_restore_model_mismatch, model.orEmpty(), connected),
+                        "Restore blocked: backup model '${model.orEmpty()}' != connected '$connected'",
                     )
                 }
 
@@ -620,7 +640,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun runHeadCleaning(cleaningName: String) {
         val current = connection ?: run {
-            appendError(str(R.string.error_printer_not_connected))
+            appendError(str(R.string.error_printer_not_connected), "Printer not connected")
             return
         }
         viewModelScope.launch {
@@ -648,7 +668,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         alternativeMode: Boolean,
     ) {
         val current = connection ?: run {
-            appendError(str(R.string.error_printer_not_connected))
+            appendError(str(R.string.error_printer_not_connected), "Printer not connected")
             return
         }
         viewModelScope.launch {
@@ -665,7 +685,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun printNozzleCheck() {
         val current = connection ?: run {
-            appendError(str(R.string.error_printer_not_connected))
+            appendError(str(R.string.error_printer_not_connected), "Printer not connected")
             return
         }
         viewModelScope.launch {
@@ -955,7 +975,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 // The log always keeps the raw, English diagnostic detail; the
                 // callout only ever shows a string resource.
-                val logged = failure.message ?: failure.javaClass.simpleName
+                val logged = when (failure) {
+                    is UserFacingException -> failure.logMessage
+                    else -> failure.message ?: failure.javaClass.simpleName
+                }
                 appendLog("Error: $logged")
                 val uiMessage = when (failure) {
                     is UserFacingException -> failure.uiMessage
@@ -995,9 +1018,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(logs = (it.logs + line).takeLast(200)) }
     }
 
-    private fun appendError(message: String) {
-        appendLog("Error: $message")
-        _uiState.update { it.copy(error = message) }
+    private fun appendError(uiMessage: String, logMessage: String) {
+        appendLog("Error: $logMessage")
+        _uiState.update { it.copy(error = uiMessage) }
     }
 
 }
