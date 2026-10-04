@@ -60,4 +60,17 @@ data class PrinterStatusSnapshot(
         /** The printer reports this when there is no error. */
         const val ERROR_NONE = -1
     }
+
+    /**
+     * Whether the printer is in a live machine state worth re-reading.
+     *
+     * Printing, busy, waiting and cleaning are transient: a cleaning started
+     * from the app leaves the status page saying "Cleaning" with no way to
+     * learn it finished except a manual refresh. Idle, pause and any error are
+     * terminal for polling purposes — they either persist or need the user.
+     * An error code alongside a live state (e.g. jammed mid-print) also stops:
+     * re-reading will not clear it. Pure so the matrix is unit-testable.
+     */
+    val needsPolling: Boolean
+        get() = stateCode in setOf(0x01, 0x02, 0x03, 0x07) && errorCode == ERROR_NONE
 }

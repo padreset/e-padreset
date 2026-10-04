@@ -17,10 +17,14 @@ import com.padreset.epadreset.data.WasteCounterSpec
 import com.padreset.epadreset.data.backupModelMatches
 import com.padreset.epadreset.service.PrinterService
 import com.padreset.epadreset.service.SessionGuard
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -154,6 +158,9 @@ private class UnhandledJobException(
     cause: Throwable? = null,
 ) : Exception(logMessage, cause)
 
+/** Silent status re-read cadence while the printer reports a live state. */
+private const val STATUS_POLL_INTERVAL_MS = 10_000L
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val printerService = PrinterService(application, ::appendLog, ::noteSlowConnect)
 
@@ -186,6 +193,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private var connection: PrinterService.ConnectionState? = null
+
+    /**
+     * The silent status watch, if one is running. Started when a status read
+     * lands on a live machine state (printing, busy, waiting, cleaning) and
+     * cancelled by any explicit job, a drop, or the ViewModel going away.
+     * Never touches `isBusy`: it must not flicker the buttons every interval.
+     */
+    private var statusPoll: Job? = null
 
     /**
      * Serializes EEPROM writes (reset vs. restore). Reads (status) and print
@@ -303,6 +318,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun dropConnection() {
         val current = connection ?: return
+        stopPolling()
         // Local close only: no D4 round-trip, minimal race window with a job
         // that may still hold this session. closeLocal never throws (single
         // swallowing layer with logging inside), so no runCatching here.
@@ -420,8 +436,78 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     error = null,
                 ) }
                 appendLog("Status read: ${status.state}, ${status.error}")
+                startPollingIfBusy(status, current)
             }
         }
+    }
+
+    /**
+     * Watches a live printer until it settles, without disturbing the UI.
+     *
+     * A cleaning started from the app leaves the status page saying "Cleaning"
+     * with no way to learn it finished except a manual refresh — the state the
+     * user watched forever in the L365 log. The watch re-reads every
+     * [STATUS_POLL_INTERVAL_MS] and updates only the status (plus a log line on
+     * state transitions), never `isBusy`: a busy pill every ten seconds would
+     * flicker the buttons. When the printer settles, one full [refreshStatus]
+     * follows so counters that moved meanwhile (cleaning feeds waste ink) are
+     * re-read too.
+     *
+     * One watch at most: starting cancels the previous, and the token keeps a
+     * cancelled predecessor's `finally` from clearing its successor. A round is
+     * skipped while any explicit job runs, and the watch ends when the session
+     * is replaced or dropped, on any read failure, or when the state stops
+     * needing it.
+     */
+    private fun startPollingIfBusy(status: PrinterStatusSnapshot, session: PrinterService.ConnectionState) {
+        stopPolling()
+        if (!status.needsPolling) return
+        appendLog("Printer is ${status.state}; watching until it settles")
+        var mine: Job? = null
+        mine = viewModelScope.launch {
+            var settled = false
+            try {
+                while (isActive) {
+                    delay(STATUS_POLL_INTERVAL_MS)
+                    if (_uiState.value.isBusy) continue
+                    val live = connection
+                    if (live == null || live !== session) break
+                    val next = try {
+                        printerService.readPrinterStatus(live)
+                    } catch (t: CancellationException) {
+                        throw t
+                    } catch (t: Exception) {
+                        appendLog("Watch ended: ${t.message ?: t.javaClass.simpleName}")
+                        break
+                    }
+                    val prev = _uiState.value.status
+                    _uiState.update {
+                        it.copy(status = next, connectedDeviceName = live.deviceId)
+                    }
+                    if (prev?.stateCode != next.stateCode || prev?.errorCode != next.errorCode) {
+                        appendLog("Printer state: ${prev?.state ?: "?"} -> ${next.state}, ${next.error}")
+                    }
+                    if (!next.needsPolling) {
+                        appendLog("Printer settled: ${next.state}, ${next.error}")
+                        settled = true
+                        break
+                    }
+                }
+            } finally {
+                if (statusPoll === mine) statusPoll = null
+            }
+            // Counters may have moved while working (cleaning feeds waste
+            // ink): one full re-read now that the printer is still. Skipped if
+            // the session went away meanwhile — refreshStatus would only report
+            // "not connected" about a printer that is already gone.
+            if (settled && connection != null) refreshStatus()
+        }
+        statusPoll = mine
+    }
+
+    private fun stopPolling() {
+        statusPoll?.cancel()
+        statusPoll = null
     }
 
     fun resetWasteCounters(selectedCounterNames: Set<String>, targetPercentage: Int) {
@@ -521,6 +607,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         cleaningModeLabel(getApplication(), cleaningName),
                     ),
                 ) }
+                // The printer is likely working now; re-read so the watch can
+                // follow it back to idle instead of freezing the old state.
+                refreshStatus()
             }
         }
     }
@@ -541,6 +630,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     actionSuccessTitle = str(R.string.dialog_job_sent_title),
                     actionSuccessMessage = str(R.string.msg_cleaning_sent),
                 ) }
+                refreshStatus()
             }
         }
     }
@@ -557,6 +647,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     actionSuccessTitle = str(R.string.dialog_job_sent_title),
                     actionSuccessMessage = str(R.string.msg_nozzle_check_sent),
                 ) }
+                refreshStatus()
             }
         }
     }
@@ -576,6 +667,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // epoch so SessionGuard reads a later torn-down transport failure for
         // what it is. closeLocal never throws, so no runCatching here. The
         // pre-write backup is already persisted and stays valid.
+        stopPolling()
         connection?.let { printerService.closeLocal(it) }
         connection = null
         sessionEpoch++
@@ -776,6 +868,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         origin: BackupOrigin? = null,
         block: suspend () -> Unit,
     ) {
+        // An explicit job owns the channel: stop the silent watch first, so a
+        // scheduled re-read never interleaves with it. Whatever needs watching
+        // afterwards restarts it (see refreshStatus).
+        stopPolling()
         _uiState.update { it.copy(
             isBusy = true,
             error = null,
