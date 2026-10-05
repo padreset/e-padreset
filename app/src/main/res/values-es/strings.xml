@@ -68,9 +68,9 @@
     <string name="waste_unsupported_body">Esta impresora no guarda el contador de tinta residual donde la aplicación pueda restablecerlo. No hay nada averiado: ni la aplicación ni la impresora tienen un problema.</string>
     <string name="action_more_info">Más información</string>
     <string name="partial_session_title">Conectada, sin un perfil verificado</string>
-    <string name="partial_session_body">El estado y los niveles de tinta están disponibles. Los contadores de tinta residual no se leen ni se reinician hasta que la aplicación tenga un perfil verificado. Puedes enviar una petición de modelo; no hace falta que termine para ver estas lecturas.</string>
-    <string name="partial_cleaning_note">La limpieza de cabezal consume tinta y suma al contador de tinta residual. Esta aplicación no puede reiniciar ese contador en esta impresora, porque no tiene un perfil verificado.</string>
-    <string name="error_power_clean_unverified">La limpieza fuerte no está disponible sin un perfil verificado. Gasta más tinta, y esta aplicación no podría devolver el contador.</string>
+    <string name="partial_session_body">El estado y los niveles de tinta están disponibles. Los contadores de tinta residual no se leen ni se restablecen hasta que la aplicación tenga un perfil verificado. Puedes solicitar compatibilidad para este modelo; puedes consultar estas lecturas de inmediato sin esperar a que se añada.</string>
+    <string name="partial_cleaning_note">La limpieza de cabezal consume tinta y suma al contador de tinta residual. Esta aplicación no puede restablecer ese contador en esta impresora, porque no tiene un perfil verificado.</string>
+    <string name="error_power_clean_unverified">La limpieza a fondo no está disponible sin un perfil verificado. Consume más tinta y esta aplicación no podría restablecer el contador.</string>
 
     <!-- Se muestra junto a un contador cuyo techo no publica el modelo, que es
          el caso de todos los modelos que vienen de reinkpy. Sin techo no hay
@@ -122,13 +122,13 @@
          Dos respaldos pueden parecer idénticos por modelo y fecha, así que sin
          esto la lista no da forma de saber cuál deshace el error. El texto de
          «desconocido» cubre los respaldos guardados antes de registrar el origen. -->
-    <string name="restore_origin_reset">Respaldo previo a un reinicio</string>
+    <string name="restore_origin_reset">Respaldo previo a un restablecimiento</string>
     <string name="restore_origin_restore">Respaldo previo a una restauración</string>
     <string name="restore_origin_unknown">Respaldo previo a una escritura</string>
     <string name="restore_record_detail">%1$s · %2$s</string>
-    <string name="restore_record_reads">Lee %1$s</string>
+    <string name="restore_record_reads">Lectura: %1$s</string>
     <string name="dialog_restore_title">¿Restaurar este respaldo?</string>
-    <string name="dialog_restore_body">Esto devuelve los valores registrados antes de una escritura anterior. Sube los contadores, que es lo contrario de un restablecimiento. Úsalo solo para deshacer uno.</string>
+    <string name="dialog_restore_body">Esto restaura los valores registrados antes de una escritura anterior. Sube los contadores, que es lo contrario de un restablecimiento. Úsalo solo para deshacer uno.</string>
     <string name="dialog_restore_model">Respaldo de: %1$s</string>
     <string name="dialog_restore_no_model">Este respaldo no indica ningún modelo de impresora. Asegúrate de que proviene de esta impresora.</string>
     <string name="dialog_restore_addresses">Se escribirán %1$d direcciones.</string>
@@ -174,12 +174,12 @@
     <string name="action_paste_profile">Pegar perfil</string>
     <string name="action_delete_profile">Quitar perfil local</string>
     <string name="dialog_paste_profile_title">Pegar un perfil público</string>
-    <string name="paste_profile_hint">Pega un elemento model de reinkpy, con los atributos source y version. Cubre un modelo que esta aplicación no tiene. No sustituye una entrada del catálogo, y las claves se quedan en este dispositivo.</string>
+    <string name="paste_profile_hint">Pega un fragmento de modelo (&lt;model&gt;) de reinkpy, con los atributos source y version. Cubre un modelo que esta aplicación no tiene. No sustituye una entrada del catálogo, y las claves se quedan en este dispositivo.</string>
     <string name="field_paste_profile">Perfil</string>
     <string name="paste_profile_invalid">Este texto no es un perfil que la aplicación pueda guardar.</string>
     <string name="error_gap_provenance">Un perfil necesita una fuente pública y una versión.</string>
     <string name="error_gap_malformed">El perfil está incompleto o fuera de rango.</string>
-    <string name="error_gap_box">Un modelo con caja de mantenimiento no puede traer un reset de tinta residual.</string>
+    <string name="error_gap_box">Un modelo con caja de mantenimiento no admite restablecimiento de tinta residual.</string>
     <string name="error_gap_doctype">Ese texto no es un fragmento de perfil.</string>
     <string name="error_gap_catalogued">Este modelo ya está en la aplicación. Un pegado no puede sustituirlo.</string>
     <string name="error_gap_full">La lista local está llena. Quita un perfil primero.</string>
@@ -320,28 +320,28 @@
          que un dispositivo que desapareció a mitad de conexión es
          indistinguible de uno que otra app retiene. La recomprobación lo acota,
          y el texto ya no asegura lo que la comprobación no puede probar. -->
-    <string name="error_connect_interface_busy">No se ha podido reclamar la conexión USB de la impresora. Puede que otra aplicación la esté usando (p. ej. un servicio de impresión); cierra las demás apps de impresora y reinténtalo.</string>
-    <string name="error_reset_partial_shared">Estos contadores comparten bytes de memoria con otro contador, así que solo pueden reiniciarse juntos. Selecciona todos los contadores para continuar.</string>
+    <string name="error_connect_interface_busy">No se ha podido tomar el control de la conexión USB de la impresora. Puede que otra aplicación la esté usando (p. ej. un servicio de impresión); cierra las demás apps de impresora y reinténtalo.</string>
+    <string name="error_reset_partial_shared">Estos contadores comparten bytes de memoria con otro contador, así que solo pueden restablecerse juntos. Selecciona todos los contadores para continuar.</string>
     <!-- Los rechazos que el servicio lanza antes de escribir nada. Cada uno
          llegaba al usuario como «La operación ha fallado»; van separados porque
          cada uno nombra algo distinto que el usuario puede hacer. -->
-    <string name="error_reset_no_counter_selected">No se ha seleccionado ningún contador, así que no hay nada que reiniciar.</string>
-    <string name="error_reset_no_values">Este modelo no publica valores de reset para los contadores seleccionados, así que no hay nada que escribir.</string>
+    <string name="error_reset_no_counter_selected">No se ha seleccionado ningún contador, así que no hay nada que restablecer.</string>
+    <string name="error_reset_no_values">Este modelo no publica valores de restablecimiento para los contadores seleccionados, así que no hay nada que escribir.</string>
     <string name="error_reset_percentage_unsupported">No se puede escribir un porcentaje objetivo para esta selección: los contadores deben publicar un límite, caber en cuatro bytes y no compartir bytes con otro contador.</string>
-    <string name="error_restore_no_applicable_addresses">Este respaldo no contiene ninguna dirección que use la impresora conectada, así que no hay nada que devolver.</string>
+    <string name="error_restore_no_applicable_addresses">Este respaldo no contiene ninguna dirección que use la impresora conectada, así que no hay ningún valor que restaurar.</string>
 
     <!-- El borrador local se revisa antes de cualquier acción externa. -->
     <string name="action_report_model">Ayudar a añadir este modelo</string>
     <string name="action_copy_report">Copiar informe</string>
     <string name="report_model_note">Prepara un informe limitado en el dispositivo, revísalo y elige cómo compartirlo. La aplicación no se conecta a Internet.</string>
-    <string name="dialog_model_support_title">Solicitar soporte de modelo</string>
+    <string name="dialog_model_support_title">Solicitar compatibilidad de modelo</string>
     <string name="field_model_report">Informe para revisar y editar</string>
     <string name="action_choose_report_channel">Elegir cómo compartir</string>
     <string name="action_review_report">Volver a revisar el informe</string>
     <string name="action_report_discord">Abrir Discord</string>
     <string name="action_report_github">Abrir petición en GitHub</string>
     <string name="action_share_report">Compartir informe</string>
-    <string name="report_privacy_note">La compatibilidad no está garantizada. El borrador solo incluye campos del modelo, identificadores USB y versiones de la app y Android, no logs crudos, números de serie ni respaldos EEPROM. Revisa lo que añadas. Nada se envía automáticamente; otra app o el navegador realizan el envío según su propia política de privacidad.</string>
+    <string name="report_privacy_note">La compatibilidad no está garantizada. El borrador solo incluye campos del modelo, identificadores USB y versiones de la app y Android, no registros sin procesar, números de serie ni respaldos EEPROM. Revisa lo que añadas. Nada se envía automáticamente; otra app o el navegador realizan el envío según su propia política de privacidad.</string>
     <string name="report_discord_help">Discord requiere cuenta. Copia el informe revisado, abre la comunidad y pregunta dónde publicar una petición de modelo. Abrir la invitación no lo pega ni lo publica.</string>
     <string name="report_github_help">GitHub requiere cuenta. Copia el informe revisado y pégalo en la plantilla de petición de modelo. El enlace no incluye datos de diagnóstico.</string>
     <string name="report_share_help">Sin cuenta de GitHub o Discord, compártelo por una app que ya uses con alguien que pueda trasladar la petición. No hay una bandeja de recepción configurada. Elige tú el destinatario; abrir el menú de compartir no significa que un mantenedor lo haya recibido.</string>
@@ -350,12 +350,12 @@
     <string name="msg_counters_updated">Los contadores de tinta residual se han actualizado. Reinicia la impresora si el modelo lo requiere.</string>
     <!-- La verificación por byte nombra direcciones. Una discrepancia no implica
          que nada haya cambiado: otras escrituras pueden haberse aplicado. -->
-    <string name="error_counters_not_applied">Los bytes releídos en %1$s no coinciden con los valores de reset enviados. Algunos valores pueden haber cambiado. El respaldo está abajo; los bytes esperados y leídos están en el registro de protocolo.</string>
+    <string name="error_counters_not_applied">Los bytes releídos en %1$s no coinciden con los valores de restablecimiento enviados. Algunos valores pueden haber cambiado. El respaldo está abajo; los bytes esperados y leídos están en el registro de protocolo.</string>
     <string name="error_restore_not_applied">Los bytes releídos en %1$s no coinciden con los valores de restauración enviados. Algunos valores pueden haber cambiado. El respaldo está abajo; los bytes esperados y leídos están en el registro de protocolo.</string>
     <string name="error_write_failed">No se ha podido completar la escritura en %1$s o leer su respuesta. Ya se habían escrito %2$d direcciones; esta dirección también puede haber cambiado. No se ha escrito ninguna más. El respaldo está abajo.</string>
     <string name="error_read_back_failed">La escritura ha terminado, pero no se han podido releer los valores. El resultado no está verificado; algunos valores pueden haber cambiado. El respaldo está abajo.</string>
     <string name="error_read_back_failed_at">La escritura ha terminado, pero no se ha podido releer el byte en %1$s. El resultado no está verificado; algunos valores pueden haber cambiado. El respaldo está abajo.</string>
-    <string name="msg_backup_restored">Se han devuelto los valores guardados. Reinicia la impresora si el modelo lo requiere.</string>
+    <string name="msg_backup_restored">Se han restaurado los valores guardados. Reinicia la impresora si el modelo lo requiere.</string>
     <string name="msg_cleaning_sent_named">Se ha enviado el comando de limpieza de cabezal \'%1$s\'. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>
     <string name="msg_cleaning_sent">Se ha enviado el trabajo de limpieza de cabezal. Espera a que la impresora inicie la rutina y luego actualiza el estado manualmente.</string>
     <string name="msg_nozzle_check_sent">Se ha enviado el trabajo de comprobación de inyectores. Espera a que se imprima la página.</string>
