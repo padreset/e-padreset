@@ -5,7 +5,6 @@ import android.content.Context
 import android.hardware.usb.UsbConstants
 import com.padreset.epadreset.data.EpsonPrinterCatalog
 import com.padreset.epadreset.data.openProfile
-import com.padreset.epadreset.data.CleaningSpec
 import com.padreset.epadreset.data.PrinterSpec
 import com.padreset.epadreset.data.PrinterStatusSnapshot
 import com.padreset.epadreset.data.WasteCounterStatus
@@ -564,13 +563,16 @@ class PrinterService(
         val reply = sendControlPayload(connection, connection.protocol.buildCleaningCommand(cleaning.payload))
         log("Head cleaning reply: ${reply.joinToString(" ") { "%02X".format(it) }}")
         if (connection.protocol.isNegativeMaintenanceReply(reply)) {
-            val fallbackGroup = genericCleaningGroup(cleaning)
-            if (fallbackGroup != null) {
-                log("Service cleaning '${cleaning.name}' was rejected, falling back to ESC/P2 cleaning group=$fallbackGroup")
+            val fallback = serviceCleaningFallback(cleaning.name)
+            if (fallback != null) {
+                log(
+                    "Service cleaning '${cleaning.name}' was rejected, " +
+                        "falling back to ESC/P2 cleaning group=${fallback.groupIndex}",
+                )
                 runPrintJobHeadCleaning(
                     connection = connection,
-                    groupIndex = fallbackGroup,
-                    powerClean = false,
+                    groupIndex = fallback.groupIndex,
+                    powerClean = fallback.powerClean,
                     alternativeMode = false,
                 )
             } else {
@@ -839,16 +841,6 @@ class PrinterService(
         sendD4Command(session, protocol, 0x03, protocol.buildCreditPayload(channel.psid, ssid, channel.rxCreditsMax))
         session.controlModeInvalidated = false
         log("D4 control session reopened after print job")
-    }
-
-    private fun genericCleaningGroup(cleaning: CleaningSpec): Int? {
-        val name = cleaning.name.uppercase()
-        return when {
-            name.startsWith("ALL") -> 0
-            name.startsWith("BLK") || name.contains("BLACK") -> 1
-            name.startsWith("YMC") || name.contains("COLOR") || name.contains("COLOUR") -> 2
-            else -> null
-        }
     }
 
     private fun sendControlPayload(connection: ConnectionState, payload: ByteArray): ByteArray {
