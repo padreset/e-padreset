@@ -1,0 +1,72 @@
+name: instrumented-tests
+
+# Compose UI tests on an emulator. Pull requests only: booting an AVD is the
+# slow part, and a push to main should not wait for it. workflow_dispatch is
+# there so the job can be tried without opening a pull request.
+#
+# This renders screens. It does not talk to a printer. USB, OTG, EEPROM and
+# head cleaning stay on a phone. An emulator is not a USB host.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: instrumented-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  instrumented-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+
+      - name: Cache Gradle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: instrumented-${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            instrumented-${{ runner.os }}-gradle-
+
+      # The runner user is not in the kvm group. Without this the emulator
+      # boots in software and the job times out.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.users.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run instrumented tests
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          disable-spellchecker: true
+          emulator-boot-timeout: 300
+          script: ./gradlew :app:connectedDebugAndroidTest --console=plain --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: instrumented-test-reports
+          path: app/build/reports/androidTests/**
+          if-no-files-found: ignore
+          retention-days: 14

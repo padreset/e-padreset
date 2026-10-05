@@ -359,6 +359,11 @@ The unit tests run on the JVM; the UI tests need a device or an emulator:
 ./gradlew :app:detekt                      # static analysis, no device and no Android SDK
 ```
 
+The screen suite also runs on pull requests
+(`.github/workflows/instrumented-tests.yml`), on an API 35 emulator. It does
+not run on every push. It draws the UI. It does not exercise USB, OTG or
+EEPROM; those still need a phone.
+
 `detekt` also runs on every push and every pull request
 (`.github/workflows/detekt.yml`), in under a minute and without the Android SDK,
 because it parses Kotlin rather than compiling it. It is not a substitute for

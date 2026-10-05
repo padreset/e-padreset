@@ -104,6 +104,13 @@ android {
         }
     }
 
+    // Compose UI tests that open the IME stall on the hide animation when these
+    // scales are left at the emulator default. The stall never returns, so the
+    // suite looks hung. This sets the three scales to 0 for instrumented runs.
+    testOptions {
+        animationsDisabled = true
+    }
+
     buildTypes {
         release {
             // R8 and resource shrinking are most of the APK. Without them the
