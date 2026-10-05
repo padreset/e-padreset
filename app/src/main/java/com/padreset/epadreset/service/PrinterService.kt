@@ -67,6 +67,19 @@ class PrinterService(
          * only closing the other app fixes it.
          */
         INTERFACE_BUSY("USB interface is held by another app"),
+
+        /**
+         * The device is gone by the time permission or the interface was asked
+         * for — unplugged mid-connect, typically.
+         *
+         * Kept apart from [PERMISSION_DENIED] and [INTERFACE_BUSY] because both
+         * of those send the user somewhere that cannot help: one to a permission
+         * dialog that will never appear, the other to close apps that are not
+         * holding anything. Neither is true when the cable is out. The English
+         * text matches what [UsbTransport.permissionFailure] already says, so
+         * the two paths read the same.
+         */
+        DEVICE_DETACHED("Printer is no longer connected"),
         UNKNOWN("Unable to connect to printer"),
     }
 
@@ -142,7 +155,15 @@ class PrinterService(
                 "name=${device.productName ?: device.deviceName}",
         )
         if (!transport.ensurePermission(device)) {
-            throw ConnectException(ConnectFailure.PERMISSION_DENIED)
+            // `ensurePermission` answers false both for a refusal and for a
+            // device that is no longer on the bus, and the two need different
+            // words: one asks the user to accept a dialog, the other to plug the
+            // printer back in. Reading it as a refusal sent people looking for a
+            // dialog that was never going to arrive.
+            throw ConnectException(
+                if (transport.isAttached(device)) ConnectFailure.PERMISSION_DENIED
+                else ConnectFailure.DEVICE_DETACHED,
+            )
         }
         transport.listInterfaces(device).forEach { info ->
             log(
@@ -322,6 +343,33 @@ class PrinterService(
         enum class Reason { BACKUP_FAILED, REJECTED, WRITE_FAILED, READ_BACK_FAILED, NOT_APPLIED }
     }
 
+    /**
+     * The write path refusing to build a plan, before anything is written.
+     *
+     * Kept apart from [WasteWriteException] on purpose. That one describes a
+     * write that happened: it carries the backup, how far the run got, and the
+     * bytes that did not match. A refusal here happens before anything is read,
+     * backed up or written, so all of those would be empty — and two callers
+     * read them for real (`runJob` takes the partial backup, [SessionGuard]
+     * decides on the reason). A separate type also falls through
+     * [SessionGuard]'s filter by not being a `WasteWriteException`, which is
+     * exactly right: a deterministic validation refusal is never transport
+     * fallout and must never be silenced as one.
+     *
+     * Every reason is something the user can act on, which is why each has its
+     * own message rather than the generic "operation failed".
+     */
+    class WastePlanException(val reason: Reason) :
+        Exception("Waste plan refused: ${reason.name}") {
+        enum class Reason {
+            NO_COUNTER_SELECTED,
+            NO_RESET_VALUES,
+            SHARED_BYTES,
+            PERCENTAGE_UNSUPPORTED,
+            RESTORE_NO_APPLICABLE_ADDRESSES,
+        }
+    }
+
     suspend fun writeWasteCounters(
         connection: ConnectionState,
         selectedCounterNames: Set<String>,
@@ -358,7 +406,9 @@ class PrinterService(
         val knownAddresses = connection.spec.wasteCounters.flatMap { it.addresses }.toSet() +
             connection.spec.resetMap.keys
         val applicable = backup.filterKeys { it in knownAddresses }
-        require(applicable.isNotEmpty()) { "This backup holds no address the model uses" }
+        if (applicable.isEmpty()) {
+            throw WastePlanException(WastePlanException.Reason.RESTORE_NO_APPLICABLE_ADDRESSES)
+        }
 
         val plan = WasteRestore.planFrom(applicable)
         val skipped = backup.size - applicable.size
@@ -449,7 +499,7 @@ class PrinterService(
         )
         val reply = sendControlPayload(connection, connection.protocol.buildCleaningCommand(cleaning.payload))
         log("Head cleaning reply: ${reply.joinToString(" ") { "%02X".format(it) }}")
-        if (isNegativeMaintenanceReply(reply)) {
+        if (connection.protocol.isNegativeMaintenanceReply(reply)) {
             val fallbackGroup = genericCleaningGroup(cleaning)
             if (fallbackGroup != null) {
                 log("Service cleaning '${cleaning.name}' was rejected, falling back to ESC/P2 cleaning group=$fallbackGroup")
@@ -541,11 +591,21 @@ class PrinterService(
         // A held interface is a named failure, not a generic one: the fix is
         // closing the other app, and the message must say so. Release the
         // half-open connection instead of leaking it.
+        //
+        // `claimInterface` returns a bare boolean and Android exposes no errno,
+        // so a device that vanished between enumeration and the claim looks
+        // exactly like one another app holds. The attachment re-check is what
+        // tells them apart; without it the user is sent to close apps that are
+        // holding nothing.
         val session = try {
             transport.openOnInterface(device, usbInterface, permissionAlreadyGranted = true)
         } catch (claimed: UsbTransport.UsbClaimException) {
             runCatching { claimed.connection.close() }
-            throw ConnectException(ConnectFailure.INTERFACE_BUSY, cause = claimed)
+            throw ConnectException(
+                if (transport.isAttached(device)) ConnectFailure.INTERFACE_BUSY
+                else ConnectFailure.DEVICE_DETACHED,
+                cause = claimed,
+            )
         }
         try {
             log("USB session opened, claiming interface ${session.usbInterface.id}")
@@ -668,11 +728,6 @@ class PrinterService(
         } finally {
             printSession.close()
         }
-    }
-
-    private fun isNegativeMaintenanceReply(reply: ByteArray): Boolean {
-        val ascii = reply.decodeToString()
-        return ascii.contains(":NA;")
     }
 
     private fun genericCleaningGroup(cleaning: CleaningSpec): Int? {

@@ -3,6 +3,7 @@ package com.padreset.epadreset.service
 import com.padreset.epadreset.data.PrinterSpec
 import com.padreset.epadreset.protocol.EpsonProtocol
 import com.padreset.epadreset.service.PrinterService.WasteByteMismatch
+import com.padreset.epadreset.service.PrinterService.WastePlanException
 import com.padreset.epadreset.service.PrinterService.WasteWriteException
 import com.padreset.epadreset.service.PrinterService.WasteWriteException.Reason
 import kotlinx.coroutines.CancellationException
@@ -97,7 +98,7 @@ internal class WasteWriter(
         ): Map<Int, Int> {
             require(targetPercentage in 0..100) { "Target percentage must be between 0 and 100" }
             val selected = spec.wasteCounters.filter { it.name in selectedCounterNames }
-            require(selected.isNotEmpty()) { "No waste counter selected" }
+            if (selected.isEmpty()) refuse(WastePlanException.Reason.NO_COUNTER_SELECTED)
             if (targetPercentage == 0) {
                 // The model's own reset values — usually but not always zero
                 // (195 of 299 reset blocks publish nonzero baselines). A partial
@@ -107,7 +108,7 @@ internal class WasteWriter(
                 // counters' addresses, at the model's values. A full selection
                 // keeps the whole map, including auxiliary reset addresses that
                 // live outside every counter's query range.
-                require(spec.resetMap.isNotEmpty()) { "This model publishes no reset values" }
+                if (spec.resetMap.isEmpty()) refuse(WastePlanException.Reason.NO_RESET_VALUES)
                 if (selected.size == spec.wasteCounters.size) return spec.resetMap.toSortedMap()
                 // No partial writes touching an address that is not this
                 // counter's alone — whole shared bytes (RX700's 0x2E/0x2F in two
@@ -119,22 +120,22 @@ internal class WasteWriter(
                 // offers the full set on such models; this is the backstop for
                 // any other caller.
                 val untouchable = spec.untouchableAddresses
-                require(selected.flatMap { it.addresses }.none { it in untouchable }) {
-                    "Partial reset is not available for counters sharing bytes; reset all counters"
+                if (selected.flatMap { it.addresses }.any { it in untouchable }) {
+                    refuse(WastePlanException.Reason.SHARED_BYTES)
                 }
                 val selectedAddresses = selected.flatMap { it.addresses }.toSet()
                 val plan = spec.resetMap.filterKeys { it in selectedAddresses }.toSortedMap()
-                require(plan.isNotEmpty()) { "Selected counters publish no reset values" }
+                if (plan.isEmpty()) refuse(WastePlanException.Reason.NO_RESET_VALUES)
                 return plan
             }
-            require(selected.all { it.max > 0 && it.addresses.size <= 4 && it.masks.isEmpty() }) {
-                "Percentage writes require a published ceiling, counters of at most four bytes, and no shared bytes"
+            if (!selected.all { it.max > 0 && it.addresses.size <= 4 && it.masks.isEmpty() }) {
+                refuse(WastePlanException.Reason.PERCENTAGE_UNSUPPORTED)
             }
             // Percentage maths address whole bytes, so the untouchable-address
             // rule applies here too: a partial percentage would clobber the
             // sibling.
-            require(selected.flatMap { it.addresses }.none { it in spec.untouchableAddresses }) {
-                "Percentage reset is not available for counters sharing bytes; reset all counters"
+            if (selected.flatMap { it.addresses }.any { it in spec.untouchableAddresses }) {
+                refuse(WastePlanException.Reason.SHARED_BYTES)
             }
             return buildMap {
                 for (counter in selected) {
@@ -145,6 +146,17 @@ internal class WasteWriter(
                 }
             }.toSortedMap()
         }
+
+        /**
+         * Refuses a plan with a reason the UI can translate.
+         *
+         * Not a `require`: that throws `IllegalArgumentException`, which
+         * [com.padreset.epadreset.ui.MainViewModel.runJob] can only answer with
+         * the generic "operation failed". Every condition here is something the
+         * user can act on, so each one names itself instead.
+         */
+        private fun refuse(reason: WastePlanException.Reason): Nothing =
+            throw WastePlanException(reason)
     }
 
     data class VerifiedWrite<T>(val value: T, val backup: Map<Int, Byte>)

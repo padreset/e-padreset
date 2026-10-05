@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import com.padreset.epadreset.R
 import com.padreset.epadreset.ui.components.PadAlertDialog
 import com.padreset.epadreset.ui.theme.PadSpace
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * The project repository, opened from the About dialog and from the completion
@@ -97,6 +98,12 @@ private enum class AppPage { Status, Maintenance }
 @Composable
 fun EPadResetApp(
     uiState: MainUiState,
+    /**
+     * Passed as a flow rather than a list, and collected at the panel that draws
+     * it. Collecting it here would recompose this whole tree on every log line,
+     * which is the thing the separate flow exists to avoid.
+     */
+    logs: StateFlow<List<String>>,
     onConnect: () -> Unit,
     onRefresh: () -> Unit,
     onReset: (Set<String>, Int) -> Unit,
@@ -111,6 +118,7 @@ fun EPadResetApp(
     when (page) {
         AppPage.Status -> PrinterStatusScreen(
             uiState = uiState,
+            logs = logs,
             onConnect = onConnect,
             onRefresh = onRefresh,
             onReset = onReset,

@@ -16,6 +16,7 @@ import com.padreset.epadreset.data.WasteBackupRecord
 import com.padreset.epadreset.data.WasteCounterSpec
 import com.padreset.epadreset.data.backupModelMatches
 import com.padreset.epadreset.service.PrinterService
+import com.padreset.epadreset.service.RepeatAttach
 import com.padreset.epadreset.service.SessionGuard
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -120,7 +121,6 @@ data class MainUiState(
      * meaning: a printer that was unplugged is not an operation that went wrong.
      */
     val notice: String? = null,
-    val logs: List<String> = emptyList(),
     val actionSuccessMessage: String? = null,
     /**
      * Title for the dialog that shows [actionSuccessMessage].
@@ -193,6 +193,23 @@ private const val STATUS_POLL_INTERVAL_MS = 10_000L
 private const val STATUS_POLL_MAX_ROUNDS = 90
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
+    /**
+     * The protocol log, kept out of [MainUiState] on purpose.
+     *
+     * It is the only thing in this ViewModel that changes on every line, and the
+     * write path logs per byte — a reset emits a hundred lines in seconds. While
+     * it lived in the state, each one produced a new `MainUiState` and the whole
+     * screen recomposed, animated gauges and log list included. On its own flow
+     * only the log panel redraws.
+     *
+     * Declared before [printerService] and [backupStore] because both capture
+     * `::appendLog` at construction. The reference resolves at invocation, so the
+     * order is not load-bearing today, but nothing enforces that and a field
+     * read during construction would.
+     */
+    private val _logs = MutableStateFlow<List<String>>(emptyList())
+    val logs: StateFlow<List<String>> = _logs.asStateFlow()
+
     private val printerService = PrinterService(application, ::appendLog, ::noteSlowConnect)
 
     /**
@@ -202,7 +219,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * same reason [com.padreset.epadreset.usb.UsbTransport] can remember the USB
      * interface that worked without asking the user for anything.
      */
-    private val backupStore = BackupStore.from(application)
+    private val backupStore = BackupStore.from(application, ::appendLog)
 
     /**
      * Read once, from the package manager rather than from `BuildConfig`: the
@@ -434,6 +451,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         viewModelScope.launch {
+            // A re-delivered attach of the device we already hold must not
+            // close the live session and handshake again. A real replug gets a
+            // new kernel path, so it still falls through to connectNow.
+            val already = sessionMutex.withLock {
+                val current = connection ?: return@withLock false
+                RepeatAttach.shouldIgnore(
+                    current.session.device.deviceName,
+                    device.deviceName,
+                    printerService.isStillAttached(current),
+                )
+            }
+            if (already) {
+                appendLog("Already connected to ${device.deviceName}; ignoring repeat attach")
+                return@launch
+            }
             runJob("Connecting to ${device.productName ?: device.deviceName}") {
                 connectNow(device)
             }
@@ -616,33 +648,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Resetting waste counters", BackupOrigin.RESET) {
-                // Shared-address guard in the user's language: the service
-                // backstop throws a bare require, which would surface as a bare
-                // "operation failed". The dialog already forces the full set on
-                // such models, so this fires only if the catalog drifts under a
-                // saved selection — and then it must explain, not shrug.
-                val shared = current.spec.untouchableAddresses
-                val selectedAddresses = current.spec.wasteCounters
-                    .filter { it.name in selectedCounterNames }
-                    .flatMap { it.addresses }
-                if (selectedCounterNames.size != current.spec.wasteCounters.size &&
-                    selectedAddresses.any { it in shared }
-                ) {
-                    throw UserFacingException(
-                        str(R.string.error_reset_partial_shared),
-                        "Partial reset blocked by shared bytes on ${current.spec.modelName}",
-                    )
-                }
-                // The previous write's backup describes a state this run is about
-                // to change, so it goes now rather than when the new one arrives.
+                // No local copy of the shared-address rule any more. The service
+                // refuses with a typed reason and the message is translated from
+                // it. The copy that used to live here tested a slightly
+                // different expression — the requested name count against the
+                // catalog's, rather than the matched counters — so the two could
+                // disagree about which selections were legal.
                 _uiState.update { it.copy(
-                    wasteBackup = null, actionSuccessTitle = null, actionSuccessMessage = null,
+                    actionSuccessTitle = null, actionSuccessMessage = null,
                 ) }
                 sessionMutex.withLock {
                     val written = printerService.writeWasteCounters(
                         current, selectedCounterNames, targetPercentage,
                         onBackup = { backup ->
                             persistBackup(current.spec.modelName, backup, BackupOrigin.RESET)
+                            // Replaced inside the callback, which only runs once
+                            // the service has accepted a plan. Clearing it before
+                            // the call meant a refused run wiped a backup that
+                            // was still perfectly valid — nothing had been
+                            // written, so it still described the last real write.
                             _uiState.update { it.copy(wasteBackup = formatBackup(backup)) }
                         },
                     )
@@ -847,6 +871,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             PrinterService.ConnectFailure.INTERFACE_BUSY ->
                 str(R.string.error_connect_interface_busy)
 
+            PrinterService.ConnectFailure.DEVICE_DETACHED ->
+                str(R.string.error_connect_device_detached)
+
             PrinterService.ConnectFailure.UNKNOWN ->
                 str(R.string.error_connect_failed)
         }
@@ -890,50 +917,78 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Names why the write path stopped.
+     * Names why the write path stopped, for either refusal it can produce.
      *
-     * Distinguishes an incomplete backup (nothing written), a rejected or failed
-     * write, a failed re-read and bytes that did not match the exact plan.
+     * One function rather than two because it answers one question — why did the
+     * write not happen? — and because [MainViewModel] sits at its function
+     * budget, which is the rule doing its job rather than an obstacle to it.
+     *
+     * [PrinterService.WasteWriteException] is a write that happened and stopped:
+     * an incomplete backup (nothing written), a rejected or failed write, a
+     * failed re-read, or bytes that did not match the exact plan.
+     * [PrinterService.WastePlanException] is a write the service refused to plan
+     * at all, so there is no backup and no progress to report. Every one of those
+     * used to reach the user as "Operation failed", because the service refused
+     * with a bare `require` and the ViewModel worked around it with a copy of one
+     * of the rules. Now each reason names itself and there is one source per rule.
      */
-    private fun localizedWriteFailure(
-        failure: PrinterService.WasteWriteException,
-        origin: BackupOrigin?,
-    ): String {
-        val address = failure.address?.let { "0x%04X".format(it) }
-        return when (failure.reason) {
-            PrinterService.WasteWriteException.Reason.BACKUP_FAILED ->
-                if (address == null) {
-                    str(R.string.error_backup_failed)
-                } else {
-                    str(R.string.error_backup_failed_at, address)
+    private fun localizedWriteFailure(failure: Throwable, origin: BackupOrigin?): String = when (failure) {
+        is PrinterService.WastePlanException -> when (failure.reason) {
+            PrinterService.WastePlanException.Reason.NO_COUNTER_SELECTED ->
+                str(R.string.error_reset_no_counter_selected)
+
+            PrinterService.WastePlanException.Reason.NO_RESET_VALUES ->
+                str(R.string.error_reset_no_values)
+
+            PrinterService.WastePlanException.Reason.SHARED_BYTES ->
+                str(R.string.error_reset_partial_shared)
+
+            PrinterService.WastePlanException.Reason.PERCENTAGE_UNSUPPORTED ->
+                str(R.string.error_reset_percentage_unsupported)
+
+            PrinterService.WastePlanException.Reason.RESTORE_NO_APPLICABLE_ADDRESSES ->
+                str(R.string.error_restore_no_applicable_addresses)
+        }
+
+        is PrinterService.WasteWriteException -> {
+            val address = failure.address?.let { "0x%04X".format(it) }
+            when (failure.reason) {
+                PrinterService.WasteWriteException.Reason.BACKUP_FAILED ->
+                    if (address == null) {
+                        str(R.string.error_backup_failed)
+                    } else {
+                        str(R.string.error_backup_failed_at, address)
+                    }
+
+                PrinterService.WasteWriteException.Reason.REJECTED ->
+                    if (address == null) {
+                        str(R.string.error_write_rejected)
+                    } else {
+                        str(R.string.error_write_rejected_at, address, failure.writtenBefore)
+                    }
+
+                PrinterService.WasteWriteException.Reason.WRITE_FAILED ->
+                    str(R.string.error_write_failed, address.orEmpty(), failure.writtenBefore)
+
+                PrinterService.WasteWriteException.Reason.READ_BACK_FAILED ->
+                    if (address == null) {
+                        str(R.string.error_read_back_failed)
+                    } else {
+                        str(R.string.error_read_back_failed_at, address)
+                    }
+
+                PrinterService.WasteWriteException.Reason.NOT_APPLIED -> {
+                    val addresses = failure.mismatches.keys.joinToString { "0x%04X".format(it) }
+                    str(
+                        if (origin == BackupOrigin.RESTORE) R.string.error_restore_not_applied
+                        else R.string.error_counters_not_applied,
+                        addresses,
+                    )
                 }
-
-            PrinterService.WasteWriteException.Reason.REJECTED ->
-                if (address == null) {
-                    str(R.string.error_write_rejected)
-                } else {
-                    str(R.string.error_write_rejected_at, address, failure.writtenBefore)
-                }
-
-            PrinterService.WasteWriteException.Reason.WRITE_FAILED ->
-                str(R.string.error_write_failed, address.orEmpty(), failure.writtenBefore)
-
-            PrinterService.WasteWriteException.Reason.READ_BACK_FAILED ->
-                if (address == null) {
-                    str(R.string.error_read_back_failed)
-                } else {
-                    str(R.string.error_read_back_failed_at, address)
-                }
-
-            PrinterService.WasteWriteException.Reason.NOT_APPLIED -> {
-                val addresses = failure.mismatches.keys.joinToString { "0x%04X".format(it) }
-                str(
-                    if (origin == BackupOrigin.RESTORE) R.string.error_restore_not_applied
-                    else R.string.error_counters_not_applied,
-                    addresses,
-                )
             }
         }
+
+        else -> str(R.string.callout_operation_failed)
     }
 
     /**
@@ -1059,7 +1114,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val uiMessage = when (failure) {
                     is UserFacingException -> failure.uiMessage
                     is UnhandledJobException -> failure.uiMessage
-                    is PrinterService.WasteWriteException -> localizedWriteFailure(failure, origin)
+                    is PrinterService.WasteWriteException,
+                    is PrinterService.WastePlanException,
+                    -> localizedWriteFailure(failure, origin)
                     else -> str(R.string.callout_operation_failed)
                 }
                 val report = (failure as? UnhandledJobException)?.let(::buildModelReport)
@@ -1096,7 +1153,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun appendLog(line: String) {
-        _uiState.update { it.copy(logs = (it.logs + line).takeLast(200)) }
+        _logs.update { (it + line).takeLast(200) }
     }
 
     private fun appendError(uiMessage: String, logMessage: String) {

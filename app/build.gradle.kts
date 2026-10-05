@@ -217,7 +217,7 @@ val verifyPrinterData = tasks.register("verifyPrinterData") {
         assetsDir.file("reinkpy_models.xml"),
     )
     doLast {
-        // Plain settings matching PrinterModels.secureFactory: the Gradle JDK
+        // Plain settings matching PrinterModels.assetFactory: the Gradle JDK
         // parser would accept XXE-hardening features that Android's built-in
         // parser rejects on device, so hardening here would pass the build and
         // still break every connect. See the KDoc there.

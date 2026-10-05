@@ -17,6 +17,7 @@ import com.padreset.epadreset.data.InkLevel
 import com.padreset.epadreset.data.PrinterStatusSnapshot
 import com.padreset.epadreset.data.WasteCounterStatus
 import com.padreset.epadreset.ui.theme.EPadResetTheme
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Rule
 import org.junit.Test
 
@@ -45,11 +46,15 @@ class PrinterStatusScreenTest {
     private fun string(@StringRes id: Int, vararg args: Any): String =
         context.getString(id, *args)
 
-    private fun render(state: MainUiState) {
+    private fun render(state: MainUiState, logs: List<String> = emptyList()) {
+        // Built outside setContent so the flow instance is stable across
+        // recompositions; a new one per composition would restart the collector.
+        val logsFlow = MutableStateFlow(logs)
         compose.setContent {
             EPadResetTheme {
                 EPadResetApp(
                     uiState = state,
+                    logs = logsFlow,
                     onConnect = {},
                     onRefresh = {},
                     onReset = { _, _ -> },
@@ -168,8 +173,8 @@ class PrinterStatusScreenTest {
                 supportsWasteReset = true,
                 error = error,
                 wasteBackup = "0x001C = 0x3F",
-                logs = listOf("EEPROM mismatch at 0x001C: expected 0x00, read 0x02"),
             ),
+            logs = listOf("EEPROM mismatch at 0x001C: expected 0x00, read 0x02"),
         )
         compose.onNodeWithText(error).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("0x001C = 0x3F").performScrollTo().assertIsDisplayed()

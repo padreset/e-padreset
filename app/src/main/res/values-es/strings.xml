@@ -283,6 +283,11 @@
     <!-- Fallos de conexión, resueltos desde PrinterService.ConnectFailure para que
          el aviso indique la causa real y no un fallo genérico. -->
     <string name="error_connect_permission_denied">Se ha denegado el acceso por USB. Vuelve a conectar la impresora y acepta la solicitud de permiso.</string>
+    <!-- Separado de error_connect_permission_denied: la comprobación que falla
+         no distingue una denegación de una impresora que ya no está, y mandar a
+         alguien a buscar un diálogo de permiso que no va a aparecer es peor que
+         no decir nada. -->
+    <string name="error_connect_device_detached">La impresora ya no está conectada. Vuelve a enchufarla y reinténtalo.</string>
     <string name="error_connect_no_interfaces">Este dispositivo USB no tiene ninguna interfaz que la aplicación pueda usar. Puede que no sea una impresora Epson compatible.</string>
     <string name="error_connect_unsupported_model">Este modelo de Epson no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. Puedes solicitar que se investigue; la compatibilidad requiere datos verificados y pruebas en hardware y no está garantizada.</string>
     <string name="error_connect_unsupported_model_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación, así que no se puede abrir una sesión de mantenimiento. Puedes solicitar que se investigue; la compatibilidad requiere datos verificados y pruebas en hardware y no está garantizada.</string>
@@ -294,8 +299,19 @@
     <string name="error_connect_unsupported_model_box_named">El modelo de Epson \'%1$s\' no está en la base de datos de la aplicación y el catálogo comunitario lo clasifica como uso de caja de mantenimiento. Puedes solicitar que se investigue la limpieza y la comprobación de inyectores, pero esta aplicación no puede reiniciar el contador del chip de la caja.</string>
     <string name="error_connect_dot4_nak">La impresora ha rechazado la sesión de mantenimiento. Apágala y vuelve a encenderla, y reinténtalo.</string>
     <string name="error_connect_dot4_no_reply">La impresora no ha respondido por ninguna vía USB. Prueba con otro cable o puerto, apágala y vuelve a encenderla, y reinténtalo.</string>
-    <string name="error_connect_interface_busy">Otra aplicación está usando la conexión USB de la impresora (p. ej. un servicio de impresión). Cierra las demás apps de impresora y reinténtalo.</string>
+    <!-- «puede que», no «está»: claimInterface devuelve un booleano pelado, así
+         que un dispositivo que desapareció a mitad de conexión es
+         indistinguible de uno que otra app retiene. La recomprobación lo acota,
+         y el texto ya no asegura lo que la comprobación no puede probar. -->
+    <string name="error_connect_interface_busy">No se ha podido reclamar la conexión USB de la impresora. Puede que otra aplicación la esté usando (p. ej. un servicio de impresión); cierra las demás apps de impresora y reinténtalo.</string>
     <string name="error_reset_partial_shared">Estos contadores comparten bytes de memoria con otro contador, así que solo pueden reiniciarse juntos. Selecciona todos los contadores para continuar.</string>
+    <!-- Los rechazos que el servicio lanza antes de escribir nada. Cada uno
+         llegaba al usuario como «La operación ha fallado»; van separados porque
+         cada uno nombra algo distinto que el usuario puede hacer. -->
+    <string name="error_reset_no_counter_selected">No se ha seleccionado ningún contador, así que no hay nada que reiniciar.</string>
+    <string name="error_reset_no_values">Este modelo no publica valores de reset para los contadores seleccionados, así que no hay nada que escribir.</string>
+    <string name="error_reset_percentage_unsupported">No se puede escribir un porcentaje objetivo para esta selección: los contadores deben publicar un límite, caber en cuatro bytes y no compartir bytes con otro contador.</string>
+    <string name="error_restore_no_applicable_addresses">Este respaldo no contiene ninguna dirección que use la impresora conectada, así que no hay nada que devolver.</string>
 
     <!-- El borrador local se revisa antes de cualquier acción externa. -->
     <string name="action_report_model">Ayudar a añadir este modelo</string>

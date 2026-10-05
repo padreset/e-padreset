@@ -372,10 +372,11 @@ class BackupStore internal constructor(
          */
         const val MAX_RECORDS = 5
 
-        fun from(context: Context): BackupStore = BackupStore(
+        fun from(context: Context, log: (String) -> Unit = {}): BackupStore = BackupStore(
             SharedPreferencesBackupStorage(
                 context.getSharedPreferences(PREFERENCE_FILE, Context.MODE_PRIVATE),
             ),
+            log = log,
         )
     }
 }

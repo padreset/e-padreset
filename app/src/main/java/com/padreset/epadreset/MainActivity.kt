@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Bundle
 import android.os.Build
@@ -39,23 +40,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val usbDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent?.getParcelableExtra(UsbManager.EXTRA_DEVICE, android.hardware.usb.UsbDevice::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent?.getParcelableExtra<android.hardware.usb.UsbDevice>(UsbManager.EXTRA_DEVICE)
-        }
-
-        // Only on a fresh launch: the intent survives a rotation, and connecting
-        // to the same device again would restart the session every time the
-        // screen turns. The USB filter already limits the system attach intent
-        // to Epson; an explicit intent can still carry any device, so the
-        // vendor is checked again before the write path.
-        if (savedInstanceState == null &&
-            usbDevice != null &&
-            usbDevice.vendorId == EpsonPrinterCatalog.EPSON_VENDOR_ID
-        ) {
-            viewModel.connect(usbDevice)
+        val attached = if (savedInstanceState == null) epsonDevice(intent) else null
+        if (attached != null) {
+            viewModel.connect(attached)
         } else {
             viewModel.autoScanOnce()
         }
@@ -63,9 +50,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             EPadResetTheme {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-                EPadResetApp(
-                    uiState = uiState,
-                    onConnect = viewModel::discoverAndConnect,
+                    EPadResetApp(
+                        uiState = uiState,
+                        // The flow itself, not a collected list: collecting it
+                        // here would recompose everything below on every log
+                        // line, which is what the separate flow avoids.
+                        logs = viewModel.logs,
+                        onConnect = viewModel::discoverAndConnect,
                     onRefresh = viewModel::refreshStatus,
                     onReset = viewModel::resetWasteCounters,
                     onRestore = viewModel::restoreBackup,
@@ -91,6 +82,37 @@ class MainActivity : ComponentActivity() {
         // background, so a printer unplugged then was never reported. Ask now
         // rather than keep offering operations against a session that is gone.
         viewModel.onReturnedToForeground()
+    }
+
+    /**
+     * A printer plugged in while this activity is already up.
+     *
+     * [android:launchMode] is `singleTask`, so the system delivers that attach
+     * here instead of stacking a second activity on the one that already holds
+     * the USB interface. A second instance used to fail with "held by another
+     * app" — the other app was this one.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        epsonDevice(intent)?.let(viewModel::connect)
+    }
+
+    /**
+     * The Epson device in a USB attach intent, or null.
+     *
+     * The manifest filter already limits the system attach to Epson. An explicit
+     * intent can still carry any device, so the vendor is checked again before
+     * the write path. A rotation keeps the original intent and is not a new attach.
+     */
+    private fun epsonDevice(source: Intent?): UsbDevice? {
+        val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            source?.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            source?.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+        }
+        return device?.takeIf { it.vendorId == EpsonPrinterCatalog.EPSON_VENDOR_ID }
     }
 
     override fun onStop() {

@@ -52,7 +52,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -128,6 +130,7 @@ private val MaintenanceIcon = Icons.Outlined.Build
 @Composable
 fun PrinterStatusScreen(
     uiState: MainUiState,
+    logs: StateFlow<List<String>>,
     onConnect: () -> Unit,
     onRefresh: () -> Unit,
     onReset: (Set<String>, Int) -> Unit,
@@ -342,13 +345,7 @@ fun PrinterStatusScreen(
                 )
             }
 
-            PadCard {
-                PadSectionLabel(
-                    text = stringResource(R.string.section_protocol_log),
-                    trailing = { CopyLogButton(uiState.logs) },
-                )
-                ProtocolLogPanel(uiState.logs)
-            }
+            ProtocolLogCard(logs)
 
             Spacer(Modifier.height(PadSpace.lg))
         }
@@ -753,6 +750,26 @@ private fun StatusHeroCard(
 }
 
 /**
+ * The log card, and the only place that collects the log flow.
+ *
+ * Collecting here rather than at the top of the tree is the whole point of the
+ * flow being separate: a log line redraws this card and nothing else. The write
+ * path logs per byte, so during a reset that is a hundred redraws of one panel
+ * instead of a hundred recompositions of the screen.
+ */
+@Composable
+private fun ProtocolLogCard(logs: StateFlow<List<String>>) {
+    val lines by logs.collectAsStateWithLifecycle()
+    PadCard {
+        PadSectionLabel(
+            text = stringResource(R.string.section_protocol_log),
+            trailing = { CopyLogButton(lines) },
+        )
+        ProtocolLogPanel(lines)
+    }
+}
+
+/**
  * The protocol log.
  *
  * Rendered as a subtle inset panel on the card rather than a dark terminal: a
@@ -783,7 +800,7 @@ private fun ProtocolLogPanel(logs: List<String>) {
             ): Offset {
                 val info = listState.layoutInfo
                 val hasLinesOutOfView = info.totalItemsCount > info.visibleItemsInfo.size
-                return if (hasLinesOutOfView) available else Offset.Zero
+                return if (hasLinesOutOfView) Offset(0f, available.y) else Offset.Zero
             }
         }
     }

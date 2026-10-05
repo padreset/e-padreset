@@ -4,6 +4,7 @@ import com.padreset.epadreset.data.PrinterSpec
 import com.padreset.epadreset.data.WasteCounterSpec
 import com.padreset.epadreset.protocol.EpsonProtocol
 import com.padreset.epadreset.service.PrinterService.WasteByteMismatch
+import com.padreset.epadreset.service.PrinterService.WastePlanException
 import com.padreset.epadreset.service.PrinterService.WasteWriteException
 import com.padreset.epadreset.service.PrinterService.WasteWriteException.Reason
 import kotlinx.coroutines.CancellationException
@@ -19,6 +20,16 @@ class WasteVerificationTest {
         counters: List<WasteCounterSpec> = listOf(WasteCounterSpec("Main pad", listOf(0x1C, 0x1D), 13000)),
         reset: Map<Int, Int> = mapOf(0x1C to 0, 0x1D to 0),
     ) = PrinterSpec("Test", byteArrayOf(0, 0), ByteArray(8), counters, reset, emptyList())
+
+    /**
+     * The reason `planFor` refused with, or null when it did not refuse.
+     *
+     * Asserts the type by construction: a bare `IllegalArgumentException` — what
+     * `require` throws, and what used to reach the user as "operation failed" —
+     * casts to null here and fails the comparison.
+     */
+    private fun refusalReason(block: () -> Unit): WastePlanException.Reason? =
+        (runCatching(block).exceptionOrNull() as? WastePlanException)?.reason
 
     @Test
     fun `the complete backup is published before the first write`() {
@@ -209,13 +220,16 @@ class WasteVerificationTest {
             ),
             mapOf(0x30 to 0, 0x31 to 0, 0x2F to 0, 0x32 to 0, 0x33 to 0),
         )
-        assertTrue(
-            runCatching { WasteWriter.planFor(model, setOf("Main pad"), 0) }.exceptionOrNull()
-                is IllegalArgumentException,
+        // Target 0 hits the shared-bytes rule. Target 50 is refused earlier, by
+        // the percentage preconditions: those counters carry masks, so the
+        // percentage maths — which addresses whole bytes — cannot be used at all.
+        assertEquals(
+            WastePlanException.Reason.SHARED_BYTES,
+            refusalReason { WasteWriter.planFor(model, setOf("Main pad"), 0) },
         )
-        assertTrue(
-            runCatching { WasteWriter.planFor(model, setOf("Main pad"), 50) }.exceptionOrNull()
-                is IllegalArgumentException,
+        assertEquals(
+            WastePlanException.Reason.PERCENTAGE_UNSUPPORTED,
+            refusalReason { WasteWriter.planFor(model, setOf("Main pad"), 50) },
         )
         // The full set still plans every published value, shared byte included.
         assertEquals(model.resetMap, WasteWriter.planFor(model, setOf("Main pad", "Platen pad"), 0))
@@ -234,9 +248,9 @@ class WasteVerificationTest {
             mapOf(0x1C to 0, 0x1D to 0, 0x2E to 0, 0x2F to 0),
         )
         assertEquals(setOf(0x2E, 0x2F), model.sharedAddresses)
-        assertTrue(
-            runCatching { WasteWriter.planFor(model, setOf("Main pad"), 0) }.exceptionOrNull()
-                is IllegalArgumentException,
+        assertEquals(
+            WastePlanException.Reason.SHARED_BYTES,
+            refusalReason { WasteWriter.planFor(model, setOf("Main pad"), 0) },
         )
         assertEquals(model.resetMap, WasteWriter.planFor(model, setOf("Main pad", "Platen pad"), 0))
     }
@@ -266,16 +280,19 @@ class WasteVerificationTest {
         // Nothing overlaps: 0x2E is listed by one counter only.
         assertTrue("0x2E is not shared, so overlap alone cannot see it", model.sharedAddresses.isEmpty())
         assertEquals(setOf(0x2E), model.untouchableAddresses)
-        assertTrue(
-            runCatching { WasteWriter.planFor(model, setOf("Main pad"), 0) }.exceptionOrNull()
-                is IllegalArgumentException,
+        assertEquals(
+            WastePlanException.Reason.SHARED_BYTES,
+            refusalReason { WasteWriter.planFor(model, setOf("Main pad"), 0) },
         )
     }
 
     @Test
     fun `percentage writes without a ceiling cannot silently write zeros`() {
         val model = spec(listOf(WasteCounterSpec("Main pad", listOf(28, 29), 0)))
-        assertTrue(runCatching { WasteWriter.planFor(model, setOf("Main pad"), 50) }.exceptionOrNull() is IllegalArgumentException)
+        assertEquals(
+            WastePlanException.Reason.PERCENTAGE_UNSUPPORTED,
+            refusalReason { WasteWriter.planFor(model, setOf("Main pad"), 50) },
+        )
     }
 
     @Test

@@ -72,5 +72,8 @@ data class PrinterStatusSnapshot(
      * re-reading will not clear it. Pure so the matrix is unit-testable.
      */
     val needsPolling: Boolean
-        get() = stateCode in setOf(0x01, 0x02, 0x03, 0x07) && errorCode == ERROR_NONE
+        get() = errorCode == ERROR_NONE && when (stateCode) {
+            0x01, 0x02, 0x03, 0x07 -> true
+            else -> false
+        }
 }

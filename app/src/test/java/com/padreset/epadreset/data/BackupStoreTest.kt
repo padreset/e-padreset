@@ -194,4 +194,19 @@ class BackupStoreTest {
 
         assertEquals(BackupOrigin.UNKNOWN, subject.history().single().origin)
     }
+
+    @Test
+    fun `a save that cannot be written is logged and still returned`() {
+        val storage = object : BackupStorage {
+            override fun read(): String? = null
+            override fun write(blob: String) = error("disk full")
+        }
+        val lines = mutableListOf<String>()
+        val subject = BackupStore(storage, now = { 1L }, log = { lines += it })
+
+        val outcome = subject.save("L365", values(0x11))
+
+        assertEquals(1, outcome.history.size)
+        assertTrue(lines.any { it.contains("could not be saved") })
+    }
 }

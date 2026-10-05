@@ -75,6 +75,15 @@ class EpsonProtocolTest {
     }
 
     @Test
+    fun `a service cleaning rejection includes NG as well as NA`() {
+        // Cleaning used to look only for :NA;, so a printer that answered :NG;
+        // was treated as success and the ESC/P2 fallback never ran.
+        assertTrue(protocol.isNegativeMaintenanceReply("@BDC PS\r\n||:42:NG;".encodeToByteArray()))
+        assertTrue(protocol.isNegativeMaintenanceReply("@BDC PS\r\n||:42:NA;".encodeToByteArray()))
+        assertFalse(protocol.isNegativeMaintenanceReply("@BDC PS\r\n||:42:OK;".encodeToByteArray()))
+    }
+
+    @Test
     fun `an unrecognised write reply is not treated as a rejection`() {
         // The markers come from a sibling implementation talking over the raw
         // USB pipe rather than D4. Until a run on real hardware confirms the

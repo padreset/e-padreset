@@ -21,8 +21,21 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
+import java.util.concurrent.atomic.AtomicInteger
+
+/**
+ * Broadcast action for one permission ask.
+ *
+ * A result is an ordinary broadcast. Every receiver registered for the same
+ * action runs, so a shared action would resume every waiter with whichever
+ * grant arrived first. The request code is part of the action, and of the
+ * [PendingIntent], so two live asks cannot hear each other.
+ */
+internal fun usbPermissionAction(packageName: String, requestCode: Int): String =
+    "$packageName.USB_PERMISSION.$requestCode"
 
 class UsbTransport(private val context: Context) {
+    private val permissionRequestCode = AtomicInteger(0)
     data class InterfaceInfo(
         val id: Int,
         val interfaceClass: Int,
@@ -149,20 +162,35 @@ class UsbTransport(private val context: Context) {
             return@suspendCancellableCoroutine
         }
 
-        val action = "${context.packageName}.USB_PERMISSION"
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            PendingIntent.FLAG_IMMUTABLE
+        val requestCode = permissionRequestCode.incrementAndGet()
+        val action = usbPermissionAction(context.packageName, requestCode)
+        // UsbManager fills EXTRA_PERMISSION_GRANTED into this intent. An
+        // immutable PendingIntent drops that fill-in on API 31+, so the grant
+        // never arrives. The intent is explicit (setPackage) because a mutable
+        // implicit broadcast is rejected. The action includes the request code,
+        // so a result wakes only the receiver that asked.
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            PendingIntent.FLAG_MUTABLE
         } else {
             0
         }
-        val intent = PendingIntent.getBroadcast(context, 0, Intent(action), flags)
+        val explicit = Intent(action).setPackage(context.packageName)
+        val intent = PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            explicit,
+            flags,
+        )
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(receiverContext: Context?, receivedIntent: Intent?) {
-                if (receivedIntent?.action == action) {
-                    context.unregisterReceiver(this)
-                    val granted = receivedIntent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
-                    continuation.resume(granted)
-                }
+                if (receivedIntent?.action != action) return
+                // The timeout path unregisters too. A second unregister, or a
+                // resume of an already-finished continuation, must not crash
+                // the process from inside onReceive.
+                runCatching { context.unregisterReceiver(this) }
+                if (!continuation.isActive) return
+                val granted = receivedIntent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
+                runCatching { continuation.resume(granted) }
             }
         }
         if (SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

@@ -278,6 +278,11 @@
     <!-- Connection failures, resolved from PrinterService.ConnectFailure so the
          callout can name the actual cause instead of a generic failure. -->
     <string name="error_connect_permission_denied">USB access was denied. Reconnect the printer and accept the permission request.</string>
+    <!-- Kept apart from error_connect_permission_denied: the check that failed
+         cannot tell a refusal from a printer that is no longer there, and
+         sending someone to look for a permission dialog that will never appear
+         is worse than saying nothing. -->
+    <string name="error_connect_device_detached">The printer is no longer connected. Plug it back in and retry.</string>
     <string name="error_connect_no_interfaces">This USB device has no interface the app can use. It may not be a supported Epson printer.</string>
     <string name="error_connect_unsupported_model">This Epson model is not in the app\'s database, so no maintenance session can be opened. You can request an investigation; support requires verified model data and hardware tests and is not guaranteed.</string>
     <string name="error_connect_unsupported_model_named">The Epson model \'%1$s\' is not in the app\'s database, so no maintenance session can be opened. You can request an investigation; support requires verified model data and hardware tests and is not guaranteed.</string>
@@ -289,8 +294,19 @@
     <string name="error_connect_unsupported_model_box_named">The Epson model \'%1$s\' is missing from the app\'s database and the community catalog classifies it as using a maintenance box. You can request an investigation of cleaning and nozzle check support, but this app cannot reset the counter on the box\'s chip.</string>
     <string name="error_connect_dot4_nak">The printer refused the maintenance session. Turn it off and on again, then retry.</string>
     <string name="error_connect_dot4_no_reply">The printer did not answer on any USB route. Try another cable or port, turn it off and on again, then retry.</string>
-    <string name="error_connect_interface_busy">Another app is using the printer\'s USB connection (e.g. a print service). Close the other printer apps and retry.</string>
+    <!-- "may be using it", not "is using it": claimInterface returns a bare
+         boolean, so a device that vanished mid-connect is indistinguishable
+         from one another app holds. The attachment re-check narrows it, and the
+         wording no longer asserts what the check cannot prove. -->
+    <string name="error_connect_interface_busy">The printer\'s USB connection could not be claimed. Another app may be using it (e.g. a print service); close any other printer apps and retry.</string>
     <string name="error_reset_partial_shared">These counters share memory bytes with another counter, so they can only be reset together. Select all counters to proceed.</string>
+    <!-- The refusals the service raises before it writes anything. Each one used
+         to reach the user as "Operation failed"; they are kept apart because
+         each names a different thing the user can do about it. -->
+    <string name="error_reset_no_counter_selected">No waste counter was selected, so there is nothing to reset.</string>
+    <string name="error_reset_no_values">This model does not publish reset values for the selected counters, so there is nothing to write.</string>
+    <string name="error_reset_percentage_unsupported">A target percentage cannot be written for this selection: the counters must publish a limit, fit in four bytes, and not share bytes with another counter.</string>
+    <string name="error_restore_no_applicable_addresses">This backup holds no address the connected printer uses, so there is nothing to write back.</string>
 
     <!-- A local draft is reviewed before any external action. -->
     <string name="action_report_model">Help add this model</string>
