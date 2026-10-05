@@ -48,6 +48,13 @@ class SessionOfferTest {
         SessionOffer.refusePowerClean(SessionOffer.decide(spec = null), powerClean = false)
     }
 
+    @Test
+    fun `pasted profiles cannot authorize power cleaning`() {
+        val offer = SessionOffer.decide(spec(), unverifiedLocal = true)
+        assertFalse(offer.powerClean)
+        assertTrue(runCatching { SessionOffer.refusePowerClean(offer, true) }.exceptionOrNull() is SessionOffer.PowerCleanRefused)
+    }
+
     private fun spec() = PrinterSpec(
         modelName = "L365 Series",
         controlModel = byteArrayOf(0, 0),

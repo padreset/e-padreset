@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -46,6 +48,13 @@ import androidx.compose.ui.unit.dp
 import com.padreset.epadreset.ui.theme.PadRadius
 import com.padreset.epadreset.ui.theme.PadSpace
 import com.padreset.epadreset.ui.theme.PadTheme
+
+@Composable
+internal fun ExitWarning(busy: Boolean) {
+    Text(if (busy) androidx.compose.ui.res.stringResource(com.padreset.epadreset.R.string.exit_busy_warning) else
+        androidx.compose.ui.res.stringResource(com.padreset.epadreset.R.string.dialog_exit_body,
+            androidx.compose.ui.res.stringResource(com.padreset.epadreset.R.string.app_name)))
+}
 
 /** Button emphasis levels used across the redesign. */
 enum class PadButtonVariant { Primary, Secondary, Danger }
@@ -122,7 +131,7 @@ fun PadButton(
     val shape = RoundedCornerShape(PadRadius.s)
     val disabledContainer = pad.sunken
     val disabledContent = pad.muted.copy(alpha = 0.6f)
-    val buttonModifier = modifier.height(height)
+    val buttonModifier = modifier.heightIn(min = height)
 
     when (variant) {
         PadButtonVariant.Primary -> Button(
@@ -137,7 +146,7 @@ fun PadButton(
                 disabledContentColor = disabledContent,
             ),
         ) {
-            Text(text, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+            Text(text, style = MaterialTheme.typography.labelLarge)
         }
 
         PadButtonVariant.Secondary -> OutlinedButton(
@@ -153,7 +162,7 @@ fun PadButton(
                 disabledContentColor = disabledContent,
             ),
         ) {
-            Text(text, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+            Text(text, style = MaterialTheme.typography.labelLarge)
         }
 
         PadButtonVariant.Danger -> OutlinedButton(
@@ -169,7 +178,7 @@ fun PadButton(
                 disabledContentColor = disabledContent,
             ),
         ) {
-            Text(text, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+            Text(text, style = MaterialTheme.typography.labelLarge)
         }
     }
 }
@@ -214,7 +223,9 @@ fun PadAlertDialog(
         modifier = modifier,
         dismissButton = dismissButton,
         title = title,
-        text = text,
+        text = text?.let { body ->
+            { Column(Modifier.verticalScroll(rememberScrollState())) { body() } }
+        },
         shape = RoundedCornerShape(PadRadius.l),
         containerColor = pad.dialog,
         tonalElevation = 0.dp,

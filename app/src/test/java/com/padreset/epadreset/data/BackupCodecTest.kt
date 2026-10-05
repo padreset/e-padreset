@@ -101,6 +101,17 @@ class BackupCodecTest {
         assertTrue(BackupCodec.decodeHistory("   \n  ").isEmpty())
     }
 
+    @Test
+    fun `new records bind unit and detect truncation or changed bytes`() {
+        val original = record(values = mapOf(24 to 1.toByte(), 25 to 2.toByte())).copy(unitId = "TEST-UNIT")
+        val text = BackupCodec.encodeRecord(original)
+        assertEquals(original, BackupCodec.decodeHistory(text).single())
+        assertTrue(BackupCodec.decodeHistory(text.replace("0x0019 = 0x02", "")).isEmpty())
+        assertTrue(BackupCodec.decodeHistory(text.replace("0x0018 = 0x01", "0x0018 = 0x03")).isEmpty())
+        assertTrue(BackupCodec.decodeHistory(text.replace("TEST-UNIT", "OTHER-UNIT")).isEmpty())
+        assertEquals("TEST-UNIT", BackupTextParser.parse(text)?.unitId)
+    }
+
     // -- the origin line -----------------------------------------------------
 
     @Test

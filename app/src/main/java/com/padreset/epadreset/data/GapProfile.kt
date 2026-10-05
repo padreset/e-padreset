@@ -120,8 +120,12 @@ internal fun commitGapPaste(
 
 internal object GapProfileText {
     private const val ADDRESS_MAX = 0x7FF
+    const val MAX_TEXT_LENGTH = 65_536
+    private const val MAX_PADS = 16
+    private const val MAX_ADDRESSES = 64
 
     fun parse(text: String, maintenanceBoxNames: Set<String>): GapParse {
+        if (text.length > MAX_TEXT_LENGTH) return GapParse.Refused(GapRefusal.MALFORMED)
         val trimmed = text.trim()
         if (trimmed.contains("<!DOCTYPE", ignoreCase = true) || trimmed.contains("<!ENTITY", ignoreCase = true)) {
             return GapParse.Refused(GapRefusal.DOCTYPE)
@@ -142,7 +146,7 @@ internal object GapProfileText {
         }
         val rkey = model.getAttribute("rkey").trim().toIntOrNull()
         if (rkey == null || rkey !in 0..0xFFFF) return GapParse.Refused(GapRefusal.MALFORMED)
-        val keyword = hexBytes(model.getAttribute("keyword"))
+        val keyword = hexBytes(model.getAttribute("keyword")) ?: return GapParse.Refused(GapRefusal.MALFORMED)
         if (keyword.size != 8) return GapParse.Refused(GapRefusal.MALFORMED)
 
         val counters = mutableListOf<WasteCounterSpec>()
@@ -151,27 +155,41 @@ internal object GapProfileText {
         var padIndex = 0
         for (i in 0 until pads.length) {
             val pad = pads.item(i) as? Element ?: continue
-            if (pad.nodeName != "pad") continue
-            val addresses = decimals(pad.getAttribute("addresses"))
-            val reset = decimals(pad.getAttribute("reset"))
+            if (pad.nodeName != "pad" || pad.getElementsByTagName("*").length != 0 || padIndex >= MAX_PADS) {
+                return GapParse.Refused(GapRefusal.MALFORMED)
+            }
+            val kind = pad.getAttribute("kind").trim().lowercase()
+            if (kind !in setOf("main", "platen", "borderless", "unknown", "")) {
+                return GapParse.Refused(GapRefusal.MALFORMED)
+            }
+            val addresses = decimals(pad.getAttribute("addresses")) ?: return GapParse.Refused(GapRefusal.MALFORMED)
+            val reset = decimals(pad.getAttribute("reset")) ?: return GapParse.Refused(GapRefusal.MALFORMED)
             if (addresses.isEmpty() || addresses.size != reset.size) {
+                return GapParse.Refused(GapRefusal.MALFORMED)
+            }
+            if (addresses.size > MAX_ADDRESSES || addresses.distinct().size != addresses.size) {
                 return GapParse.Refused(GapRefusal.MALFORMED)
             }
             if (addresses.any { it !in 0..ADDRESS_MAX } || reset.any { it !in 0..0xFF }) {
                 return GapParse.Refused(GapRefusal.MALFORMED)
             }
+            if (addresses.withIndex().any { (position, address) ->
+                    resetMap[address]?.let { it != reset[position] } == true
+                }) return GapParse.Refused(GapRefusal.MALFORMED)
             addresses.forEachIndexed { position, address -> resetMap[address] = reset[position] }
             counters += WasteCounterSpec(
                 name = padName(pad.getAttribute("kind"), padIndex),
                 addresses = addresses,
                 max = 0,
+                kind = kind,
             )
             padIndex += 1
         }
         val box = maintenanceBoxNames.any {
             EpsonPrinterCatalog.normalizeModelName(it) == EpsonPrinterCatalog.normalizeModelName(name)
         }
-        if (box && (counters.isNotEmpty() || resetMap.isNotEmpty())) {
+        // A box chip is not writable here, but a printer may also have an internal platen pad.
+        if (box && counters.any { it.kind != "platen" }) {
             return GapParse.Refused(GapRefusal.MAINTENANCE_BOX)
         }
         return GapParse.Accepted(
@@ -179,7 +197,7 @@ internal object GapProfileText {
                 modelName = name,
                 controlModel = byteArrayOf((rkey and 0xFF).toByte(), ((rkey shr 8) and 0xFF).toByte()),
                 keyword = keyword,
-                wasteCounters = counters,
+                wasteCounters = uniqueCounterNames(counters),
                 resetMap = resetMap,
                 source = source,
                 version = version,
@@ -194,21 +212,25 @@ internal object GapProfileText {
             isNamespaceAware = false
         }
         val document = factory.newDocumentBuilder().parse(ByteArrayInputStream(text.toByteArray(Charsets.UTF_8)))
-        val nodes = document.getElementsByTagName("model")
-        if (nodes.length != 1) return null
-        return nodes.item(0) as? Element
+        val root = document.documentElement
+        if (root.nodeName != "model" || document.getElementsByTagName("model").length != 1) return null
+        return root
     }
 
-    private fun hexBytes(text: String): ByteArray = text.split(Regex("\\s+"))
-        .filter { it.isNotBlank() }
-        .mapNotNull { token ->
+    private fun hexBytes(text: String): ByteArray? {
+        val tokens = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        if (tokens.size != 8) return null
+        return tokens.map { token ->
             val hex = token.removePrefix("0x").removePrefix("0X")
-            hex.toIntOrNull(16)?.takeIf { it in 0..0xFF }?.toByte()
-        }
-        .toByteArray()
+            (hex.toIntOrNull(16)?.takeIf { it in 0..0xFF } ?: return null).toByte()
+        }.toByteArray()
+    }
 
-    private fun decimals(text: String): List<Int> =
-        text.split(Regex("\\s+")).filter { it.isNotBlank() }.mapNotNull { it.toIntOrNull() }
+    private fun decimals(text: String): List<Int>? {
+        val tokens = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        if (tokens.size > MAX_ADDRESSES) return null
+        return tokens.map { it.toIntOrNull() ?: return null }
+    }
 
     private fun padName(kind: String, index: Int): String = when (kind.trim().lowercase()) {
         "main" -> "Main pad"
@@ -231,15 +253,13 @@ internal interface GapStorage {
  */
 internal class GapProfileStore(
     private val storage: GapStorage,
+    private val isMaintenanceBox: (String) -> Boolean = { false },
 ) {
     fun save(profile: GapProfile, catalogued: Boolean): GapSave {
         if (catalogued) return GapSave.RefusedCatalog
         val next = load().filterNot { same(it.modelName, profile.modelName) } + profile
-        val capped = if (next.size > MAX) next.takeLast(MAX) else next
-        if (next.size > MAX && capped.none { same(it.modelName, profile.modelName) }) {
-            return GapSave.RefusedFull
-        }
-        storage.write(capped.joinToString("\n---\n") { encode(it) })
+        if (next.size > MAX) return GapSave.RefusedFull
+        storage.write(next.joinToString("\n---\n") { encode(it) })
         return GapSave.Stored
     }
 
@@ -253,7 +273,11 @@ internal class GapProfileStore(
     fun load(): List<GapProfile> {
         val blob = storage.read()?.takeIf { it.isNotBlank() } ?: return emptyList()
         return blob.split("\n---\n").mapNotNull { block ->
-            (GapProfileText.parse(block, emptySet()) as? GapParse.Accepted)?.profile
+            val draft = (GapProfileText.parse(block, emptySet()) as? GapParse.Accepted)?.profile
+            draft?.let { profile ->
+                val boxes = if (isMaintenanceBox(profile.modelName)) setOf(profile.modelName) else emptySet()
+                (GapProfileText.parse(block, boxes) as? GapParse.Accepted)?.profile
+            }
         }
     }
 
@@ -267,7 +291,7 @@ internal class GapProfileStore(
         append("\" source=\"").append(escape(profile.source)).append("\"")
         append(" version=\"").append(escape(profile.version)).append("\">")
         profile.wasteCounters.forEach { counter ->
-            append("<pad kind=\"main\" addresses=\"")
+            append("<pad kind=\"").append(escape(counter.kind)).append("\" addresses=\"")
             append(counter.addresses.joinToString(" "))
             append("\" reset=\"")
             append(counter.addresses.joinToString(" ") { address ->
@@ -303,6 +327,7 @@ internal class GapProfileStore(
                     }
                 }
             },
+            isMaintenanceBox = { EpsonPrinterCatalog.usesMaintenanceBox(context, it) },
         )
     }
 }

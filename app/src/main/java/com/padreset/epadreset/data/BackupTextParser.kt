@@ -10,6 +10,7 @@ package com.padreset.epadreset.data
 data class ParsedBackup(
     val model: String?,
     val values: Map<Int, Byte>,
+    val unitId: String? = null,
 )
 
 /**
@@ -52,31 +53,46 @@ internal object BackupTextParser {
 
     /** Null when the text holds no usable address line. */
     fun parse(text: String): ParsedBackup? {
-        if (text.isBlank()) return null
+        if (text.isBlank() || text.length > 131_072) return null
+        val lines = text.lines()
+        if (lines.size > MAX_LINES) return null
+        val magic = lines.count { it.trim() == BackupCodec.MAGIC }
+        if (magic > 1) return null
+        if (magic == 1) {
+            val records = BackupCodec.decodeHistory(text)
+            val record = records.singleOrNull() ?: return null
+            return ParsedBackup(record.model.asModelName(), record.values, record.unitId)
+        }
 
         var model: String? = null
         val values = linkedMapOf<Int, Byte>()
 
-        for (line in text.lines().take(MAX_LINES)) {
+        var headerSeen = false
+        for (line in lines) {
             val trimmed = line.trim()
             when {
                 trimmed.isEmpty() -> Unit
 
                 trimmed == BackupCodec.MAGIC -> Unit
 
-                trimmed.startsWith(HEADER_PREFIX) ->
-                    model = modelFromHeader(trimmed) ?: model
+                trimmed.startsWith(HEADER_PREFIX) -> {
+                    if (headerSeen) return null
+                    headerSeen = true
+                    model = modelFromHeader(trimmed)
+                }
 
-                trimmed.startsWith(MODEL_PREFIX) ->
-                    model = trimmed.substring(MODEL_PREFIX.length).trim().asModelName() ?: model
+                trimmed.startsWith(MODEL_PREFIX) -> {
+                    if (headerSeen) return null
+                    headerSeen = true
+                    model = trimmed.substring(MODEL_PREFIX.length).trim().asModelName()
+                }
 
                 else -> {
-                    val match = ADDRESS_LINE.matchEntire(line) ?: continue
+                    val match = ADDRESS_LINE.matchEntire(line) ?: return null
                     val address = match.groupValues[1].toInt(16)
                     val value = match.groupValues[2].toInt(16)
                     if (address in 0..0xFFFF && value in 0..0xFF) {
-                        // A repeated address keeps the last value, the same way
-                        // the write plan is built.
+                        if (values[address]?.let { (it.toInt() and 0xFF) != value } == true) return null
                         values[address] = value.toByte()
                     }
                 }

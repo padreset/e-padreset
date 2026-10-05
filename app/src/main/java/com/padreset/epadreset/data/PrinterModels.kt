@@ -20,7 +20,16 @@ data class WasteCounterSpec(
      * does not perform — see `WasteWriter.planFor`).
      */
     val masks: Map<Int, Int> = emptyMap(),
+    val kind: String = "unknown",
 )
+
+/** Names are selection keys as well as labels; repeated pad kinds must stay distinguishable. */
+internal fun uniqueCounterNames(counters: List<WasteCounterSpec>): List<WasteCounterSpec> {
+    val counts = counters.groupingBy { it.name }.eachCount()
+    return counters.mapIndexed { index, counter ->
+        if (counts.getValue(counter.name) > 1) counter.copy(name = "${counter.name} (${index + 1})") else counter
+    }
+}
 
 data class CleaningSpec(
     val name: String,
@@ -149,12 +158,10 @@ object EpsonPrinterCatalog {
      *    (and "PM-400 Series" for anything starting with it), handing the wrong
      *    controlModel/keyword/EEPROM addresses to the write path. Never match a
      *    shorter name inside a longer one.
-     * 3. Longest catalog name found in the MDL at a word boundary (e.g. MDL
-     *    "EPSON XP-420" contains "XP-420" whole). Longest wins so
-     *    "XP-4200 Series" beats "XP-420 Series" if both ever match; ties keep
-     *    catalog order and are reported via [onAmbiguous].
-     * 4. Same rule against the whole device ID, for printers whose MDL is
-     *    known but unmatched, or whose ID carries the model elsewhere.
+     * 3. A single catalog name found in MDL at a word boundary (e.g. MDL
+     *    "EPSON XP-420" contains "XP-420" whole). Multiple candidates are
+     *    refused and reported via [onAmbiguous], never resolved by length/order.
+     * Unmatched MDL stays unresolved: DES/SN/CMD must not supply a write profile.
      */
     internal fun resolveName(
         mdl: String,
@@ -167,16 +174,13 @@ object EpsonPrinterCatalog {
         val stripped = names.map { it to it.removeSuffix(" Series") }
         val candidates = stripped.filter { (_, name) -> boundaryContains(mdl, name) }
         if (candidates.size > 1) {
-            onAmbiguous("Ambiguous model '$mdl' matches ${candidates.map { it.first }}; using longest")
+            onAmbiguous("Ambiguous model '$mdl' matches ${candidates.map { it.first }}; refusing write profile")
+            return null
         }
         candidates.maxByOrNull { it.second.length }?.let { return it.first }
-        val idCandidates = (names.filter { boundaryContains(deviceId, it) } +
-            stripped.filter { (_, name) -> boundaryContains(deviceId, name) }.map { it.first })
-            .distinct()
-        if (idCandidates.size > 1) {
-            onAmbiguous("Ambiguous device ID for '$mdl' matches $idCandidates; using longest")
-        }
-        return idCandidates.maxByOrNull { it.length }
+        // DES/SN/CMD can mention another model. They must never supply write keys.
+        onAmbiguous("No model match in MDL '$mdl'; refusing device-ID fallback (${deviceId.length} characters)")
+        return null
     }
 
     /**
@@ -216,9 +220,9 @@ object EpsonPrinterCatalog {
      *
      * This is asked when resolution has already failed, which is the one case
      * where the answer changes what the user is told. A model that is merely
-     * missing from devices.xml can be added and then reset; a model whose count
-     * lives on the box's chip cannot be reset by any software even after it is
-     * added. The list holds reinkpy's complete classification rather than only
+     * missing from devices.xml may gain a validated internal counter profile;
+     * a count on the box's chip cannot be reset through this printer EEPROM
+     * path. Separate internal platen counters may still be supported. The list holds reinkpy's complete classification rather than only
      * the intersection with our catalog, so it can answer for models
      * devices.xml has never heard of.
      *
@@ -317,6 +321,7 @@ object EpsonPrinterCatalog {
                     addresses = addresses,
                     // Zero means "not published", not "zero capacity".
                     max = 0,
+                    kind = pad.getAttribute("kind").trim().lowercase(),
                 )
             }
 
@@ -327,7 +332,7 @@ object EpsonPrinterCatalog {
                     ((rkey shr 8) and 0xFF).toByte(),
                 ),
                 keyword = keyword,
-                wasteCounters = counters.distinctBy { it.name to it.addresses },
+                wasteCounters = uniqueCounterNames(counters.distinctBy { it.name to it.addresses }),
                 resetMap = resetMap,
                 // reinkpy carries no cleaning payloads, so the maintenance page
                 // falls back to the generic ESC/P2 job it already uses for the
@@ -468,7 +473,7 @@ object EpsonPrinterCatalog {
             modelName = modelName,
             controlModel = controlModel,
             keyword = keyword,
-            wasteCounters = wasteCounters.distinctBy { it.name to it.addresses },
+            wasteCounters = uniqueCounterNames(wasteCounters.distinctBy { it.name to it.addresses }),
             resetMap = resetMap,
             cleaningOptions = cleaningOptions.distinctBy { it.name to it.payload.contentHashCode() },
             usesMaintenanceBox = maintenanceBoxModels.contains(normalizeModelName(modelName)),

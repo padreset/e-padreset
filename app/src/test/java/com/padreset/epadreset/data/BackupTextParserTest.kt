@@ -75,13 +75,13 @@ class BackupTextParserTest {
     }
 
     @Test
-    fun `a value that does not fit a byte is skipped`() {
+    fun `an invalid byte refuses the entire backup`() {
         // 0x1FF needs nine bits, and 0x1FFFF does not fit an address either.
         val pasted = "0x1C = 0x1FF\n0x1FFFF = 0x01\n0x1D = 0x00"
 
         val parsed = BackupTextParser.parse(pasted)
 
-        assertEquals(mapOf(0x1D to 0x00.toByte()), parsed?.values)
+        assertNull(parsed)
     }
 
     @Test
@@ -90,12 +90,12 @@ class BackupTextParserTest {
     }
 
     @Test
-    fun `a repeated address keeps the last value`() {
+    fun `contradictory repeated addresses are refused`() {
         val pasted = "0x001C = 0x11\n0x001C = 0x22"
 
         val parsed = BackupTextParser.parse(pasted)
 
-        assertEquals(mapOf(0x1C to 0x22.toByte()), parsed?.values)
+        assertNull(parsed)
     }
 
     @Test

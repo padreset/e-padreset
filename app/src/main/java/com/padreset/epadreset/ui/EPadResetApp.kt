@@ -10,7 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -107,15 +107,16 @@ fun EPadResetApp(
     onConnect: () -> Unit,
     onRefresh: () -> Unit,
     onReset: (Set<String>, Int) -> Unit,
-    onRestore: (String?, Map<Int, Byte>) -> Unit,
+    onRestore: (String?, Map<Int, Byte>, String?) -> Unit,
     onServiceClean: (String) -> Unit,
     onGenericClean: (Int, Boolean, Boolean) -> Unit,
     onNozzleCheck: () -> Unit,
     onDismissActionSuccess: () -> Unit,
-    onPasteGap: (String) -> String? = { null },
+    onPasteGap: suspend (String) -> String? = { null },
+    onTemporaryBackupAnswer: (Boolean) -> Unit = {},
     onDeleteGap: () -> Unit = {},
 ) {
-    var page by remember { mutableStateOf(AppPage.Status) }
+    var page by rememberSaveable { mutableStateOf(AppPage.Status) }
 
     when (page) {
         AppPage.Status -> PrinterStatusScreen(
@@ -136,6 +137,20 @@ fun EPadResetApp(
             onServiceClean = onServiceClean,
             onGenericClean = onGenericClean,
             onNozzleCheck = onNozzleCheck,
+        )
+    }
+
+    if (uiState.temporaryBackupConfirmation) {
+        PadAlertDialog(
+            onDismissRequest = { onTemporaryBackupAnswer(false) },
+            title = { Text(stringResource(R.string.temporary_backup_title)) },
+            text = { Text(stringResource(R.string.temporary_backup_warning)) },
+            confirmButton = {
+                Button(onClick = { onTemporaryBackupAnswer(true) }) { Text(stringResource(R.string.action_continue_temporary)) }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { onTemporaryBackupAnswer(false) }) { Text(stringResource(R.string.action_cancel)) }
+            },
         )
     }
 

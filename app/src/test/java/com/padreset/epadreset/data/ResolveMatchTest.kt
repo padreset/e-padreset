@@ -80,6 +80,11 @@ class ResolveMatchTest {
     }
 
     @Test
+    fun `another model in DES or serial cannot override an unknown MDL`() {
+        assertNull(EpsonPrinterCatalog.resolveName("ZZ-9999", "MDL:ZZ-9999;DES:XP-420 Series;SN:XP-420;", names))
+    }
+
+    @Test
     fun `boundary matching rejects numeric continuation`() {
         assertTrue(EpsonPrinterCatalog.boundaryContains("EPSON XP-420", "XP-420"))
         assertTrue(EpsonPrinterCatalog.boundaryContains("MFG:EPSON;MDL:XP-420;", "XP-420"))
@@ -88,7 +93,7 @@ class ResolveMatchTest {
     }
 
     @Test
-    fun `ambiguity is reported and longest wins`() {
+    fun `ambiguity is reported and refuses a write profile`() {
         val ambiguous = mutableListOf<String>()
         val got = EpsonPrinterCatalog.resolveName(
             "My AB-100 Plus",
@@ -96,7 +101,7 @@ class ResolveMatchTest {
             listOf("AB-100", "AB-100 Plus"),
             onAmbiguous = ambiguous::add,
         )
-        assertEquals("AB-100 Plus", got)
+        assertNull(got)
         assertTrue(ambiguous.isNotEmpty())
     }
 }

@@ -92,6 +92,57 @@ class GapProfileTest {
         assertFalse(body.contains("0x1234"))
     }
 
+    @Test
+    fun `invalid tokens are rejected instead of shifting address value pairs`() {
+        listOf(
+            SNIPPET.replace("addresses=\"24\"", "addresses=\"24 invalid\""),
+            SNIPPET.replace("reset=\"0\"", "reset=\"invalid 0\""),
+            SNIPPET.replace("0x47", "invalid 0x47"),
+            SNIPPET.replace("addresses=\"24\" reset=\"0\"", "addresses=\"24 24\" reset=\"0 1\""),
+            SNIPPET.replace("</model>", "<unexpected><pad addresses=\"25\" reset=\"1\"/></unexpected></model>"),
+        ).forEach { text -> assertTrue(text, GapProfileText.parse(text, emptySet()) is GapParse.Refused) }
+    }
+
+    @Test
+    fun `profile storage preserves groups and rejects overflow without eviction`() {
+        val store = GapProfileStore(MemoryGapStorage())
+        val text = SNIPPET.replace("</model>", "<pad kind=\"platen\" addresses=\"25\" reset=\"94\"/></model>")
+        val original = (GapProfileText.parse(text, emptySet()) as GapParse.Accepted).profile
+        store.save(original, false)
+        assertEquals(original.wasteCounters, store.findExact(original.modelName)?.wasteCounters)
+        assertEquals(original.resetMap, store.findExact(original.modelName)?.resetMap)
+        repeat(9) { index -> store.save(original.copy(modelName = "ZZ-$index"), false) }
+        assertEquals(GapSave.RefusedFull, store.save(original.copy(modelName = "overflow"), false))
+        assertEquals(10, store.load().size)
+        assertTrue(store.findExact(original.modelName) != null)
+    }
+
+    @Test
+    fun `platen is an internal pad even on a maintenance box model`() {
+        val parsed = GapProfileText.parse(SNIPPET.replace("kind=\"main\"", "kind=\"platen\""), setOf("ZZ-9999"))
+        assertTrue(parsed is GapParse.Accepted)
+        assertTrue((parsed as GapParse.Accepted).profile.usesMaintenanceBox)
+    }
+
+    @Test
+    fun `stored profiles are reclassified against the current maintenance box catalog`() {
+        val storage = MemoryGapStorage()
+        val store = GapProfileStore(storage) { it == "ZZ-9999" }
+        val text = SNIPPET.replace("kind=\"main\"", "kind=\"platen\"")
+        val profile = (GapProfileText.parse(text, setOf("ZZ-9999")) as GapParse.Accepted).profile
+        store.save(profile, false)
+        assertTrue(store.findExact("ZZ-9999")?.usesMaintenanceBox == true)
+        assertEquals("platen", store.findExact("ZZ-9999")?.wasteCounters?.single()?.kind)
+        storage.blob = SNIPPET
+        assertNull(store.findExact("ZZ-9999"))
+    }
+
+    @Test
+    fun `oversized and deeply nested profiles are refused`() {
+        assertTrue(GapProfileText.parse(" ".repeat(70_000) + SNIPPET, emptySet()) is GapParse.Refused)
+        assertTrue(GapProfileText.parse("<root>".repeat(100) + SNIPPET + "</root>".repeat(100), emptySet()) is GapParse.Refused)
+    }
+
     private companion object {
         val SNIPPET = """
             <model name="ZZ-9999" rkey="1943" keyword="0x47 0x41 0x50 0x4b 0x45 0x59 0x21 0x21" source="https://example.com/reinkpy" version="2026-03-30">

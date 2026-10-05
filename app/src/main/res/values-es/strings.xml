@@ -379,4 +379,11 @@
     <string name="printer_error_ink_out">Sin tinta</string>
     <string name="printer_error_service_required">Requiere servicio técnico</string>
     <string name="printer_error_cover_open">Cubierta abierta</string>
+    <string name="temporary_backup_title">El respaldo no se guardó</string>
+    <string name="temporary_backup_warning">El respaldo completo solo está en memoria. Se perderá al cerrar la app o si termina el proceso. Todavía no se ha escrito ningún byte. Continúa únicamente si aceptas este riesgo; copia primero el respaldo.</string>
+    <string name="action_continue_temporary">Continuar con respaldo temporal</string>
+    <string name="error_restore_incomplete_counter">El respaldo solo contiene parte de un contador. Restaura un grupo completo; no se escribió nada.</string>
+    <string name="error_restore_unit_mismatch">Este respaldo pertenece a otra unidad de impresora. No se escribió nada.</string>
+    <string name="dialog_restore_legacy_identity">Este respaldo no identifica la unidad original. Confirma que procede de esta impresora antes de restaurarlo.</string>
+    <string name="exit_busy_warning">Hay una operación en curso. Salir puede interrumpir una escritura y dejar contadores parcialmente modificados. Espera a que termine si es posible.</string>
 </resources>

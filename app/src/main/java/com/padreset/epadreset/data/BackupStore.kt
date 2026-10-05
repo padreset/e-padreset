@@ -38,6 +38,7 @@ data class WasteBackupRecord(
     val model: String,
     val values: Map<Int, Byte>,
     val origin: BackupOrigin = BackupOrigin.UNKNOWN,
+    val unitId: String? = null,
 )
 
 /**
@@ -146,12 +147,13 @@ internal object BackupCodec {
         appendLine(MAGIC)
         appendLine(MODEL_PREFIX + escape(record.model))
         appendLine(TIME_PREFIX + record.timestamp)
+        record.unitId?.let { appendLine("unit=" + escape(it)) }
+        appendLine("count=" + record.values.size)
+        appendLine("sha256=" + checksum(record))
         when (record.origin) {
             BackupOrigin.RESET -> appendLine(ORIGIN_PREFIX + ORIGIN_RESET)
             BackupOrigin.RESTORE -> appendLine(ORIGIN_PREFIX + ORIGIN_RESTORE)
-            // Nothing. A record whose origin is unknown encodes to exactly the
-            // bytes a build without this field would have written, so the two
-            // stay interchangeable in both directions.
+            // Omit an unknown origin; integrity metadata is still emitted.
             BackupOrigin.UNKNOWN -> Unit
         }
         record.values.entries.sortedBy { it.key }.forEach { (address, value) ->
@@ -188,6 +190,9 @@ internal object BackupCodec {
         var model = ""
         var timestamp: Long? = null
         var origin = BackupOrigin.UNKNOWN
+        var unitId: String? = null
+        var count: Int? = null
+        var digest: String? = null
         val values = linkedMapOf<Int, Byte>()
 
         for (line in block) {
@@ -201,6 +206,12 @@ internal object BackupCodec {
                 trimmed.startsWith(TIME_PREFIX) ->
                     timestamp = trimmed.substring(TIME_PREFIX.length).trim().toLongOrNull()
 
+                trimmed.startsWith("unit=") -> unitId = unescape(trimmed.substring(5)).takeIf { it.isNotBlank() }
+                trimmed.startsWith("count=") -> {
+                    count = trimmed.substring(6).toIntOrNull() ?: return null
+                }
+                trimmed.startsWith("sha256=") -> digest = trimmed.substring(7)
+
                 trimmed.startsWith(ORIGIN_PREFIX) -> {
                     origin = when (trimmed.substring(ORIGIN_PREFIX.length).trim().lowercase()) {
                         ORIGIN_RESET -> BackupOrigin.RESET
@@ -212,10 +223,14 @@ internal object BackupCodec {
                 }
 
                 else -> {
-                    val match = ADDRESS_LINE.matchEntire(line) ?: continue
+                    val match = ADDRESS_LINE.matchEntire(line) ?: run {
+                        if (trimmed.startsWith("0x", ignoreCase = true) || trimmed.contains('=')) return null
+                        continue
+                    }
                     val address = match.groupValues[1].toInt(16)
                     val value = match.groupValues[2].toInt(16)
                     if (address in 0..0xFFFF && value in 0..0xFF) {
+                        if (values[address]?.let { (it.toInt() and 0xFF) != value } == true) return null
                         values[address] = value.toByte()
                     }
                 }
@@ -224,7 +239,22 @@ internal object BackupCodec {
 
         val time = timestamp ?: return null
         if (values.isEmpty()) return null
-        return WasteBackupRecord(timestamp = time, model = model, values = values, origin = origin)
+        val record = WasteBackupRecord(timestamp = time, model = model, values = values, origin = origin, unitId = unitId)
+        if (count != null && count != values.size) return null
+        if ((count == null) != (digest == null)) return null
+        if (digest != null && digest != checksum(record)) return null
+        return record
+    }
+
+    private fun checksum(record: WasteBackupRecord): String {
+        val canonical = buildString {
+            appendLine(record.model)
+            appendLine(record.timestamp)
+            appendLine(record.unitId.orEmpty())
+            record.values.toSortedMap().forEach { (address, value) -> appendLine(addressLine(address, value)) }
+        }
+        return java.security.MessageDigest.getInstance("SHA-256")
+            .digest(canonical.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     }
 
     private fun addressLine(address: Int, value: Byte): String =
@@ -265,20 +295,21 @@ internal object BackupCodec {
  * would be gone by then, which is why persistence is not a convenience here but
  * the point.
  *
- * Nothing in here may throw or block a write. A store that cannot be read or
- * written logs and returns what it has: the printer write is the operation the
- * user asked for, and losing a record is survivable where aborting a reset is not.
+ * A storage error is returned as persisted=false, with only durable history.
+ * The caller must stop before EEPROM changes unless the user explicitly
+ * approves this single plan with its memory-only backup.
  */
 /**
  * What [BackupStore.save] did.
  *
- * [deduplicated] is true when the state was already held under the same model, so
+ * [deduplicated] is true when the state was already held under the same model and unit, so
  * nothing was added. The caller logs it, because a restore that produces no new
  * row would otherwise look like a save that failed.
  */
 data class BackupSaveOutcome(
     val history: List<WasteBackupRecord>,
     val deduplicated: Boolean,
+    val persisted: Boolean = true,
 )
 
 class BackupStore internal constructor(
@@ -321,6 +352,7 @@ class BackupStore internal constructor(
         model: String,
         values: Map<Int, Byte>,
         origin: BackupOrigin = BackupOrigin.UNKNOWN,
+        unitId: String? = null,
     ): BackupSaveOutcome {
         if (values.isEmpty()) return BackupSaveOutcome(history(), deduplicated = false)
 
@@ -328,7 +360,7 @@ class BackupStore internal constructor(
         val normalized = EpsonPrinterCatalog.normalizeModelName(model)
         val duplicate = existing.any { record ->
             EpsonPrinterCatalog.normalizeModelName(record.model) == normalized &&
-                record.values == values
+                record.values == values && record.unitId == unitId
         }
         if (duplicate) return BackupSaveOutcome(existing, deduplicated = true)
 
@@ -337,13 +369,15 @@ class BackupStore internal constructor(
             model = model,
             values = values,
             origin = origin,
+            unitId = unitId,
         )
         val updated = (listOf(record) + existing).take(MAX_RECORDS)
 
-        runCatching { storage.write(BackupCodec.encodeHistory(updated)) }
+        val saved = runCatching { storage.write(BackupCodec.encodeHistory(updated)) }
             .onFailure { log("Backup could not be saved: ${it.message}") }
+            .isSuccess
 
-        return BackupSaveOutcome(updated, deduplicated = false)
+        return BackupSaveOutcome(if (saved) updated else existing, deduplicated = false, persisted = saved)
     }
 
     /**

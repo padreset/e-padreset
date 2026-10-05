@@ -6,6 +6,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -213,7 +216,9 @@ fun PadSelectableRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp),
+            .padding(vertical = 2.dp)
+            .then(if (multi) Modifier.toggleable(value = selected, role = Role.Checkbox, onValueChange = onSelect)
+                else Modifier.selectable(selected = selected, role = Role.RadioButton, onClick = { onSelect(true) })),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -233,9 +238,9 @@ fun PadSelectableRow(
         }
         Spacer(Modifier.width(PadSpace.sm))
         if (multi) {
-            Checkbox(checked = selected, onCheckedChange = onSelect)
+            Checkbox(checked = selected, onCheckedChange = null)
         } else {
-            RadioButton(selected = selected, onClick = { onSelect(!selected) })
+            RadioButton(selected = selected, onClick = null)
         }
     }
 }

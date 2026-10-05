@@ -67,6 +67,7 @@ class MainActivity : ComponentActivity() {
                     onNozzleCheck = viewModel::printNozzleCheck,
                     onDismissActionSuccess = viewModel::dismissActionSuccess,
                     onPasteGap = viewModel::pasteGapProfile,
+                    onTemporaryBackupAnswer = viewModel.writeBackups::answer,
                     onDeleteGap = viewModel::deleteGapProfile,
                 )
             }

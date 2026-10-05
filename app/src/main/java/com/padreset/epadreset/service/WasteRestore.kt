@@ -21,6 +21,21 @@ internal object WasteRestore {
     fun planFrom(backup: Map<Int, Byte>): Map<Int, Int> =
         backup.entries.associate { (address, value) -> address to (value.toInt() and 0xFF) }
 
+    /** A touched multibyte/shared group must be restored in full, never as a guessed partial value. */
+    fun applicable(spec: com.padreset.epadreset.data.PrinterSpec, backup: Map<Int, Byte>): Map<Int, Byte> {
+        val known = spec.wasteCounters.flatMap { it.addresses }.toSet() + spec.resetMap.keys
+        val values = backup.filterKeys { it in known }
+        if (values.isEmpty()) {
+            throw PrinterService.WastePlanException(PrinterService.WastePlanException.Reason.RESTORE_NO_APPLICABLE_ADDRESSES)
+        }
+        if (spec.wasteCounters.any { counter ->
+                counter.addresses.any { it in values } && !values.keys.containsAll(counter.addresses)
+            }) {
+            throw PrinterService.WastePlanException(PrinterService.WastePlanException.Reason.RESTORE_INCOMPLETE_COUNTER)
+        }
+        return values
+    }
+
     /**
      * Checks every address in [plan] and returns the ones that did not take.
      * The reader can reuse bytes captured by the post-write status read.

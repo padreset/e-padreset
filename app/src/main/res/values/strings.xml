@@ -391,4 +391,11 @@
       and for the gauge colour, so translating them would change behaviour
       rather than just wording.
     -->
+    <string name="temporary_backup_title">Backup was not saved</string>
+    <string name="temporary_backup_warning">The complete backup is only in memory. Closing the app or losing the process will lose it. No bytes have been written yet. Continue only if you accept this risk; copy the backup first.</string>
+    <string name="action_continue_temporary">Continue with temporary backup</string>
+    <string name="error_restore_incomplete_counter">The backup contains only part of a counter. Restore a complete counter group; nothing was written.</string>
+    <string name="error_restore_unit_mismatch">This backup belongs to another printer unit. Nothing was written.</string>
+    <string name="dialog_restore_legacy_identity">This backup does not identify the original printer unit. Confirm that it came from this printer before restoring.</string>
+    <string name="exit_busy_warning">An operation is in progress. Exiting can interrupt a write and leave partially changed counters. Wait until it finishes if possible.</string>
 </resources>

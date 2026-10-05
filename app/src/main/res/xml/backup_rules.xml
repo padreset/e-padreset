@@ -9,4 +9,5 @@
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="waste_backup_history.xml" />
+    <exclude domain="sharedpref" path="gap_profiles.xml" />
 </full-backup-content>

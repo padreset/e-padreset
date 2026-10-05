@@ -12,6 +12,9 @@ import com.padreset.epadreset.data.WasteCounterStatus
 import com.padreset.epadreset.protocol.Escp2MaintenanceProtocol
 import com.padreset.epadreset.protocol.EpsonProtocol
 import com.padreset.epadreset.usb.UsbTransport
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -226,6 +229,8 @@ class PrinterService(
             }
 
             val firstError = firstAttempt.exceptionOrNull()
+            if (firstError is CancellationException) throw firstError
+            currentCoroutineContext().ensureActive()
 
             // A model the catalog does not know about cannot be fixed by trying
             // another USB interface, so stop here rather than letting the next
@@ -244,6 +249,7 @@ class PrinterService(
                 }
 
                 val secondError = secondAttempt.exceptionOrNull()
+                if (secondError is CancellationException) throw secondError
                 if (secondError.unresolvedModel()) {
                     log("Model is not in the catalog, no point trying the remaining interfaces")
                     throw secondError!!
@@ -292,7 +298,12 @@ class PrinterService(
         return ConnectException(failure, detail = deviceId)
     }
 
-    suspend fun readPrinterStatus(connection: ConnectionState): PrinterStatusSnapshot = withContext(Dispatchers.IO) {
+    suspend fun readPrinterStatus(
+        connection: ConnectionState,
+        includeCounters: Boolean = true,
+    ): PrinterStatusSnapshot = withContext(Dispatchers.IO) {
+        restoreControlMode(connection)
+        if (!includeCounters) return@withContext readStatusOnly(connection)
         when (connection) {
             is ConnectionState.Catalogued -> readStatus(connection) { address -> readEepromByte(connection, address) }
             is ConnectionState.ReadOnly -> readStatus(connection) { _ ->
@@ -305,10 +316,7 @@ class PrinterService(
         connection: ConnectionState,
         readByte: (Int) -> Byte,
     ): PrinterStatusSnapshot {
-        log("Requesting printer status")
-        val statusResponse = sendControlPayload(connection, connection.protocol.buildStatusRequest())
-        val baseSnapshot = connection.protocol.parseStatusResponse(statusResponse, connection.deviceId)
-        log("Status response parsed: state=${baseSnapshot.state} error=${baseSnapshot.error} inks=${baseSnapshot.inkLevels.size}")
+        val baseSnapshot = readStatusOnly(connection)
         val wasteCounters = when (connection) {
             is ConnectionState.Catalogued -> connection.spec.wasteCounters.map { counter ->
                 val bytes = counter.addresses.map(readByte).toByteArray()
@@ -331,9 +339,16 @@ class PrinterService(
      * [backup] holds the bytes that were at those addresses before anything was
      * written, keyed by address. It is the only record of how to get back.
      */
+    private fun readStatusOnly(connection: ConnectionState): PrinterStatusSnapshot {
+        log("Requesting printer status")
+        val response = sendControlPayload(connection, connection.protocol.buildStatusRequest())
+        return connection.protocol.parseStatusResponse(response, connection.deviceId)
+    }
+
     data class WasteWriteOutcome(
         val counters: List<WasteCounterStatus>,
         val backup: Map<Int, Byte>,
+        val snapshot: PrinterStatusSnapshot,
     )
 
     /**
@@ -355,6 +370,7 @@ class PrinterService(
         val backupBeforeRestore: Map<Int, Byte>,
         val written: Int,
         val skipped: Int,
+        val snapshot: PrinterStatusSnapshot,
     )
 
     /** Unsigned values retained for both the localized error and protocol log. */
@@ -415,6 +431,7 @@ class PrinterService(
             SHARED_BYTES,
             PERCENTAGE_UNSUPPORTED,
             RESTORE_NO_APPLICABLE_ADDRESSES,
+            RESTORE_INCOMPLETE_COUNTER,
         }
     }
 
@@ -424,11 +441,12 @@ class PrinterService(
         targetPercentage: Int,
         onBackup: (Map<Int, Byte>) -> Unit = {},
     ): WasteWriteOutcome = withContext(Dispatchers.IO) {
+        restoreControlMode(connection)
         val plan = WasteWriter.planFor(connection.spec, selectedCounterNames, targetPercentage)
         log("Writing waste counter plan: ${plan.size} EEPROM bytes")
 
         val verified = applyWritePlan(connection, plan, onBackup)
-        WasteWriteOutcome(verified.value.wasteCounters, verified.backup)
+        WasteWriteOutcome(verified.value.wasteCounters, verified.backup, verified.value)
     }
 
     /**
@@ -451,12 +469,8 @@ class PrinterService(
     ): WasteRestoreOutcome = withContext(Dispatchers.IO) {
         require(backup.isNotEmpty()) { "Nothing to restore" }
 
-        val knownAddresses = connection.spec.wasteCounters.flatMap { it.addresses }.toSet() +
-            connection.spec.resetMap.keys
-        val applicable = backup.filterKeys { it in knownAddresses }
-        if (applicable.isEmpty()) {
-            throw WastePlanException(WastePlanException.Reason.RESTORE_NO_APPLICABLE_ADDRESSES)
-        }
+        restoreControlMode(connection)
+        val applicable = WasteRestore.applicable(connection.spec, backup)
 
         val plan = WasteRestore.planFrom(applicable)
         val skipped = backup.size - applicable.size
@@ -468,6 +482,7 @@ class PrinterService(
             backupBeforeRestore = verified.backup,
             written = plan.size,
             skipped = skipped,
+            snapshot = verified.value,
         )
     }
 
@@ -535,6 +550,7 @@ class PrinterService(
         connection: ConnectionState.Catalogued,
         cleaningName: String,
     ): ByteArray = withContext(Dispatchers.IO) {
+        restoreControlMode(connection)
         val cleaning = connection.spec.cleaningOptions.firstOrNull { it.name == cleaningName }
             ?: error("Unsupported cleaning mode: $cleaningName")
         require(cleaning.type.equals("service", ignoreCase = true)) {
@@ -572,7 +588,7 @@ class PrinterService(
     ) = withContext(Dispatchers.IO) {
         val offer = when (connection) {
             is ConnectionState.ReadOnly -> SessionOffer.decide(null)
-            is ConnectionState.Catalogued -> SessionOffer.decide(connection.spec)
+            is ConnectionState.Catalogued -> SessionOffer.decide(connection.spec, connection.unverifiedLocal)
         }
         SessionOffer.refusePowerClean(offer, powerClean)
         val payload = Escp2MaintenanceProtocol.buildHeadCleaningJob(
@@ -623,6 +639,7 @@ class PrinterService(
      */
     suspend fun closeBlocking(connection: ConnectionState) = withContext(Dispatchers.IO) {
         runCatching {
+            if (connection.session.controlModeInvalidated) return@runCatching
             val channel = connection.controlChannel ?: return@runCatching
             sendD4Command(
                 connection.session,
@@ -631,6 +648,7 @@ class PrinterService(
                 byteArrayOf(channel.psid.toByte(), channel.ssid.toByte()),
             )
         }.onFailure { throwable ->
+            if (throwable is CancellationException) throw throwable
             log("D4 goodbye failed (best effort, closing anyway): ${throwable.message}")
         }
         connection.session.close { throwable ->
@@ -780,6 +798,8 @@ class PrinterService(
 
     private suspend fun sendPrintJob(connection: ConnectionState, payload: ByteArray) {
         val currentSession = connection.session
+        // ESC/P2 exits packet mode at the printer, even if the USB handle stays open.
+        currentSession.controlModeInvalidated = true
         val currentIsPrinterInterface = currentSession.usbInterface.interfaceClass == UsbConstants.USB_CLASS_PRINTER
         if (currentIsPrinterInterface && currentSession.bulkOut != null) {
             transport.bulkWrite(currentSession, payload, timeoutMs = 6000)
@@ -797,6 +817,30 @@ class PrinterService(
         }
     }
 
+    /** Reopen D4 after an ESC/P2 job without resending that job or resetting the printer. */
+    private fun restoreControlMode(connection: ConnectionState) {
+        if (!connection.session.controlModeInvalidated) return
+        val session = connection.session
+        val protocol = connection.protocol
+        val enter = enterDot4(session, protocol)
+        require(enter.size >= 8 && enter.first() != 0x15.toByte()) { "Printer did not reopen D4 after the print job" }
+        sendD4Command(session, protocol, 0x00, protocol.buildInitCommandPayload())
+        val socket = sendD4Command(session, protocol, 0x09, protocol.buildGetSocketIdPayload("EPSON-CTRL"))
+        val ssid = socket.firstOrNull()?.toInt()?.and(0xFF) ?: error("Missing EPSON-CTRL socket")
+        val reply = sendD4Command(session, protocol, 0x01, protocol.buildOpenChannelPayload(ssid))
+        require(reply.size >= 8) { "Invalid reopened channel response" }
+        val channel = requireNotNull(connection.controlChannel)
+        channel.psid = reply[0].toInt() and 0xFF
+        channel.ssid = ssid
+        channel.mtu = ((reply[2].toInt() and 0xFF) shl 8) or (reply[3].toInt() and 0xFF)
+        require(channel.mtu > 6) { "Invalid D4 MTU" }
+        channel.txCredits = ((reply[6].toInt() and 0xFF) shl 8) or (reply[7].toInt() and 0xFF)
+        channel.rxCredits = 0
+        sendD4Command(session, protocol, 0x03, protocol.buildCreditPayload(channel.psid, ssid, channel.rxCreditsMax))
+        session.controlModeInvalidated = false
+        log("D4 control session reopened after print job")
+    }
+
     private fun genericCleaningGroup(cleaning: CleaningSpec): Int? {
         val name = cleaning.name.uppercase()
         return when {
@@ -808,11 +852,12 @@ class PrinterService(
     }
 
     private fun sendControlPayload(connection: ConnectionState, payload: ByteArray): ByteArray {
-        ensureChannelCredit(connection)
+        require(!connection.session.controlModeInvalidated) { "D4 session needs renegotiation" }
         log("CTRL TX: ${payload.joinToString(" ") { "%02X".format(it) }}")
         val channel = requireNotNull(connection.controlChannel) { "D4 control channel missing" }
         val frames = connection.protocol.chunkForChannel(channel, payload)
         frames.forEach { frame ->
+            ensureChannelCredit(connection)
             log("D4 TX frame psid=${frame.psid} ssid=${frame.ssid} credit=${frame.credit} control=${frame.control} len=${frame.payload.size}")
             transport.bulkWrite(connection.session, connection.protocol.encodeD4Frame(frame))
             channel.txCredits -= 1
@@ -835,7 +880,7 @@ class PrinterService(
         transport.bulkWrite(session, protocol.encodeD4Frame(frame))
         val reply = readD4Reply(session, protocol)
         log("D4 CMD RX command=0x${command.toString(16)} payload=${reply.payload.joinToString(" ") { "%02X".format(it) }}")
-        require(reply.payload.isNotEmpty()) { "Empty D4 command response" }
+        require(reply.payload.size >= 2) { "Truncated D4 command response" }
         require((reply.payload[0].toInt() and 0xFF) == (command or 0x80)) { "Unexpected D4 response for 0x${command.toString(16)}" }
         require((reply.payload[1].toInt() and 0xFF) == 0x00) { "D4 command returned error" }
         return reply.payload.copyOfRange(2, reply.payload.size)
@@ -856,6 +901,7 @@ class PrinterService(
         )
         require(reply.size >= 4) { "Invalid credit request response" }
         val granted = ((reply[2].toInt() and 0xFF) shl 8) or (reply[3].toInt() and 0xFF)
+        require(granted > 0) { "Printer granted no D4 credit" }
         channel.txCredits += granted
         log("D4 credit request granted=$granted")
     }

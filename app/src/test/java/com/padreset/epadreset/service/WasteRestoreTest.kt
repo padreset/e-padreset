@@ -18,6 +18,24 @@ import org.junit.Test
 class WasteRestoreTest {
 
     @Test
+    fun `a touched counter must have every byte and shared sibling covered`() {
+        val spec = com.padreset.epadreset.data.PrinterSpec(
+            "TEST", byteArrayOf(0, 0), ByteArray(8), listOf(
+                com.padreset.epadreset.data.WasteCounterSpec("Main", listOf(24, 25), 100),
+                com.padreset.epadreset.data.WasteCounterSpec("Platen", listOf(25, 26), 100),
+            ), mapOf(24 to 0, 25 to 0, 26 to 0, 27 to 94), emptyList(),
+        )
+        listOf(mapOf(24 to 1.toByte()), mapOf(24 to 1.toByte(), 25 to 1.toByte())).forEach { partial ->
+            val failure = runCatching { WasteRestore.applicable(spec, partial) }.exceptionOrNull()
+            assertEquals(PrinterService.WastePlanException.Reason.RESTORE_INCOMPLETE_COUNTER,
+                (failure as? PrinterService.WastePlanException)?.reason)
+        }
+        val full = mapOf(24 to 1.toByte(), 25 to 2.toByte(), 26 to 3.toByte())
+        assertEquals(full, WasteRestore.applicable(spec, full))
+        assertEquals(mapOf(27 to 94.toByte()), WasteRestore.applicable(spec, mapOf(27 to 94.toByte())))
+    }
+
+    @Test
     fun `the plan widens bytes without changing them`() {
         val plan = WasteRestore.planFrom(
             mapOf(

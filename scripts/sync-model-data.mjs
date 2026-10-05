@@ -425,16 +425,14 @@ function assertSane(xml, expectedCount, rootTag) {
   }
 }
 
-function committedCount(path, tag) {
-  if (!existsSync(path)) return null;
-  return [...readFileSync(path, "utf8").matchAll(new RegExp(`<${tag}>`, "g"))].length;
+// Compare the generated data, not its prose header or only model names/counts.
+// An address or key fix for an existing model is just as important as a new model.
+function dataBody(xml) {
+  return xml.replace(/<!--[\s\S]*?-->/g, "").replace(/<\?xml[^>]*\?>/g, "").trim();
 }
 
-function committedModelNames(path) {
-  if (!existsSync(path)) return null;
-  return [...readFileSync(path, "utf8").matchAll(/<model name="([^"]*)"/g)].map(
-    (m) => m[1],
-  );
+function committedData(path) {
+  return existsSync(path) ? dataBody(readFileSync(path, "utf8")) : null;
 }
 
 function fallback(reason) {
@@ -450,7 +448,7 @@ function fallback(reason) {
 
 let res;
 try {
-  res = await fetch(source);
+  res = await fetch(source, { signal: AbortSignal.timeout(30_000) });
 } catch (err) {
   fallback(`fetch failed: ${err instanceof Error ? err.message : err}`);
   process.exit(0);
@@ -526,10 +524,8 @@ const extraXml = renderExtra(extra);
 assertSane(boxesXml, boxes.length, "maintenanceBoxes");
 assertSane(extraXml, extra.length, "models");
 
-const boxesStale = committedCount(BOXES, "model") !== boxes.length;
-const extraStale =
-  JSON.stringify(committedModelNames(EXTRA)) !==
-  JSON.stringify(extra.map((m) => m.name));
+const boxesStale = committedData(BOXES) !== dataBody(boxesXml);
+const extraStale = committedData(EXTRA) !== dataBody(extraXml);
 
 if (!boxesStale && !extraStale) {
   console.log(

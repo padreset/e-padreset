@@ -8,9 +8,8 @@ package com.padreset.epadreset.service
  * counting lives in the ViewModel; this object only judges one failure
  * against two counters. See `SessionGuardTest` and `MainViewModel.runJob`.
  *
- * Only transport-shaped write failures are ever silenced — a backup that
- * could not be read, a write that failed mid-run, or a re-read that failed
- * afterwards. `REJECTED` and `NOT_APPLIED` are printer verdicts: the printer
+ * Only a failed pre-write backup read is silenced after teardown. A write
+ * failure or read-back failure always surfaces: changes may already have happened. `REJECTED` and `NOT_APPLIED` are printer verdicts: the printer
  * answered and said no, or the bytes read back differ from the plan. Those
  * always surface, even when the session died later, because silencing them
  * would hide information the user needs (and the pre-write backup stays
@@ -23,8 +22,8 @@ internal object SessionGuard {
     fun shouldSuppress(failure: Throwable, epochAtStart: Int, currentEpoch: Int): Boolean {
         if (currentEpoch == epochAtStart) return false
         val reason = (failure as? PrinterService.WasteWriteException)?.reason ?: return false
-        return reason == PrinterService.WasteWriteException.Reason.BACKUP_FAILED ||
-            reason == PrinterService.WasteWriteException.Reason.WRITE_FAILED ||
-            reason == PrinterService.WasteWriteException.Reason.READ_BACK_FAILED
+        // Only a failed pre-write read can be dismissed as teardown. Once a write
+        // was attempted, transport loss means possibly partial changes, not silence.
+        return reason == PrinterService.WasteWriteException.Reason.BACKUP_FAILED
     }
 }

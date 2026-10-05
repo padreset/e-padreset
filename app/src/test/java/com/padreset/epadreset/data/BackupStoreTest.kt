@@ -196,7 +196,7 @@ class BackupStoreTest {
     }
 
     @Test
-    fun `a save that cannot be written is logged and still returned`() {
+    fun `a save that fails never claims a persisted history entry`() {
         val storage = object : BackupStorage {
             override fun read(): String? = null
             override fun write(blob: String) = error("disk full")
@@ -206,7 +206,8 @@ class BackupStoreTest {
 
         val outcome = subject.save("L365", values(0x11))
 
-        assertEquals(1, outcome.history.size)
+        assertEquals(0, outcome.history.size)
+        assertEquals(false, outcome.persisted)
         assertTrue(lines.any { it.contains("could not be saved") })
     }
 }

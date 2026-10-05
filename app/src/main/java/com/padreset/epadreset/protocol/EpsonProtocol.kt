@@ -46,9 +46,9 @@ class EpsonProtocol(
     )
 
     data class D4ChannelState(
-        val psid: Int,
-        val ssid: Int,
-        val mtu: Int,
+        var psid: Int,
+        var ssid: Int,
+        var mtu: Int,
         var txCredits: Int,
         var rxCredits: Int = 0,
         val rxCreditsMax: Int = 1,
@@ -246,7 +246,8 @@ class EpsonProtocol(
     }
 
     fun chunkForChannel(channel: D4ChannelState, payload: ByteArray): List<D4Frame> {
-        val maxPayload = maxOf(1, channel.mtu - 6)
+        require(channel.mtu in 7..0xFFFF) { "Invalid D4 channel MTU" }
+        val maxPayload = channel.mtu - 6
         var offset = 0
         val frames = mutableListOf<D4Frame>()
         while (offset < payload.size) {

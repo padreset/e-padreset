@@ -19,6 +19,9 @@ import com.padreset.epadreset.data.backupModelMatches
 import com.padreset.epadreset.service.PrinterService
 import com.padreset.epadreset.service.RepeatAttach
 import com.padreset.epadreset.service.SessionGuard
+import com.padreset.epadreset.service.BackupConfirmationRequired
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -69,6 +72,9 @@ data class MainUiState(
      */
     val usesMaintenanceBox: Boolean = false,
     val isBusy: Boolean = false,
+    val temporaryBackupConfirmation: Boolean = false,
+    val backupIsTemporary: Boolean = false,
+    val sessionToken: Int = 0,
     /**
      * Already localized. Explains a connection that is taking a while, and is
      * null the rest of the time. Cleared when the job ends, whichever way.
@@ -259,9 +265,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Read once, at construction, so the restore card is already populated the
         // first time the screen composes on a cold start. A store that cannot be
         // read answers with an empty list, so this cannot fail the launch.
-        _uiState.update { it.copy(backupHistory = backupStore.history()) }
+        viewModelScope.launch {
+            val history = withContext(Dispatchers.IO) { backupStore.history() }
+            _uiState.update { it.copy(backupHistory = history) }
+        }
     }
 
+    @Volatile
     internal var connection: PrinterService.ConnectionState? = null
 
     /**
@@ -288,7 +298,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * read stays inside the same lock as the write that preceded it: releasing
      * first would let another job write between the two.
      */
-    private val sessionMutex = Mutex()
+    internal val sessionMutex = Mutex()
+    internal val writeBackups = WriteBackupController(backupStore, { change -> _uiState.update(change) }, ::appendLog)
 
     /**
      * How many [runJob] calls are inside. [MainUiState.isBusy] is true while
@@ -308,6 +319,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * printer verdict) are silenced when it moved. The pre-write backup is
      * already persisted at that point and stays valid.
      */
+    @Volatile
     private var sessionEpoch = 0
 
     /**
@@ -404,17 +416,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * drift into resetting different parts of the state.
      */
     private fun dropConnection() {
-        val current = connection ?: return
+        val current = connection
         stopPolling()
         // Local close only: no D4 round-trip, minimal race window with a job
         // that may still hold this session. closeLocal never throws (single
         // swallowing layer with logging inside), so no runCatching here.
-        printerService.closeLocal(current)
+        current?.let(printerService::closeLocal)
         connection = null
+        writeBackups.invalidate()
         sessionEpoch++
         _uiState.update { it.copy(
             status = null,
             connectedDeviceName = null,
+            sessionToken = sessionEpoch,
+            temporaryBackupConfirmation = false,
+            actionSuccessTitle = null,
+            actionSuccessMessage = null,
             cleaningOptions = emptyList(),
             supportsGenericMaintenanceJobs = false,
             allowsPowerClean = true,
@@ -518,8 +535,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 printerService.closeBlocking(it)
                 if (connection === it) connection = null
             }
+            dropConnection()
             val opened = runCatching { printerService.connectPrinter(device) }
                 .getOrElse {
+                    if (it is CancellationException) throw it
                     // The old session is already torn down and nothing new
                     // replaced it: leave no dangling handle behind.
                     connection = null
@@ -565,13 +584,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * [runJob]; the outer one then cleared `isBusy` while this read was still
      * on the wire.
      */
-    private suspend fun readStatusHoldingLock(current: PrinterService.ConnectionState) {
-        val status = printerService.readPrinterStatus(current)
+    private suspend fun readStatusHoldingLock(
+        current: PrinterService.ConnectionState,
+        verifiedStatus: PrinterStatusSnapshot? = null,
+    ) {
+        val status = verifiedStatus ?: printerService.readPrinterStatus(current)
+        if (connection !== current) return
         val modelName = when (current) {
             is PrinterService.ConnectionState.Catalogued -> current.spec.modelName
             is PrinterService.ConnectionState.ReadOnly -> current.modelName
         }
-        val stored = modelName?.let(gapStore::findExact)
+        val stored = withContext(Dispatchers.IO) { modelName?.let(gapStore::findExact) }
+        if (connection !== current) return
         val citation = stored?.let { ModelSupportReport.Citation(it.source, it.version) }
         val screen = sessionScreen(
             current = current,
@@ -582,6 +606,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
         _uiState.update { it.copy(
             connectedDeviceName = current.deviceId,
+            sessionToken = sessionEpoch,
             status = status,
             cleaningOptions = screen.cleaningOptions,
             supportsGenericMaintenanceJobs = screen.supportsGenericMaintenanceJobs,
@@ -642,7 +667,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             when {
                                 live == null || live !== session -> PollSample.Ended
                                 _uiState.value.isBusy -> PollSample.Busy
-                                else -> PollSample.Status(printerService.readPrinterStatus(live))
+                                else -> PollSample.Status(printerService.readPrinterStatus(live, includeCounters = false))
                             }
                         }
                     } catch (t: CancellationException) {
@@ -656,12 +681,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         PollSample.Busy -> continue
                         is PollSample.Status -> sample.snapshot
                     }
-                    val prev = _uiState.value.status
+                    if (connection !== session) break
+                    val prev = _uiState.value.status ?: break
                     _uiState.update {
-                        it.copy(status = next, connectedDeviceName = session.deviceId)
+                        it.copy(status = next.copy(wasteCounters = it.status?.wasteCounters.orEmpty()), connectedDeviceName = session.deviceId)
                     }
-                    if (prev?.stateCode != next.stateCode || prev?.errorCode != next.errorCode) {
-                        appendLog("Printer state: ${prev?.state ?: "?"} -> ${next.state}, ${next.error}")
+                    if (prev.stateCode != next.stateCode || prev.errorCode != next.errorCode) {
+                        appendLog("Printer state: ${prev.state} -> ${next.state}, ${next.error}")
                     }
                     if (!next.needsPolling) {
                         appendLog("Printer settled: ${next.state}, ${next.error}")
@@ -703,27 +729,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     actionSuccessTitle = null, actionSuccessMessage = null,
                 ) }
                 sessionMutex.withLock {
+                    if (connection !== current) return@withLock
                     val written = printerService.writeWasteCounters(
                         current, selectedCounterNames, targetPercentage,
                         onBackup = { backup ->
-                            persistBackup(current.spec.modelName, backup, BackupOrigin.RESET)
+                            check(connection === current) { "Session changed before writing" }
+                            writeBackups.capture(WriteBackupController.Source(
+                                current, current.spec.modelName, _uiState.value.status?.serialNumber?.takeIf { it.isNotBlank() },
+                                BackupOrigin.RESET, selectedCounterNames.sorted().joinToString() + ":$targetPercentage",
+                            ), backup) { resetWasteCounters(selectedCounterNames, targetPercentage) }
                             // Replaced inside the callback, which only runs once
                             // the service has accepted a plan. Clearing it before
                             // the call meant a refused run wiped a backup that
                             // was still perfectly valid — nothing had been
                             // written, so it still described the last real write.
-                            _uiState.update { it.copy(wasteBackup = formatBackup(backup)) }
                         },
                     )
                     // Returning from the service means every address in the exact
                     // write plan verified, including models with no counter ceiling.
                     appendLog("Waste counters read back: ${written.counters.joinToString { "${it.name} raw=${it.rawHex.ifBlank { it.rawValue.toString() }}" }}")
+                    check(connection === current) { "Session changed after writing" }
+                    readStatusHoldingLock(current, written.snapshot)
                     _uiState.update { it.copy(
                         actionSuccessTitle = str(R.string.dialog_counters_updated_title),
                         actionSuccessMessage = str(R.string.msg_counters_updated),
-                        wasteBackup = formatBackup(written.backup),
                     ) }
-                    readStatusHoldingLock(current)
                 }
             }
         }
@@ -738,7 +768,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * model — a paste that carried no header — is allowed, because the user may
      * hold only the address lines; the confirmation warns instead of blocking.
      */
-    fun restoreBackup(model: String?, values: Map<Int, Byte>) {
+    fun restoreBackup(model: String?, values: Map<Int, Byte>, unitId: String? = null) {
         val current = connection as? PrinterService.ConnectionState.Catalogued ?: run {
             appendError(str(R.string.error_printer_not_connected), "Waste writes need a catalogued profile")
             return
@@ -754,22 +784,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 _uiState.update { it.copy(
-                    wasteBackup = null, actionSuccessTitle = null, actionSuccessMessage = null,
+                    actionSuccessTitle = null, actionSuccessMessage = null,
                 ) }
                 sessionMutex.withLock {
+                    if (connection !== current) return@withLock
+                    val actualUnit = _uiState.value.status?.serialNumber?.takeIf { it.isNotBlank() }
+                    if (unitId != null && actualUnit != null && unitId != actualUnit) {
+                        throw UserFacingException(str(R.string.error_restore_unit_mismatch), "Backup belongs to a different printer unit")
+                    }
                     val outcome = printerService.restoreWasteBackup(
                         current, values,
                         onBackup = { backup ->
-                            persistBackup(connected, backup, BackupOrigin.RESTORE)
-                            _uiState.update { it.copy(wasteBackup = formatBackup(backup)) }
+                            check(connection === current) { "Session changed before restoring" }
+                            writeBackups.capture(WriteBackupController.Source(
+                                current, connected, _uiState.value.status?.serialNumber?.takeIf { it.isNotBlank() },
+                                BackupOrigin.RESTORE, values.toSortedMap().toString(),
+                            ), backup) { restoreBackup(model, values, unitId) }
                         },
                     )
+                    check(connection === current) { "Session changed after restore" }
+                    readStatusHoldingLock(current, outcome.snapshot)
                     _uiState.update { it.copy(
                         actionSuccessTitle = str(R.string.dialog_backup_restored_title),
                         actionSuccessMessage = str(R.string.msg_backup_restored),
-                        wasteBackup = formatBackup(outcome.backupBeforeRestore),
                     ) }
-                    readStatusHoldingLock(current)
                 }
             }
         }
@@ -783,6 +821,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runJob("Starting head cleaning") {
                 sessionMutex.withLock {
+                    if (connection !== current) return@withLock
                     printerService.runHeadCleaning(current, cleaningName)
                     _uiState.update { it.copy(
                         actionSuccessTitle = str(R.string.dialog_job_sent_title),
@@ -812,13 +851,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Starting head cleaning") {
-                if (powerClean && current is PrinterService.ConnectionState.ReadOnly) {
+                if (powerClean && (current is PrinterService.ConnectionState.ReadOnly ||
+                        (current as? PrinterService.ConnectionState.Catalogued)?.unverifiedLocal == true)) {
                     throw UserFacingException(
                         str(R.string.error_power_clean_unverified),
                         "Power cleaning refused: no verified profile",
                     )
                 }
                 sessionMutex.withLock {
+                    if (connection !== current) return@withLock
                     printerService.runPrintJobHeadCleaning(current, groupIndex, powerClean, alternativeMode)
                     _uiState.update { it.copy(
                         actionSuccessTitle = str(R.string.dialog_job_sent_title),
@@ -838,6 +879,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runJob("Printing nozzle check") {
                 sessionMutex.withLock {
+                    if (connection !== current) return@withLock
                     printerService.printNozzleCheck(current)
                     _uiState.update { it.copy(
                         actionSuccessTitle = str(R.string.dialog_job_sent_title),
@@ -924,137 +966,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Names why the write path stopped, for either refusal it can produce.
-     *
-     * One function rather than two because it answers one question — why did the
-     * write not happen? — and because [MainViewModel] sits at its function
-     * budget, which is the rule doing its job rather than an obstacle to it.
-     *
-     * [PrinterService.WasteWriteException] is a write that happened and stopped:
-     * an incomplete backup (nothing written), a rejected or failed write, a
-     * failed re-read, or bytes that did not match the exact plan.
-     * [PrinterService.WastePlanException] is a write the service refused to plan
-     * at all, so there is no backup and no progress to report. Every one of those
-     * used to reach the user as "Operation failed", because the service refused
-     * with a bare `require` and the ViewModel worked around it with a copy of one
-     * of the rules. Now each reason names itself and there is one source per rule.
-     */
-    private fun localizedWriteFailure(failure: Throwable, origin: BackupOrigin?): String = when (failure) {
-        is PrinterService.WastePlanException -> when (failure.reason) {
-            PrinterService.WastePlanException.Reason.NO_COUNTER_SELECTED ->
-                str(R.string.error_reset_no_counter_selected)
-
-            PrinterService.WastePlanException.Reason.NO_RESET_VALUES ->
-                str(R.string.error_reset_no_values)
-
-            PrinterService.WastePlanException.Reason.SHARED_BYTES ->
-                str(R.string.error_reset_partial_shared)
-
-            PrinterService.WastePlanException.Reason.PERCENTAGE_UNSUPPORTED ->
-                str(R.string.error_reset_percentage_unsupported)
-
-            PrinterService.WastePlanException.Reason.RESTORE_NO_APPLICABLE_ADDRESSES ->
-                str(R.string.error_restore_no_applicable_addresses)
-        }
-
-        is PrinterService.WasteWriteException -> {
-            val address = failure.address?.let { "0x%04X".format(it) }
-            when (failure.reason) {
-                PrinterService.WasteWriteException.Reason.BACKUP_FAILED ->
-                    if (address == null) {
-                        str(R.string.error_backup_failed)
-                    } else {
-                        str(R.string.error_backup_failed_at, address)
-                    }
-
-                PrinterService.WasteWriteException.Reason.REJECTED ->
-                    if (address == null) {
-                        str(R.string.error_write_rejected)
-                    } else {
-                        str(R.string.error_write_rejected_at, address, failure.writtenBefore)
-                    }
-
-                PrinterService.WasteWriteException.Reason.WRITE_FAILED ->
-                    str(R.string.error_write_failed, address.orEmpty(), failure.writtenBefore)
-
-                PrinterService.WasteWriteException.Reason.READ_BACK_FAILED ->
-                    if (address == null) {
-                        str(R.string.error_read_back_failed)
-                    } else {
-                        str(R.string.error_read_back_failed_at, address)
-                    }
-
-                PrinterService.WasteWriteException.Reason.NOT_APPLIED -> {
-                    val addresses = failure.mismatches.keys.joinToString { "0x%04X".format(it) }
-                    str(
-                        if (origin == BackupOrigin.RESTORE) R.string.error_restore_not_applied
-                        else R.string.error_counters_not_applied,
-                        addresses,
-                    )
-                }
-            }
-        }
-
-        else -> str(R.string.callout_operation_failed)
-    }
-
-    /**
-     * Saves a pre-write backup so it outlives the session.
-     *
-     * Called with the complete backup before the first EEPROM write, so a
-     * failed re-read, mismatch or unplug cannot prevent it from being saved.
-     * The history comes from the store's return value rather than a re-read, so
-     * the list updates without a second trip to disk.
-     *
-     * [origin] says which write found the state, so the list can label it. It is
-     * never guessed: a caller that does not know passes [BackupOrigin.UNKNOWN] and
-     * the record is stored without one, which reads as "before a write" rather
-     * than claiming something false.
-     *
-     * The store remains best effort if preferences cannot be written; the
-     * session still keeps the complete backup as copyable text.
-     */
-    private fun persistBackup(model: String, backup: Map<Int, Byte>, origin: BackupOrigin) {
-        if (backup.isEmpty()) return
-        val outcome = backupStore.save(model, backup, origin)
-        _uiState.update { it.copy(backupHistory = outcome.history) }
-        val label = model.ifBlank { "unknown model" }
-        // A restore writes back a value the list already knows, so it can add no
-        // row at all. Saying so is what keeps that from looking like a save that
-        // failed.
-        if (outcome.deduplicated) {
-            appendLog("Backup already saved: ${backup.size} bytes for $label; state already held")
-        } else {
-            appendLog("Backup saved: ${backup.size} bytes for $label")
-        }
-    }
-
-    /**
-     * The backup as text the user can keep.
-     *
-     * Plain address and value lines, sorted, under the model they came from, so
-     * a block pasted somewhere months later still says what it is.
-     */
-    private fun formatBackup(backup: Map<Int, Byte>): String? {
-        if (backup.isEmpty()) return null
-        val model = (connection as? PrinterService.ConnectionState.Catalogued)?.spec?.modelName
-            ?: _uiState.value.connectedModelName.orEmpty()
-        return buildString {
-            appendLine(
-                "EEPROM backup taken before the write — ${model.ifBlank { "unknown model" }}",
-            )
-            backup.entries.sortedBy { it.key }.forEach { (address, value) ->
-                appendLine("0x%04X = 0x%02X".format(address, value.toInt() and 0xFF))
-            }
-        }.trimEnd()
-    }
-
-    /**
      * [origin] selects the localized reset/restore verification error. It is a
      * job parameter rather than shared mutable state, since jobs can overlap.
      * Backups are persisted by the pre-write callback, not this failure handler.
      */
-    private suspend fun runJob(
+    internal suspend fun runJob(
         message: String,
         origin: BackupOrigin? = null,
         block: suspend () -> Unit,
@@ -1099,6 +1015,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // verdicts and always surface, as does anything that is not a
                 // write failure at all (notably this job's own connect errors).
                 // The pre-write backup is already persisted and stays valid.
+                if (failure is BackupConfirmationRequired) return@onFailure
                 if (SessionGuard.shouldSuppress(failure, epochAtStart, sessionEpoch)) {
                     appendLog("Job ended after the session was closed; ignoring torn-down transport result")
                     return@onFailure
@@ -1112,7 +1029,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (connection?.let { !printerService.isStillAttached(it) } == true) {
                     appendLog("Job failed and the printer is no longer attached; dropping the session")
                     dropConnection()
-                    return@onFailure
+                    if (origin == null) return@onFailure
                 }
 
                 // The log always keeps the raw, English diagnostic detail; the
@@ -1127,18 +1044,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     is UnhandledJobException -> failure.uiMessage
                     is PrinterService.WasteWriteException,
                     is PrinterService.WastePlanException,
-                    -> localizedWriteFailure(failure, origin)
+                    -> writeFailureText(failure, origin, getApplication())
                     else -> str(R.string.callout_operation_failed)
                 }
                 val report = (failure as? UnhandledJobException)?.let(::buildModelReport)
                 // The complete backup was already saved before the first write.
                 // Keep its copyable text too when verification or transport fails.
-                val partialBackup = (failure as? PrinterService.WasteWriteException)?.backup
+                // The backup was already published with its source model before writing.
                 _uiState.update { it.copy(
                     error = uiMessage,
                     modelReportBody = report?.body,
                     modelReportUrl = report?.url,
-                    wasteBackup = partialBackup?.let(::formatBackup) ?: it.wasteBackup,
+                    wasteBackup = it.wasteBackup,
+                    actionSuccessTitle = null,
+                    actionSuccessMessage = null,
                 ) }
             }
         } finally {
@@ -1161,6 +1080,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update {
             if (it.status != null) it else it.copy(connectNote = str(R.string.connect_slow_note))
         }
+    }
+
+    internal suspend fun replaceProfile(block: suspend () -> Unit) {
+        runJob("Updating local profile") {
+            sessionMutex.withLock {
+                block()
+                sessionEpoch++
+                writeBackups.invalidate()
+                _uiState.update { it.copy(sessionToken = sessionEpoch, temporaryBackupConfirmation = false) }
+            }
+        }
+        refreshStatus()
     }
 
     private fun appendLog(line: String) {

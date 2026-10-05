@@ -13,6 +13,7 @@ import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import android.os.Build
+import android.os.SystemClock
 import android.os.Build.VERSION.SDK_INT
 import com.padreset.epadreset.data.EpsonPrinterCatalog
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +67,7 @@ class UsbTransport(private val context: Context) {
         val bulkIn: UsbEndpoint?,
         val bulkOut: UsbEndpoint?,
         val readBuffer: MutableList<Byte> = mutableListOf(),
+        var controlModeInvalidated: Boolean = false,
     ) {
         /**
          * Best effort, single swallowing layer: release must never throw past
@@ -202,7 +204,13 @@ class UsbTransport(private val context: Context) {
         continuation.invokeOnCancellation {
             runCatching { context.unregisterReceiver(receiver) }
         }
-        usbManager.requestPermission(device, intent)
+        try {
+            usbManager.requestPermission(device, intent)
+        } catch (failure: Exception) {
+            runCatching { context.unregisterReceiver(receiver) }
+            intent.cancel()
+            throw failure
+        }
     }
 
     suspend fun ensurePermission(device: UsbDevice, settleDelayMs: Long = 250): Boolean {
@@ -421,10 +429,10 @@ class UsbTransport(private val context: Context) {
         val endpoint = requireNotNull(session.bulkIn) { "Bulk IN endpoint missing" }
         val packetSize = maxOf(endpoint.maxPacketSize, 64)
         val chunk = ByteArray(maxOf(packetSize, expectedBytes))
-        val deadline = System.currentTimeMillis() + timeoutMs
+        val deadline = SystemClock.elapsedRealtime() + timeoutMs
 
-        while (session.readBuffer.size < expectedBytes && System.currentTimeMillis() < deadline) {
-            val remaining = deadline - System.currentTimeMillis()
+        while (session.readBuffer.size < expectedBytes && SystemClock.elapsedRealtime() < deadline) {
+            val remaining = deadline - SystemClock.elapsedRealtime()
             val transferTimeout = remaining.coerceAtMost(250L).toInt().coerceAtLeast(1)
             val transferred = session.connection.bulkTransfer(endpoint, chunk, chunk.size, transferTimeout)
             when {
@@ -434,7 +442,11 @@ class UsbTransport(private val context: Context) {
                     }
                 }
                 transferred == 0 -> continue
-                transferred < 0 -> continue
+                transferred < 0 -> {
+                    check(isAttached(session.device)) { "Printer disconnected during USB read" }
+                    // Some drivers fail immediately. Avoid a tight CPU loop until the deadline.
+                    SystemClock.sleep(5)
+                }
             }
         }
 
@@ -443,9 +455,7 @@ class UsbTransport(private val context: Context) {
         }
 
         val read = session.readBuffer.take(expectedBytes).toByteArray()
-        repeat(expectedBytes) {
-            session.readBuffer.removeAt(0)
-        }
+        session.readBuffer.subList(0, expectedBytes).clear()
         return read
     }
 
@@ -469,23 +479,23 @@ class UsbTransport(private val context: Context) {
         val endpoint = requireNotNull(session.bulkIn) { "Bulk IN endpoint missing" }
         val buffer = ByteArray(maxOf(packetSize, endpoint.maxPacketSize, 64))
         val chunks = mutableListOf<ReadChunk>()
-        val startedAt = System.currentTimeMillis()
+        val startedAt = SystemClock.elapsedRealtime()
         var lastDataAt = startedAt
 
-        while (System.currentTimeMillis() - startedAt < windowMs) {
+        while (SystemClock.elapsedRealtime() - startedAt < windowMs) {
             val transferred = session.connection.bulkTransfer(endpoint, buffer, buffer.size, idleTimeoutMs)
             if (transferred > 0) {
                 val chunk = buffer.copyOf(transferred)
                 chunk.forEach { session.readBuffer += it }
                 chunks += ReadChunk(
-                    offsetMs = System.currentTimeMillis() - startedAt,
+                    offsetMs = SystemClock.elapsedRealtime() - startedAt,
                     bytes = chunk,
                 )
-                lastDataAt = System.currentTimeMillis()
+                lastDataAt = SystemClock.elapsedRealtime()
                 continue
             }
 
-            if (chunks.isNotEmpty() && System.currentTimeMillis() - lastDataAt >= idleTimeoutMs) {
+            if (chunks.isNotEmpty() && SystemClock.elapsedRealtime() - lastDataAt >= idleTimeoutMs) {
                 break
             }
         }
@@ -495,12 +505,14 @@ class UsbTransport(private val context: Context) {
 
     fun drain(session: Session, timeoutMs: Int = 50) {
         session.readBuffer.clear()
-        while (true) {
+        val deadline = SystemClock.elapsedRealtime() + 2000
+        var received = 0
+        while (SystemClock.elapsedRealtime() < deadline && received < 262_144) {
             val chunk = bulkReadAvailable(session, timeoutMs = timeoutMs)
-            if (chunk.isEmpty()) {
-                return
-            }
+            if (chunk.isEmpty()) return
+            received += chunk.size
         }
+        error("USB drain exceeded its time or byte limit")
     }
 
     private fun findPrinterInterface(device: UsbDevice): UsbInterface? {

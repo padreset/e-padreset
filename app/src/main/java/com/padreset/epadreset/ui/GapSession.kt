@@ -1,5 +1,6 @@
 package com.padreset.epadreset.ui
 
+import androidx.lifecycle.viewModelScope
 import com.padreset.epadreset.R
 import com.padreset.epadreset.data.EpsonPrinterCatalog
 import com.padreset.epadreset.data.GapCommit
@@ -10,45 +11,52 @@ import com.padreset.epadreset.data.commitGapPaste
 import com.padreset.epadreset.data.selectGap
 import com.padreset.epadreset.protocol.EpsonProtocol
 import com.padreset.epadreset.service.PrinterService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-/**
- * Paste and delete live outside [MainViewModel] so that class stays under
- * the function ceiling. They still use the open session: a matching
- * read-only connect keeps the same USB channel. No EEPROM write.
- */
-internal fun MainViewModel.pasteGapProfile(text: String): String? {
-    val result = commitGapPaste(
-        text = text,
-        isBox = { EpsonPrinterCatalog.usesMaintenanceBox(getApplication(), it) },
-        isCatalogued = { name ->
-            EpsonPrinterCatalog.resolve(getApplication(), "MDL:$name;") != null
-        },
-        store = GapProfileStore.from(getApplication()),
-    )
-    return when (result) {
-        is GapCommit.Saved -> {
-            adoptGap(result.profile)
-            null
+/** The lock covers persistence and adoption; only disk/parsing leaves Main. */
+internal suspend fun MainViewModel.pasteGapProfile(text: String): String? {
+    var error: String? = null
+    replaceProfile {
+        val before = connection
+        val result = withContext(Dispatchers.IO) {
+            commitGapPaste(
+                text = text,
+                isBox = { EpsonPrinterCatalog.usesMaintenanceBox(getApplication(), it) },
+                isCatalogued = { name -> EpsonPrinterCatalog.resolve(getApplication(), "MDL:$name;") != null },
+                store = GapProfileStore.from(getApplication()),
+            )
         }
-        is GapCommit.Failed -> getApplication<android.app.Application>().getString(gapRefusal(result.reason))
+        error = when (result) {
+            is GapCommit.Saved -> {
+                if (connection === before) adoptGap(result.profile)
+                null
+            }
+            is GapCommit.Failed -> getApplication<android.app.Application>().getString(gapRefusal(result.reason))
+        }
     }
+    return error ?: uiState.value.error
 }
 
 internal fun MainViewModel.deleteGapProfile() {
-    val name = uiState.value.connectedModelName ?: return
-    GapProfileStore.from(getApplication()).delete(name)
-    val current = connection as? PrinterService.ConnectionState.Catalogued ?: return
-    if (!current.unverifiedLocal) return
-    connection = PrinterService.ConnectionState.ReadOnly(
-        session = current.session,
-        protocol = EpsonProtocol.statusOnly(name),
-        deviceId = current.deviceId,
-        backend = current.backend,
-        controlChannel = current.controlChannel,
-        modelName = name,
-        usesMaintenanceBox = current.spec.usesMaintenanceBox,
-    )
-    refreshStatus()
+    viewModelScope.launch {
+        replaceProfile {
+            val name = uiState.value.connectedModelName ?: return@replaceProfile
+            val current = connection as? PrinterService.ConnectionState.Catalogued ?: return@replaceProfile
+            withContext(Dispatchers.IO) { GapProfileStore.from(getApplication()).delete(name) }
+            if (!current.unverifiedLocal || connection !== current) return@replaceProfile
+            connection = PrinterService.ConnectionState.ReadOnly(
+                session = current.session,
+                protocol = EpsonProtocol.statusOnly(name),
+                deviceId = current.deviceId,
+                backend = current.backend,
+                controlChannel = current.controlChannel,
+                modelName = name,
+                usesMaintenanceBox = current.spec.usesMaintenanceBox,
+            )
+        }
+    }
 }
 
 internal fun keepsModelReport(current: PrinterService.ConnectionState?): Boolean =
@@ -68,7 +76,6 @@ private fun MainViewModel.adoptGap(profile: GapProfile) {
         controlChannel = current.controlChannel,
         unverifiedLocal = true,
     )
-    refreshStatus()
 }
 
 private fun gapRefusal(reason: GapRefusal): Int = when (reason) {

@@ -58,7 +58,7 @@ class PrinterStatusScreenTest {
                     onConnect = {},
                     onRefresh = {},
                     onReset = { _, _ -> },
-                    onRestore = { _, _ -> },
+                    onRestore = { _, _, _ -> },
                     onServiceClean = {},
                     onGenericClean = { _, _, _ -> },
                     onNozzleCheck = {},

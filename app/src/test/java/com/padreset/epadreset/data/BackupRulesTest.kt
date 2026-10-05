@@ -27,18 +27,13 @@ class BackupRulesTest {
     fun `every sharedpref exclude names the prefs file with its xml extension`() {
         for ((file, doc) in rules()) {
             val excludes = doc.getElementsByTagName("exclude")
-            var sharedprefExcludes = 0
+            val paths = mutableSetOf<String>()
             for (i in 0 until excludes.length) {
                 val rule = excludes.item(i) as? Element ?: continue
                 if (rule.getAttribute("domain") != "sharedpref") continue
-                sharedprefExcludes++
-                assertEquals(
-                    "$file excludes the wrong sharedpref path: \"${rule.getAttribute("path")}\" — a name without .xml matches nothing on disk",
-                    "${BackupStore.PREFERENCE_FILE}.xml",
-                    rule.getAttribute("path"),
-                )
+                paths += rule.getAttribute("path")
             }
-            assertTrue("$file has no sharedpref exclude at all", sharedprefExcludes > 0)
+            assertEquals(file, setOf("${BackupStore.PREFERENCE_FILE}.xml", "${GapProfileStore.PREFERENCE_FILE}.xml"), paths)
         }
     }
 
@@ -54,15 +49,9 @@ class BackupRulesTest {
         )
         val excludes = (sections.item(0) as Element).getElementsByTagName("exclude")
         assertTrue("the <device-transfer> section excludes nothing", excludes.length > 0)
-        for (i in 0 until excludes.length) {
-            val rule = excludes.item(i) as? Element ?: continue
-            if (rule.getAttribute("domain") != "sharedpref") continue
-            assertEquals(
-                "device-transfer excludes the wrong sharedpref path",
-                "${BackupStore.PREFERENCE_FILE}.xml",
-                rule.getAttribute("path"),
-            )
-        }
+        val paths = (0 until excludes.length).mapNotNull { excludes.item(it) as? Element }
+            .filter { it.getAttribute("domain") == "sharedpref" }.map { it.getAttribute("path") }.toSet()
+        assertEquals(setOf("${BackupStore.PREFERENCE_FILE}.xml", "${GapProfileStore.PREFERENCE_FILE}.xml"), paths)
     }
 
     @Test

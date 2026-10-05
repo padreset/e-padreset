@@ -134,23 +134,23 @@ fun PrinterStatusScreen(
     onConnect: () -> Unit,
     onRefresh: () -> Unit,
     onReset: (Set<String>, Int) -> Unit,
-    onRestore: (String?, Map<Int, Byte>) -> Unit,
+    onRestore: (String?, Map<Int, Byte>, String?) -> Unit,
     onOpenMaintenance: () -> Unit,
-    onPasteGap: (String) -> String? = { null },
+    onPasteGap: suspend (String) -> String? = { null },
     onDeleteGap: () -> Unit = {},
 ) {
     val pad = PadTheme.colors
     val context = LocalContext.current
-    var showWarning by remember { mutableStateOf(false) }
+    var showWarning by remember(uiState.sessionToken) { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showExitDialog by remember { mutableStateOf(false) }
     var showWasteUnsupported by remember { mutableStateOf(false) }
-    var showPasteGap by remember { mutableStateOf(false) }
-    var showPasteBackup by remember { mutableStateOf(false) }
+    var showPasteGap by remember(uiState.sessionToken) { mutableStateOf(false) }
+    var showPasteBackup by remember(uiState.sessionToken) { mutableStateOf(false) }
     var showModelReport by remember(uiState.modelReportBody) { mutableStateOf(false) }
     // The record waiting on a confirmation. Held here rather than in the card so
     // the dialog survives the card recomposing, and so the BackHandler can see it.
-    var pendingRestore by remember { mutableStateOf<PendingRestore?>(null) }
+    var pendingRestore by remember(uiState.sessionToken) { mutableStateOf<PendingRestore?>(null) }
     val availableCounters = uiState.status?.wasteCounters.orEmpty()
     // Keyed by content, not by list identity: every status refresh builds a new
     // list, and keying on the list itself wiped the user's deselection after
@@ -194,7 +194,7 @@ fun PrinterStatusScreen(
 
     BackHandler(
         enabled = !showWarning && !showAbout && !showExitDialog && !showWasteUnsupported &&
-            !showPasteBackup && !showModelReport && pendingRestore == null,
+            !showPasteBackup && !showPasteGap && !showModelReport && pendingRestore == null,
     ) {
         showExitDialog = true
     }
@@ -322,7 +322,7 @@ fun PrinterStatusScreen(
                         trailing = { CopyBackupButton(backup) },
                     )
                     Text(
-                        text = stringResource(R.string.waste_backup_note),
+                        text = stringResource(if (uiState.backupIsTemporary) R.string.temporary_backup_warning else R.string.waste_backup_note),
                         style = MaterialTheme.typography.bodySmall,
                         color = pad.muted,
                     )
@@ -346,6 +346,7 @@ fun PrinterStatusScreen(
                             model = record.model,
                             values = record.values,
                             timestamp = record.timestamp,
+                            unitId = record.unitId,
                         )
                     },
                     onPaste = { showPasteBackup = true },
@@ -499,6 +500,7 @@ fun PrinterStatusScreen(
                     model = parsed.model,
                     values = parsed.values,
                     timestamp = null,
+                    unitId = parsed.unitId,
                 )
             },
         )
@@ -512,7 +514,7 @@ fun PrinterStatusScreen(
             onDismiss = { pendingRestore = null },
             onConfirm = {
                 pendingRestore = null
-                onRestore(pending.model, pending.values)
+                onRestore(pending.model, pending.values, pending.unitId)
             },
         )
     }
@@ -602,7 +604,7 @@ fun PrinterStatusScreen(
         PadAlertDialog(
             onDismissRequest = { showExitDialog = false },
             title = { Text(stringResource(R.string.dialog_exit_title)) },
-            text = { Text(stringResource(R.string.dialog_exit_body, stringResource(R.string.app_name))) },
+            text = { com.padreset.epadreset.ui.components.ExitWarning(uiState.isBusy) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -941,6 +943,7 @@ private data class PendingRestore(
     val model: String?,
     val values: Map<Int, Byte>,
     val timestamp: Long?,
+    val unitId: String? = null,
 )
 
 /**
@@ -1042,7 +1045,10 @@ private fun PasteBackupDialog(
 ) {
     val pad = PadTheme.colors
     var text by remember { mutableStateOf("") }
-    val parsed = remember(text) { BackupTextParser.parse(text) }
+    val parsed by androidx.compose.runtime.produceState<ParsedBackup?>(null, text) {
+        value = null
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { BackupTextParser.parse(text) }
+    }
 
     PadAlertDialog(
         onDismissRequest = onDismiss,
@@ -1069,7 +1075,7 @@ private fun PasteBackupDialog(
                 )
                 OutlinedTextField(
                     value = text,
-                    onValueChange = { text = it },
+                    onValueChange = { text = it.take(131_073) },
                     label = { Text(stringResource(R.string.field_paste_backup)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1078,7 +1084,7 @@ private fun PasteBackupDialog(
                         text = if (parsed == null) {
                             stringResource(R.string.paste_backup_invalid)
                         } else {
-                            stringResource(R.string.paste_backup_parsed, parsed.values.size)
+                            stringResource(R.string.paste_backup_parsed, parsed?.values?.size ?: 0)
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = if (parsed == null) pad.danger else pad.ok,
@@ -1131,7 +1137,9 @@ private fun RestoreConfirmDialog(
                         stringResource(R.string.dialog_restore_model, model)
                     },
                 )
-                Text(stringResource(R.string.dialog_restore_addresses, pending.values.size))
+                if (pending.unitId == null) Text(stringResource(R.string.dialog_restore_legacy_identity))
+                val known = specs.flatMap { it.addresses }.toSet()
+                Text(stringResource(R.string.dialog_restore_addresses, pending.values.keys.count { it in known }))
 
                 counters.forEach { counter ->
                     val spec = specs.firstOrNull { it.name == counter.name }

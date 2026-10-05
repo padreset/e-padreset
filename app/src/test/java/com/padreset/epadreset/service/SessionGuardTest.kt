@@ -1,7 +1,7 @@
 package com.padreset.epadreset.service
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -27,13 +27,14 @@ class SessionGuardTest {
     }
 
     @Test
-    fun `transport failures are suppressed when the session moved`() {
+    fun `only pre-write backup failure can be suppressed after teardown`() {
         listOf(
             PrinterService.WasteWriteException.Reason.BACKUP_FAILED,
             PrinterService.WasteWriteException.Reason.WRITE_FAILED,
             PrinterService.WasteWriteException.Reason.READ_BACK_FAILED,
         ).forEach { reason ->
-            assertTrue(SessionGuard.shouldSuppress(writeFailure(reason), 3, 4))
+            assertEquals(reason == PrinterService.WasteWriteException.Reason.BACKUP_FAILED,
+                SessionGuard.shouldSuppress(writeFailure(reason), 3, 4))
         }
     }
 

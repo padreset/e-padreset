@@ -62,14 +62,14 @@ fun MaintenanceScreen(
 ) {
     val pad = PadTheme.colors
     val cleaningOptions = uiState.cleaningOptions
-    var showServiceCleaningDialog by remember { mutableStateOf(false) }
-    var showGenericCleaningDialog by remember { mutableStateOf(false) }
-    var showNozzleCheckDialog by remember { mutableStateOf(false) }
+    var showServiceCleaningDialog by remember(uiState.sessionToken) { mutableStateOf(false) }
+    var showGenericCleaningDialog by remember(uiState.sessionToken) { mutableStateOf(false) }
+    var showNozzleCheckDialog by remember(uiState.sessionToken) { mutableStateOf(false) }
     var selectedCleaning by remember(cleaningOptions) {
         mutableStateOf(cleaningOptions.firstOrNull().orEmpty())
     }
     var genericCleaningGroup by remember { mutableStateOf(0) }
-    var genericPowerClean by remember { mutableStateOf(false) }
+    var genericPowerClean by remember(uiState.sessionToken) { mutableStateOf(false) }
 
     val anyDialogOpen = showServiceCleaningDialog || showGenericCleaningDialog || showNozzleCheckDialog
     BackHandler(enabled = !anyDialogOpen) { onBack() }

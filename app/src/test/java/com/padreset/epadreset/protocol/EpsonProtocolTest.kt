@@ -24,6 +24,16 @@ class EpsonProtocolTest {
     private val protocol = EpsonProtocol(spec)
 
     @Test
+    fun `invalid MTU refuses chunks instead of building impossible frames`() {
+        listOf(0, 6, 65536).forEach { mtu ->
+            assertThrows(IllegalArgumentException::class.java) {
+                protocol.chunkForChannel(EpsonProtocol.D4ChannelState(2, 2, mtu, 1), byteArrayOf(1, 2))
+            }
+        }
+        assertEquals(2, protocol.chunkForChannel(EpsonProtocol.D4ChannelState(2, 2, 7, 2), byteArrayOf(1, 2)).size)
+    }
+
+    @Test
     fun `status request matches ez-reset framing`() {
         val expected = byteArrayOf(0x73, 0x74, 0x01, 0x00, 0x01)
         assertArrayEquals(expected, protocol.buildStatusRequest())
