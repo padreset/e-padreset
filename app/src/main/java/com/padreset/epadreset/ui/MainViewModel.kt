@@ -174,6 +174,13 @@ private class UnhandledJobException(
     cause: Throwable? = null,
 ) : Exception(logMessage, cause)
 
+/** What one silent watch round found once it held the session. */
+private sealed interface PollSample {
+    data class Status(val snapshot: PrinterStatusSnapshot) : PollSample
+    data object Busy : PollSample
+    data object Ended : PollSample
+}
+
 /** Silent status re-read cadence while the printer reports a live state. */
 private const val STATUS_POLL_INTERVAL_MS = 10_000L
 
@@ -227,15 +234,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var statusPoll: Job? = null
 
     /**
-     * Serializes EEPROM writes (reset vs. restore). Reads (status) and print
-     * jobs stay outside it: a read overlapping a write only shows transient
-     * values, while two interleaved backup→write→verify runs would corrupt the
-     * accounting. `isBusy` already disables the buttons, so this is the second
-     * lock on a door that is normally closed. Held only around the service
-     * write call itself — never around `refreshStatus()`, which would deadlock
-     * the trailing refresh chained inside a write job.
+     * Serializes every use of the open session: connect, status read, write,
+     * restore, cleaning and the nozzle check.
+     *
+     * A read overlapping a write does not "only show transient values". Both
+     * share [com.padreset.epadreset.usb.UsbTransport.Session.readBuffer], so
+     * interleaved D4 frames are consumed as each other's headers. `isBusy`
+     * keeps the buttons off, and this lock is what still serializes a poll
+     * that already passed that check, or a second job launched before the
+     * first recomposition.
+     *
+     * Not reentrant. [readStatusHoldingLock] must be called by something that
+     * already holds it, never lock again around that call. The trailing status
+     * read stays inside the same lock as the write that preceded it: releasing
+     * first would let another job write between the two.
      */
-    private val writeMutex = Mutex()
+    private val sessionMutex = Mutex()
+
+    /**
+     * How many [runJob] calls are inside. [MainUiState.isBusy] is true while
+     * this is above zero.
+     *
+     * A boolean cleared by whichever job finishes first re-enables the buttons
+     * while another job is still on the session. The count is only touched on
+     * Main, which is where [runJob] starts and finishes.
+     */
+    private var busyCount = 0
 
     /**
      * Bumped every time the session is torn down or replaced ([dropConnection],
@@ -402,6 +426,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * against the same printer.
      */
     fun connect(device: UsbDevice) {
+        if (device.vendorId != EpsonPrinterCatalog.EPSON_VENDOR_ID) {
+            appendError(
+                str(R.string.error_non_epson_printer_detected),
+                "Refusing non-Epson USB device vendor=0x${device.vendorId.toString(16)}",
+            )
+            return
+        }
         viewModelScope.launch {
             runJob("Connecting to ${device.productName ?: device.deviceName}") {
                 connectNow(device)
@@ -411,42 +442,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** The connect itself, as a suspending block for exactly one [runJob]. */
     private suspend fun connectNow(device: UsbDevice) {
-        // Goodbye on the old session before opening the new one, so the
-        // printer closes the old D4 channel first. closeBlocking hops to
-        // IO internally, so this is safe inside the coroutine. The epoch
-        // bumps BEFORE the teardown (not after the new connect), closing
-        // the hole where another job failing in between looked like a
-        // real printer verdict. This cannot silence this job's own
-        // failure: connect errors are UnhandledJobException, which
-        // SessionGuard never suppresses.
-        connection?.let {
-            sessionEpoch++
-            // No runCatching: closeBlocking logs its own best-effort
-            // failures, and wrapping it here would swallow a
-            // CancellationException and keep connecting a dead job.
-            printerService.closeBlocking(it)
-            if (connection === it) connection = null
-        }
-        connection = runCatching { printerService.connectPrinter(device) }
-            .getOrElse {
-                // The old session is already torn down and nothing new
-                // replaced it: leave no dangling handle behind.
-                connection = null
+        sessionMutex.withLock {
+            // Goodbye on the old session before opening the new one, so the
+            // printer closes the old D4 channel first. closeBlocking hops to
+            // IO internally, so this is safe inside the coroutine. The epoch
+            // bumps BEFORE the teardown (not after the new connect), closing
+            // the hole where another job failing in between looked like a
+            // real printer verdict. This cannot silence this job's own
+            // failure: connect errors are UnhandledJobException, which
+            // SessionGuard never suppresses.
+            connection?.let {
                 sessionEpoch++
-                throw UnhandledJobException(
-                    uiMessage = localizedConnectFailure(it),
-                    logMessage = it.message ?: it.javaClass.simpleName,
-                    reportableDeviceId = reportableDeviceId(it),
-                    reportVendorId = device.vendorId,
-                    reportProductId = device.productId,
-                    reportMaintenanceBox = (it as? PrinterService.ConnectException)?.failure ==
-                        PrinterService.ConnectFailure.UNSUPPORTED_MODEL_MAINTENANCE_BOX,
-                    cause = it,
-                )
+                // No runCatching: closeBlocking logs its own best-effort
+                // failures, and wrapping it here would swallow a
+                // CancellationException and keep connecting a dead job.
+                printerService.closeBlocking(it)
+                if (connection === it) connection = null
             }
-            .also { appendLog("Connected to ${it.deviceId}") }
-        sessionEpoch++
-        refreshStatus()
+            val opened = runCatching { printerService.connectPrinter(device) }
+                .getOrElse {
+                    // The old session is already torn down and nothing new
+                    // replaced it: leave no dangling handle behind.
+                    connection = null
+                    sessionEpoch++
+                    throw UnhandledJobException(
+                        uiMessage = localizedConnectFailure(it),
+                        logMessage = it.message ?: it.javaClass.simpleName,
+                        reportableDeviceId = reportableDeviceId(it),
+                        reportVendorId = device.vendorId,
+                        reportProductId = device.productId,
+                        reportMaintenanceBox = (it as? PrinterService.ConnectException)?.failure ==
+                            PrinterService.ConnectFailure.UNSUPPORTED_MODEL_MAINTENANCE_BOX,
+                        cause = it,
+                    )
+                }
+                .also { appendLog("Connected to ${it.deviceId}") }
+            connection = opened
+            sessionEpoch++
+            readStatusHoldingLock(opened)
+        }
     }
 
     fun refreshStatus() {
@@ -456,23 +490,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Reading printer status") {
-                val status = printerService.readPrinterStatus(current)
-                _uiState.update { it.copy(
-                    connectedDeviceName = current.deviceId,
-                    status = status,
-                    cleaningOptions = current.spec.cleaningOptions.map { it.name },
-                    supportsGenericMaintenanceJobs = true,
-                    supportsWasteReset = current.spec.supportsWasteReset,
-                    usesMaintenanceBox = current.spec.usesMaintenanceBox,
-                    wasteCounterSpecs = current.spec.wasteCounters,
-                    untouchableAddresses = current.spec.untouchableAddresses,
-                    connectedModelName = current.spec.modelName,
-                    error = null,
-                ) }
-                appendLog("Status read: ${status.state}, ${status.error}")
-                startPollingIfBusy(status, current)
+                sessionMutex.withLock {
+                    if (connection !== current) return@withLock
+                    readStatusHoldingLock(current)
+                }
             }
         }
+    }
+
+    /**
+     * Reads status into the UI. Caller holds [sessionMutex].
+     *
+     * Does not launch a job and does not touch [busyCount]. A trailing read
+     * chained from a write used to call [refreshStatus], which started a second
+     * [runJob]; the outer one then cleared `isBusy` while this read was still
+     * on the wire.
+     */
+    private suspend fun readStatusHoldingLock(current: PrinterService.ConnectionState) {
+        val status = printerService.readPrinterStatus(current)
+        _uiState.update { it.copy(
+            connectedDeviceName = current.deviceId,
+            status = status,
+            cleaningOptions = current.spec.cleaningOptions.map { it.name },
+            supportsGenericMaintenanceJobs = true,
+            supportsWasteReset = current.spec.supportsWasteReset,
+            usesMaintenanceBox = current.spec.usesMaintenanceBox,
+            wasteCounterSpecs = current.spec.wasteCounters,
+            untouchableAddresses = current.spec.untouchableAddresses,
+            connectedModelName = current.spec.modelName,
+            error = null,
+        ) }
+        appendLog("Status read: ${status.state}, ${status.error}")
+        startPollingIfBusy(status, current)
     }
 
     /**
@@ -510,19 +559,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         appendLog("Watch ended: printer still busy after $STATUS_POLL_MAX_ROUNDS checks")
                         break
                     }
-                    val live = connection
-                    if (live == null || live !== session) break
-                    val next = try {
-                        printerService.readPrinterStatus(live)
+                    val sample = try {
+                        sessionMutex.withLock {
+                            val live = connection
+                            when {
+                                live == null || live !== session -> PollSample.Ended
+                                _uiState.value.isBusy -> PollSample.Busy
+                                else -> PollSample.Status(printerService.readPrinterStatus(live))
+                            }
+                        }
                     } catch (t: CancellationException) {
                         throw t
                     } catch (t: Exception) {
                         appendLog("Watch ended: ${t.message ?: t.javaClass.simpleName}")
                         break
                     }
+                    val next = when (sample) {
+                        PollSample.Ended -> break
+                        PollSample.Busy -> continue
+                        is PollSample.Status -> sample.snapshot
+                    }
                     val prev = _uiState.value.status
                     _uiState.update {
-                        it.copy(status = next, connectedDeviceName = live.deviceId)
+                        it.copy(status = next, connectedDeviceName = session.deviceId)
                     }
                     if (prev?.stateCode != next.stateCode || prev?.errorCode != next.errorCode) {
                         appendLog("Printer state: ${prev?.state ?: "?"} -> ${next.state}, ${next.error}")
@@ -579,24 +638,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update { it.copy(
                     wasteBackup = null, actionSuccessTitle = null, actionSuccessMessage = null,
                 ) }
-                val outcome = writeMutex.withLock {
-                    printerService.writeWasteCounters(
+                sessionMutex.withLock {
+                    val written = printerService.writeWasteCounters(
                         current, selectedCounterNames, targetPercentage,
                         onBackup = { backup ->
                             persistBackup(current.spec.modelName, backup, BackupOrigin.RESET)
                             _uiState.update { it.copy(wasteBackup = formatBackup(backup)) }
                         },
                     )
+                    // Returning from the service means every address in the exact
+                    // write plan verified, including models with no counter ceiling.
+                    appendLog("Waste counters read back: ${written.counters.joinToString { "${it.name} raw=${it.rawHex.ifBlank { it.rawValue.toString() }}" }}")
+                    _uiState.update { it.copy(
+                        actionSuccessTitle = str(R.string.dialog_counters_updated_title),
+                        actionSuccessMessage = str(R.string.msg_counters_updated),
+                        wasteBackup = formatBackup(written.backup),
+                    ) }
+                    readStatusHoldingLock(current)
                 }
-                // Returning from the service means every address in the exact
-                // write plan verified, including models with no counter ceiling.
-                appendLog("Waste counters read back: ${outcome.counters.joinToString { "${it.name} raw=${it.rawHex.ifBlank { it.rawValue.toString() }}" }}")
-                _uiState.update { it.copy(
-                    actionSuccessTitle = str(R.string.dialog_counters_updated_title),
-                    actionSuccessMessage = str(R.string.msg_counters_updated),
-                    wasteBackup = formatBackup(outcome.backup),
-                ) }
-                refreshStatus()
             }
         }
     }
@@ -628,22 +687,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update { it.copy(
                     wasteBackup = null, actionSuccessTitle = null, actionSuccessMessage = null,
                 ) }
-                val outcome = writeMutex.withLock {
-                    printerService.restoreWasteBackup(
+                sessionMutex.withLock {
+                    val outcome = printerService.restoreWasteBackup(
                         current, values,
                         onBackup = { backup ->
                             persistBackup(connected, backup, BackupOrigin.RESTORE)
                             _uiState.update { it.copy(wasteBackup = formatBackup(backup)) }
                         },
                     )
+                    _uiState.update { it.copy(
+                        actionSuccessTitle = str(R.string.dialog_backup_restored_title),
+                        actionSuccessMessage = str(R.string.msg_backup_restored),
+                        wasteBackup = formatBackup(outcome.backupBeforeRestore),
+                    ) }
+                    readStatusHoldingLock(current)
                 }
-
-                _uiState.update { it.copy(
-                    actionSuccessTitle = str(R.string.dialog_backup_restored_title),
-                    actionSuccessMessage = str(R.string.msg_backup_restored),
-                    wasteBackup = formatBackup(outcome.backupBeforeRestore),
-                ) }
-                refreshStatus()
             }
         }
     }
@@ -655,19 +713,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Starting head cleaning") {
-                printerService.runHeadCleaning(current, cleaningName)
-                _uiState.update { it.copy(
-                    actionSuccessTitle = str(R.string.dialog_job_sent_title),
-                    // The notice is read, so it names the mode the way the dialog
-                    // did. The log line above keeps the database wording.
-                    actionSuccessMessage = str(
-                        R.string.msg_cleaning_sent_named,
-                        cleaningModeLabel(getApplication(), cleaningName),
-                    ),
-                ) }
-                // The printer is likely working now; re-read so the watch can
-                // follow it back to idle instead of freezing the old state.
-                refreshStatus()
+                sessionMutex.withLock {
+                    printerService.runHeadCleaning(current, cleaningName)
+                    _uiState.update { it.copy(
+                        actionSuccessTitle = str(R.string.dialog_job_sent_title),
+                        // The notice is read, so it names the mode the way the dialog
+                        // did. The log line above keeps the database wording.
+                        actionSuccessMessage = str(
+                            R.string.msg_cleaning_sent_named,
+                            cleaningModeLabel(getApplication(), cleaningName),
+                        ),
+                    ) }
+                    // The printer is likely working now; re-read so the watch can
+                    // follow it back to idle instead of freezing the old state.
+                    readStatusHoldingLock(current)
+                }
             }
         }
     }
@@ -683,12 +743,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Starting head cleaning") {
-                printerService.runPrintJobHeadCleaning(current, groupIndex, powerClean, alternativeMode)
-                _uiState.update { it.copy(
-                    actionSuccessTitle = str(R.string.dialog_job_sent_title),
-                    actionSuccessMessage = str(R.string.msg_cleaning_sent),
-                ) }
-                refreshStatus()
+                sessionMutex.withLock {
+                    printerService.runPrintJobHeadCleaning(current, groupIndex, powerClean, alternativeMode)
+                    _uiState.update { it.copy(
+                        actionSuccessTitle = str(R.string.dialog_job_sent_title),
+                        actionSuccessMessage = str(R.string.msg_cleaning_sent),
+                    ) }
+                    readStatusHoldingLock(current)
+                }
             }
         }
     }
@@ -700,12 +762,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Printing nozzle check") {
-                printerService.printNozzleCheck(current)
-                _uiState.update { it.copy(
-                    actionSuccessTitle = str(R.string.dialog_job_sent_title),
-                    actionSuccessMessage = str(R.string.msg_nozzle_check_sent),
-                ) }
-                refreshStatus()
+                sessionMutex.withLock {
+                    printerService.printNozzleCheck(current)
+                    _uiState.update { it.copy(
+                        actionSuccessTitle = str(R.string.dialog_job_sent_title),
+                        actionSuccessMessage = str(R.string.msg_nozzle_check_sent),
+                    ) }
+                    readStatusHoldingLock(current)
+                }
             }
         }
     }
@@ -936,6 +1000,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // scheduled re-read never interleaves with it. Whatever needs watching
         // afterwards restarts it (see refreshStatus).
         stopPolling()
+        busyCount++
         _uiState.update { it.copy(
             isBusy = true,
             error = null,
@@ -956,8 +1021,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ) }
         appendLog(message)
         val epochAtStart = sessionEpoch
-        runCatching { block() }
-            .onFailure { failure ->
+        try {
+            runCatching { block() }
+                .onFailure { failure ->
                 // Cancellation is lifecycle, not a printer verdict. Let the
                 // scope handle it instead of turning it into a callout.
                 if (failure is kotlinx.coroutines.CancellationException) throw failure
@@ -1007,7 +1073,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     wasteBackup = partialBackup?.let(::formatBackup) ?: it.wasteBackup,
                 ) }
             }
-        _uiState.update { it.copy(isBusy = false, connectNote = null) }
+        } finally {
+            busyCount = (busyCount - 1).coerceAtLeast(0)
+            if (busyCount == 0) {
+                _uiState.update { it.copy(isBusy = false, connectNote = null) }
+            }
+        }
     }
 
     /**

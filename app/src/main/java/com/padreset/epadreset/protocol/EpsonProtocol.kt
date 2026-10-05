@@ -294,15 +294,21 @@ class EpsonProtocol(private val spec: PrinterSpec) {
     }
 
     private fun parseStatusParameters(statusPayload: ByteArray): Map<Int, ByteArray> {
+        // A short or truncated body used to throw IndexOutOfBoundsException
+        // from the length read or from copyOfRange, and the job reported a
+        // generic failure. require names it, and stops before the read.
+        require(statusPayload.size >= 2) { "Status payload shorter than its length field" }
         val length = littleEndianShort(statusPayload, 0)
         require(length + 2 == statusPayload.size) { "Invalid status payload length" }
         val values = linkedMapOf<Int, ByteArray>()
         var index = 2
         while (index < statusPayload.size) {
+            require(index + 1 < statusPayload.size) { "Truncated status parameter header" }
             val header = statusPayload[index].toInt() and 0xFF
             val size = statusPayload[index + 1].toInt() and 0xFF
             val start = index + 2
             val end = start + size
+            require(end <= statusPayload.size) { "Status parameter overruns payload" }
             values[header] = statusPayload.copyOfRange(start, end)
             index = end
         }

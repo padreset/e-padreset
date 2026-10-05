@@ -4,6 +4,7 @@ import com.padreset.epadreset.data.PrinterSpec
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -132,6 +133,27 @@ class EpsonProtocolTest {
         val payload = "@BDC ST2\r\n".encodeToByteArray() + statusPayload
         val snapshot = protocol.parseStatusResponse(payload, "MFG:EPSON;MDL:Test;")
         assertTrue(snapshot.inkLevels.isEmpty())
+    }
+
+    @Test
+    fun `a truncated status payload is rejected instead of reading off the end`() {
+        // The header check used to be the only guard. A body shorter than the
+        // length field, or an element that claims more bytes than remain, threw
+        // IndexOutOfBoundsException and surfaced as a generic operation failure.
+        val header = "@BDC ST2\r\n".encodeToByteArray()
+        val deviceId = "MFG:EPSON;MDL:Test;"
+        assertThrows(IllegalArgumentException::class.java) {
+            protocol.parseStatusResponse(header, deviceId)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            protocol.parseStatusResponse(header + byteArrayOf(0x00), deviceId)
+        }
+        // Outer length matches (4 + 2), so the length require passes and the
+        // element loop is what has to stop: it declares 4 bytes and has 2.
+        val overrun = byteArrayOf(0x04, 0x00, 0x01, 0x04, 0x00, 0x00)
+        assertThrows(IllegalArgumentException::class.java) {
+            protocol.parseStatusResponse(header + overrun, deviceId)
+        }
     }
 
     @Test

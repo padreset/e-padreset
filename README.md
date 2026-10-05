@@ -530,8 +530,9 @@ choice is removed rather than restricted.
 A `Target percentage` field still exists, gated on `BuildConfig.DEBUG`, because
 testing the write path on hardware needs to write a value up as well as down.
 `BuildConfig.DEBUG` is a compile-time constant, so the field is unreachable in a
-release build. Minification is off, so the code stays in the binary; what the
-gate guarantees is reachability, not absence.
+release build. Release minification is on, so R8 may also remove that branch;
+what the gate guarantees is that it cannot be reached, not that the bytes are
+absent.
 
 ## Status
 

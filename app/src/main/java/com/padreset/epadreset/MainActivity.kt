@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.padreset.epadreset.data.EpsonPrinterCatalog
 import com.padreset.epadreset.ui.EPadResetApp
 import com.padreset.epadreset.ui.MainViewModel
 import com.padreset.epadreset.ui.theme.EPadResetTheme
@@ -47,8 +48,13 @@ class MainActivity : ComponentActivity() {
 
         // Only on a fresh launch: the intent survives a rotation, and connecting
         // to the same device again would restart the session every time the
-        // screen turns.
-        if (savedInstanceState == null && usbDevice != null) {
+        // screen turns. The USB filter already limits the system attach intent
+        // to Epson; an explicit intent can still carry any device, so the
+        // vendor is checked again before the write path.
+        if (savedInstanceState == null &&
+            usbDevice != null &&
+            usbDevice.vendorId == EpsonPrinterCatalog.EPSON_VENDOR_ID
+        ) {
             viewModel.connect(usbDevice)
         } else {
             viewModel.autoScanOnce()

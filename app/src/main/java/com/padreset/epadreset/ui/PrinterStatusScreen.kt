@@ -178,11 +178,12 @@ fun PrinterStatusScreen(
     // not make the pads hold more ink, it only brings the block closer — and the
     // one real use it had was testing the write path on hardware.
     //
-    // So the reset writes zero, from whatever the counter currently reads.
+    // So the reset writes the model's own reset values, from whatever the
+    // counter currently reads. Those values are often zero, but not always.
     // BuildConfig.DEBUG is a compile-time constant, so the branch below is dead
-    // in a release build and the field cannot be reached. The module does not
-    // enable minification, so the code itself stays in the binary; what the
-    // gate guarantees is reachability, not absence.
+    // in a release build and the field cannot be reached. Release minification
+    // is on, so R8 may also remove that branch. The gate guarantees it cannot
+    // be reached, not that the bytes are absent.
     val targetValueAllowed = BuildConfig.DEBUG && percentageWritable
 
     BackHandler(
