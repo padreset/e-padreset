@@ -24,3 +24,11 @@ captures/
 *.apk
 *.jks
 *.keystore
+
+# Review documents.
+#
+# The audit reports are written against one revision and read once. Committing
+# them would put a snapshot of the code's problems beside the code, where it
+# goes stale the moment anything is fixed — and fixing it is the whole point of
+# writing the report. They belong on the machine that produced them.
+AUDIT*.md
