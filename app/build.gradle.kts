@@ -51,7 +51,14 @@ val hasReleaseSigning: Boolean = listOf(
 
 android {
     namespace = "com.padreset.epadreset"
-    compileSdk = 36
+    // Compile against 37 because the current AndroidX line requires it: core-ktx
+    // 1.19, lifecycle 2.11 and the 2026.09 Compose BOM all declare
+    // minCompileSdk=37, and checkDebugAarMetadata fails the build without it.
+    // compileSdk is a compile-time choice only — it changes nothing at runtime
+    // on older devices. targetSdk below stays at 36: that is the version whose
+    // behaviour changes apply on device, the one Play requires, and the one
+    // this app has actually been tested against.
+    compileSdk = 37
 
     signingConfigs {
         if (hasReleaseSigning) {
@@ -159,13 +166,13 @@ android {
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2026.06.01")
+    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
 
-    implementation("androidx.core:core-ktx:1.18.0")
+    implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("com.google.android.material:material:1.14.0")
 
