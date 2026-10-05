@@ -495,12 +495,49 @@ binary was not swapped: a checksum published on the same page as the binary is
 replaced by whoever replaces the binary. That is what the attestation is for, and
 why both are here rather than one instead of the other.
 
+**Have pull requests reviewed by CodeRabbit**, and set it up the day the
+repository becomes public rather than after the first unsolicited pull request.
+It is free for open source: the free tier covers *unlimited public repositories*
+with no credit card and no seat count, and on a public repository it is granted
+the Team feature set rather than the reduced Free one. Nothing about this
+repository's size, star count or licence gates that — the only condition is that
+the code is publicly readable.
+
+Two details are worth writing down before they are discovered the hard way:
+
+- **On a public repository with fewer than 10 stars, reviews are not automatic.**
+  CodeRabbit requires them to be triggered by hand: press **Trigger review** in
+  the bot's status comment, or comment `@coderabbitai review` for the latest
+  push and `@coderabbitai full review` for a review of the whole diff. A brand
+  new repository starts in exactly that state, so until the project has an
+  audience, expect to ask.
+- **OSS review allowance is a rate limit, not a quota, and it scales with the
+  project's community** — the documented band runs from roughly 1 to 10 reviews
+  per hour. It is scoped per repository as well as per developer. For a
+  single-maintainer project merging a handful of commits a week, this is far
+  above what will ever be spent.
+
+For a fork like this one, the case for it is not the review of one's own code:
+a solo maintainer merges their own work, so there is no reviewer to catch
+anything, and an automated pass over a diff is the closest thing available. The
+findings that matter here are the ones this file already keeps re-learning by
+hand — an unclosed stream, a `require` that aborts on a zero-length timeout, a
+resource preserved only by accident, a dependency that quietly adds a manifest.
+The [Status](#status) section is largely a list of defects that a green JVM test
+suite did not catch; a reviewer that reads the diff is not a substitute for
+running it on hardware, but it is a cheap second pair of eyes on the part that
+never gets one.
+
+It is not a gate. Leave it as a commenter, not a required check: on a repository
+one person merges into, a blocking bot is friction, and the same argument that
+sits next to `gh-secure` above applies here.
+
 **Tag the release `vX.Y.Z`.** The badge at the top of this file reads the GitHub
 release tag rather than the manifest, so it stays blank until a release exists.
 
 **After publishing, nothing above should be re-checked per release except the
 attestation and the checksum**, which are per-artifact by nature. The security
-features are repository settings and are set once.
+features are repository settings and are set once, and so is CodeRabbit.
 
 ## Usage
 
