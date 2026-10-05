@@ -112,6 +112,8 @@ fun EPadResetApp(
     onGenericClean: (Int, Boolean, Boolean) -> Unit,
     onNozzleCheck: () -> Unit,
     onDismissActionSuccess: () -> Unit,
+    onPasteGap: (String) -> String? = { null },
+    onDeleteGap: () -> Unit = {},
 ) {
     var page by remember { mutableStateOf(AppPage.Status) }
 
@@ -124,6 +126,8 @@ fun EPadResetApp(
             onReset = onReset,
             onRestore = onRestore,
             onOpenMaintenance = { page = AppPage.Maintenance },
+            onPasteGap = onPasteGap,
+            onDeleteGap = onDeleteGap,
         )
 
         AppPage.Maintenance -> MaintenanceScreen(

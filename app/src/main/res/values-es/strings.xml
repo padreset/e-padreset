@@ -67,6 +67,10 @@
     <string name="waste_unsupported_title">Este modelo no tiene contador que restablecer</string>
     <string name="waste_unsupported_body">Esta impresora no guarda el contador de tinta residual donde la aplicación pueda restablecerlo. No hay nada averiado: ni la aplicación ni la impresora tienen un problema.</string>
     <string name="action_more_info">Más información</string>
+    <string name="partial_session_title">Conectada, sin un perfil verificado</string>
+    <string name="partial_session_body">El estado y los niveles de tinta están disponibles. Los contadores de tinta residual no se leen ni se reinician hasta que la aplicación tenga un perfil verificado. Puedes enviar una petición de modelo; no hace falta que termine para ver estas lecturas.</string>
+    <string name="partial_cleaning_note">La limpieza de cabezal consume tinta y suma al contador de tinta residual. Esta aplicación no puede reiniciar ese contador en esta impresora, porque no tiene un perfil verificado.</string>
+    <string name="error_power_clean_unverified">La limpieza fuerte no está disponible sin un perfil verificado. Gasta más tinta, y esta aplicación no podría devolver el contador.</string>
 
     <!-- Se muestra junto a un contador cuyo techo no publica el modelo, que es
          el caso de todos los modelos que vienen de reinkpy. Sin techo no hay
@@ -166,6 +170,19 @@
     <string name="dialog_reset_warning">Restablecer los contadores de tinta residual modifica valores internos del firmware de la impresora. Úsalo bajo tu propia responsabilidad.</string>
     <string name="field_target_percentage">Porcentaje objetivo</string>
     <string name="action_reset_counters">Restablecer contadores</string>
+    <string name="action_reset_counters_unverified">Restablecer contadores (perfil sin verificar)</string>
+    <string name="action_paste_profile">Pegar perfil</string>
+    <string name="action_delete_profile">Quitar perfil local</string>
+    <string name="dialog_paste_profile_title">Pegar un perfil público</string>
+    <string name="paste_profile_hint">Pega un elemento model de reinkpy, con los atributos source y version. Cubre un modelo que esta aplicación no tiene. No sustituye una entrada del catálogo, y las claves se quedan en este dispositivo.</string>
+    <string name="field_paste_profile">Perfil</string>
+    <string name="paste_profile_invalid">Este texto no es un perfil que la aplicación pueda guardar.</string>
+    <string name="error_gap_provenance">Un perfil necesita una fuente pública y una versión.</string>
+    <string name="error_gap_malformed">El perfil está incompleto o fuera de rango.</string>
+    <string name="error_gap_box">Un modelo con caja de mantenimiento no puede traer un reset de tinta residual.</string>
+    <string name="error_gap_doctype">Ese texto no es un fragmento de perfil.</string>
+    <string name="error_gap_catalogued">Este modelo ya está en la aplicación. Un pegado no puede sustituirlo.</string>
+    <string name="error_gap_full">La lista local está llena. Quita un perfil primero.</string>
 
     <!-- Diálogo de limpieza de cabezal, para modelos que la aceptan. -->
     <string name="dialog_cleaning_title">Limpieza de cabezal</string>

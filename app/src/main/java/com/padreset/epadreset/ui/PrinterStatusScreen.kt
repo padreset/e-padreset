@@ -136,6 +136,8 @@ fun PrinterStatusScreen(
     onReset: (Set<String>, Int) -> Unit,
     onRestore: (String?, Map<Int, Byte>) -> Unit,
     onOpenMaintenance: () -> Unit,
+    onPasteGap: (String) -> String? = { null },
+    onDeleteGap: () -> Unit = {},
 ) {
     val pad = PadTheme.colors
     val context = LocalContext.current
@@ -143,6 +145,7 @@ fun PrinterStatusScreen(
     var showAbout by remember { mutableStateOf(false) }
     var showExitDialog by remember { mutableStateOf(false) }
     var showWasteUnsupported by remember { mutableStateOf(false) }
+    var showPasteGap by remember { mutableStateOf(false) }
     var showPasteBackup by remember { mutableStateOf(false) }
     var showModelReport by remember(uiState.modelReportBody) { mutableStateOf(false) }
     // The record waiting on a confirmation. Held here rather than in the card so
@@ -299,9 +302,13 @@ fun PrinterStatusScreen(
                     connected = uiState.status != null,
                     supportsWasteReset = uiState.supportsWasteReset,
                     usesMaintenanceBox = uiState.usesMaintenanceBox,
+                    readOnlySession = uiState.readOnlySession,
+                    unverifiedLocal = uiState.unverifiedLocalProfile,
                     busy = uiState.isBusy,
                     onReset = { showWarning = true },
                     onExplainUnsupported = { showWasteUnsupported = true },
+                    onPasteGap = { showPasteGap = true },
+                    onDeleteGap = onDeleteGap,
                 )
             }
 
@@ -406,7 +413,13 @@ fun PrinterStatusScreen(
                     // "Reset" is the word the whole ecosystem uses (WIC Reset,
                     // Adjustment Program, ez-reset, padreset itself) and the one
                     // users look for.
-                    Text(stringResource(R.string.action_reset_counters))
+                    Text(stringResource(
+                        if (uiState.unverifiedLocalProfile) {
+                            R.string.action_reset_counters_unverified
+                        } else {
+                            R.string.action_reset_counters
+                        },
+                    ))
                 }
             },
             dismissButton = {
@@ -458,32 +471,20 @@ fun PrinterStatusScreen(
     }
 
     if (showWasteUnsupported) {
-        PadAlertDialog(
-            onDismissRequest = { showWasteUnsupported = false },
-            // Matches the callout that opened it. When the curated list knows the
-            // cause, the dialog must not fall back to listing both possibilities:
-            // the user would read a confident statement and then a hedged one.
-            title = {
-                Text(
-                    stringResource(
-                        if (uiState.usesMaintenanceBox) R.string.waste_box_dialog_title
-                        else R.string.waste_unsupported_dialog_title,
-                    ),
-                )
+        WasteExplanationDialog(
+            uiState = uiState,
+            onDismiss = { showWasteUnsupported = false },
+            onReviewReport = {
+                showWasteUnsupported = false
+                showModelReport = true
             },
-            text = {
-                Text(
-                    stringResource(
-                        if (uiState.usesMaintenanceBox) R.string.waste_box_dialog_body
-                        else R.string.waste_unsupported_dialog_body,
-                    ),
-                )
-            },
-            confirmButton = {
-                Button(onClick = { showWasteUnsupported = false }) {
-                    Text(stringResource(R.string.action_close))
-                }
-            },
+        )
+    }
+
+    if (showPasteGap) {
+        PasteGapDialog(
+            onDismiss = { showPasteGap = false },
+            onPaste = onPasteGap,
         )
     }
 
@@ -1268,7 +1269,7 @@ private fun formatBackupTimestamp(timestamp: Long): String =
  * the user reviews the limited report before choosing a sharing channel.
  */
 @Composable
-private fun ModelReportActions(onReview: () -> Unit) {
+internal fun ModelReportActions(onReview: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
         Text(
             text = stringResource(R.string.report_model_note),
@@ -1420,9 +1421,13 @@ private fun WasteLevelsPanel(
     connected: Boolean,
     supportsWasteReset: Boolean,
     usesMaintenanceBox: Boolean,
+    readOnlySession: Boolean,
+    unverifiedLocal: Boolean,
     busy: Boolean,
     onReset: () -> Unit,
     onExplainUnsupported: () -> Unit,
+    onPasteGap: () -> Unit,
+    onDeleteGap: () -> Unit,
 ) {
     val pad = PadTheme.colors
 
@@ -1437,10 +1442,18 @@ private fun WasteLevelsPanel(
                 // The curated list knows the cause for some models; for the rest
                 // the wording names both possibilities rather than guessing.
                 title = stringResource(
-                    if (usesMaintenanceBox) R.string.waste_box_title else R.string.waste_unsupported_title,
+                    when {
+                        readOnlySession && !usesMaintenanceBox -> R.string.partial_session_title
+                        usesMaintenanceBox -> R.string.waste_box_title
+                        else -> R.string.waste_unsupported_title
+                    },
                 ),
                 text = stringResource(
-                    if (usesMaintenanceBox) R.string.waste_box_body else R.string.waste_unsupported_body,
+                    when {
+                        readOnlySession && !usesMaintenanceBox -> R.string.partial_session_body
+                        usesMaintenanceBox -> R.string.waste_box_body
+                        else -> R.string.waste_unsupported_body
+                    },
                 ),
                 tone = PadTone.Info,
             )
@@ -1450,6 +1463,13 @@ private fun WasteLevelsPanel(
                 onClick = onExplainUnsupported,
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (readOnlySession && !usesMaintenanceBox) {
+                PadButton(
+                    text = stringResource(R.string.action_paste_profile),
+                    onClick = onPasteGap,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
         return
     }
@@ -1498,12 +1518,23 @@ private fun WasteLevelsPanel(
         )
 
         PadButton(
-            text = stringResource(R.string.action_reset_counters),
+            text = stringResource(
+                if (unverifiedLocal) R.string.action_reset_counters_unverified else R.string.action_reset_counters,
+            ),
             variant = PadButtonVariant.Danger,
             enabled = connected && !busy,
             onClick = onReset,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (unverifiedLocal) {
+            PadButton(
+                text = stringResource(R.string.action_delete_profile),
+                variant = PadButtonVariant.Secondary,
+                enabled = !busy,
+                onClick = onDeleteGap,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 

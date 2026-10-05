@@ -10,6 +10,7 @@ import com.padreset.epadreset.R
 import com.padreset.epadreset.data.BackupOrigin
 import com.padreset.epadreset.data.BackupStore
 import com.padreset.epadreset.data.EpsonPrinterCatalog
+import com.padreset.epadreset.data.GapProfileStore
 import com.padreset.epadreset.data.ModelSupportReport
 import com.padreset.epadreset.data.PrinterStatusSnapshot
 import com.padreset.epadreset.data.WasteBackupRecord
@@ -35,6 +36,26 @@ data class MainUiState(
     val status: PrinterStatusSnapshot? = null,
     val cleaningOptions: List<String> = emptyList(),
     val supportsGenericMaintenanceJobs: Boolean = false,
+    /**
+     * False on a session that opened without a catalogued profile.
+     *
+     * Power cleaning fills the pad. Without a profile this app cannot put the
+     * counter back, so the checkbox is not offered and the service refuses it.
+     */
+    val allowsPowerClean: Boolean = true,
+    /**
+     * True when the printer answered but is not in the catalog.
+     *
+     * Status and gentle maintenance are available. Waste reset is not, and the
+     * waste panel must not claim the printer has no counter — only that this
+     * app does not have a verified profile for it.
+     */
+    val readOnlySession: Boolean = false,
+    /**
+     * A pasted profile filled a model the catalog does not have.
+     * The reset button says so. Power cleaning stays off.
+     */
+    val unverifiedLocalProfile: Boolean = false,
     /**
      * False when the connected printer keeps its waste ink count somewhere the
      * app cannot write to — a maintenance box chip rather than the printer's own
@@ -220,6 +241,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * interface that worked without asking the user for anything.
      */
     private val backupStore = BackupStore.from(application, ::appendLog)
+    private val gapStore = GapProfileStore.from(application)
 
     /**
      * Read once, from the package manager rather than from `BuildConfig`: the
@@ -240,7 +262,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(backupHistory = backupStore.history()) }
     }
 
-    private var connection: PrinterService.ConnectionState? = null
+    internal var connection: PrinterService.ConnectionState? = null
 
     /**
      * The silent status watch, if one is running. Started when a status read
@@ -395,11 +417,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             connectedDeviceName = null,
             cleaningOptions = emptyList(),
             supportsGenericMaintenanceJobs = false,
+            allowsPowerClean = true,
+            readOnlySession = false,
+            unverifiedLocalProfile = false,
             supportsWasteReset = false,
             usesMaintenanceBox = false,
             wasteCounterSpecs = emptyList(),
             untouchableAddresses = emptySet(),
             connectedModelName = null,
+            modelReportBody = null,
+            modelReportUrl = null,
             error = null,
             notice = str(R.string.notice_printer_disconnected),
         ) }
@@ -540,17 +567,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     private suspend fun readStatusHoldingLock(current: PrinterService.ConnectionState) {
         val status = printerService.readPrinterStatus(current)
+        val modelName = when (current) {
+            is PrinterService.ConnectionState.Catalogued -> current.spec.modelName
+            is PrinterService.ConnectionState.ReadOnly -> current.modelName
+        }
+        val stored = modelName?.let(gapStore::findExact)
+        val citation = stored?.let { ModelSupportReport.Citation(it.source, it.version) }
+        val screen = sessionScreen(
+            current = current,
+            appVersion = appVersion,
+            androidVersion = Build.VERSION.RELEASE,
+            reportUrl = REPORT_REPO_URL?.let(ModelSupportReport::issueUrl),
+            citation = citation,
+        )
         _uiState.update { it.copy(
             connectedDeviceName = current.deviceId,
             status = status,
-            cleaningOptions = current.spec.cleaningOptions.map { it.name },
-            supportsGenericMaintenanceJobs = true,
-            supportsWasteReset = current.spec.supportsWasteReset,
-            usesMaintenanceBox = current.spec.usesMaintenanceBox,
-            wasteCounterSpecs = current.spec.wasteCounters,
-            untouchableAddresses = current.spec.untouchableAddresses,
-            connectedModelName = current.spec.modelName,
+            cleaningOptions = screen.cleaningOptions,
+            supportsGenericMaintenanceJobs = screen.supportsGenericMaintenanceJobs,
+            allowsPowerClean = screen.allowsPowerClean,
+            readOnlySession = screen.readOnlySession,
+            unverifiedLocalProfile = screen.unverifiedLocalProfile,
+            supportsWasteReset = screen.supportsWasteReset,
+            usesMaintenanceBox = screen.usesMaintenanceBox,
+            wasteCounterSpecs = screen.wasteCounterSpecs,
+            untouchableAddresses = screen.untouchableAddresses,
+            connectedModelName = screen.connectedModelName,
             error = null,
+            modelReportBody = screen.modelReport?.body ?: if (screen.readOnlySession) it.modelReportBody else null,
+            modelReportUrl = screen.modelReportUrl ?: if (screen.readOnlySession) it.modelReportUrl else null,
         ) }
         appendLog("Status read: ${status.state}, ${status.error}")
         startPollingIfBusy(status, current)
@@ -642,8 +687,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resetWasteCounters(selectedCounterNames: Set<String>, targetPercentage: Int) {
-        val current = connection ?: run {
-            appendError(str(R.string.error_printer_not_connected), "Printer not connected")
+        val current = connection as? PrinterService.ConnectionState.Catalogued ?: run {
+            appendError(str(R.string.error_printer_not_connected), "Waste writes need a catalogued profile")
             return
         }
         viewModelScope.launch {
@@ -694,8 +739,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * hold only the address lines; the confirmation warns instead of blocking.
      */
     fun restoreBackup(model: String?, values: Map<Int, Byte>) {
-        val current = connection ?: run {
-            appendError(str(R.string.error_printer_not_connected), "Printer not connected")
+        val current = connection as? PrinterService.ConnectionState.Catalogued ?: run {
+            appendError(str(R.string.error_printer_not_connected), "Waste writes need a catalogued profile")
             return
         }
         viewModelScope.launch {
@@ -731,8 +776,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun runHeadCleaning(cleaningName: String) {
-        val current = connection ?: run {
-            appendError(str(R.string.error_printer_not_connected), "Printer not connected")
+        val current = connection as? PrinterService.ConnectionState.Catalogued ?: run {
+            appendError(str(R.string.error_printer_not_connected), "Service cleaning needs a catalogued profile")
             return
         }
         viewModelScope.launch {
@@ -767,6 +812,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Starting head cleaning") {
+                if (powerClean && current is PrinterService.ConnectionState.ReadOnly) {
+                    throw UserFacingException(
+                        str(R.string.error_power_clean_unverified),
+                        "Power cleaning refused: no verified profile",
+                    )
+                }
                 sessionMutex.withLock {
                     printerService.runPrintJobHeadCleaning(current, groupIndex, powerClean, alternativeMode)
                     _uiState.update { it.copy(
@@ -832,52 +883,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * known cause now gets its own line; anything unrecognised keeps the generic
      * wording, and the English detail still goes to the log.
      */
-    private fun localizedConnectFailure(failure: Throwable): String {
-        val connect = failure as? PrinterService.ConnectException
-            ?: return str(R.string.error_connect_failed)
-        return when (connect.failure) {
-            PrinterService.ConnectFailure.PERMISSION_DENIED ->
-                str(R.string.error_connect_permission_denied)
-
-            PrinterService.ConnectFailure.NO_INTERFACES ->
-                str(R.string.error_connect_no_interfaces)
-
-            PrinterService.ConnectFailure.UNSUPPORTED_MODEL -> {
-                val model = connect.detail?.let(EpsonPrinterCatalog::modelName)
-                if (model.isNullOrBlank()) {
-                    str(R.string.error_connect_unsupported_model)
-                } else {
-                    str(R.string.error_connect_unsupported_model_named, model)
-                }
-            }
-
-            // Maintenance support may be investigated, but never promise a reset
-            // of the maintenance-box chip based on adding a catalog entry.
-            PrinterService.ConnectFailure.UNSUPPORTED_MODEL_MAINTENANCE_BOX -> {
-                val model = connect.detail?.let(EpsonPrinterCatalog::modelName)
-                if (model.isNullOrBlank()) {
-                    str(R.string.error_connect_unsupported_model_box)
-                } else {
-                    str(R.string.error_connect_unsupported_model_box_named, model)
-                }
-            }
-
-            PrinterService.ConnectFailure.DOT4_NAK ->
-                str(R.string.error_connect_dot4_nak)
-
-            PrinterService.ConnectFailure.DOT4_NO_REPLY ->
-                str(R.string.error_connect_dot4_no_reply)
-
-            PrinterService.ConnectFailure.INTERFACE_BUSY ->
-                str(R.string.error_connect_interface_busy)
-
-            PrinterService.ConnectFailure.DEVICE_DETACHED ->
-                str(R.string.error_connect_device_detached)
-
-            PrinterService.ConnectFailure.UNKNOWN ->
-                str(R.string.error_connect_failed)
-        }
-    }
+    private fun localizedConnectFailure(failure: Throwable): String =
+        connectFailureText(failure, ::str, ::str)
 
     /**
      * The device ID to carry into a report, for the one failure where a report
@@ -1030,7 +1037,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun formatBackup(backup: Map<Int, Byte>): String? {
         if (backup.isEmpty()) return null
-        val model = connection?.spec?.modelName.orEmpty()
+        val model = (connection as? PrinterService.ConnectionState.Catalogued)?.spec?.modelName
+            ?: _uiState.value.connectedModelName.orEmpty()
         return buildString {
             appendLine(
                 "EEPROM backup taken before the write — ${model.ifBlank { "unknown model" }}",
@@ -1066,8 +1074,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // Same reasoning: an explanation of the last connection's wait does
             // not describe this one.
             connectNote = null,
-            modelReportBody = null,
-            modelReportUrl = null,
+            // A missing-model report is how the request reaches the catalog.
+            // A nozzle check must not throw it away, including when a local
+            // profile already filled the gap.
+            modelReportBody = if (keepsModelReport(connection)) it.modelReportBody else null,
+            modelReportUrl = if (keepsModelReport(connection)) it.modelReportUrl else null,
             // wasteBackup is deliberately NOT cleared here. It is a record of
             // what the last write overwrote, not a status, and clearing it with
             // every job meant the refresh that follows a successful write wiped

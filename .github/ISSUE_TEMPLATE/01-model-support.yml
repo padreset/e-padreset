@@ -11,8 +11,8 @@ body:
         Support is not guaranteed. Model data needs a verified source and hardware tests. A maintenance-box chip cannot be reset by this app; cleaning/nozzle support can still be investigated.
         La compatibilidad no está garantizada. Se necesitan datos de procedencia verificada y pruebas. La app no reinicia el chip de una caja de mantenimiento; sí se puede investigar limpieza e inyectores.
 
-        Do not upload serial numbers, raw protocol logs, EEPROM backups/dumps, passwords or photos showing personal information. Do not try guessed EEPROM addresses, keys or experimental writes.
-        No publiques números de serie, logs crudos, respaldos/volcados EEPROM, contraseñas ni fotos con datos personales. No pruebes direcciones, claves o escrituras adivinadas.
+        Do not upload serial numbers, raw protocol logs, EEPROM backups/dumps, passwords, write keys or EEPROM addresses. A local profile stays on the device; cite its public source and version only.
+        No publiques números de serie, logs crudos, respaldos/volcados EEPROM, contraseñas, claves de escritura ni direcciones EEPROM. Un perfil local se queda en el dispositivo; cita solo su fuente pública y su versión.
   - type: input
     id: model
     attributes:

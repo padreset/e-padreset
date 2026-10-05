@@ -82,6 +82,23 @@ class ModelSupportReportTest {
     }
 
     @Test
+    fun `a status session does not claim the maintenance session was never opened`() {
+        val body = ModelSupportReport.build(
+            ModelSupportReport.Source(
+                deviceId = "MDL:ET-9999;",
+                appVersion = "1",
+                androidVersion = "15",
+                vendorId = 0x04B8,
+                productId = 1,
+                maintenanceBox = false,
+                statusOpened = true,
+            ),
+        ).body
+        assertTrue(body.contains("status was read"))
+        assertFalse(body.contains("maintenance session not opened"))
+    }
+
+    @Test
     fun `unavailable USB IDs are stated honestly`() {
         val body = ModelSupportReport.build(
             ModelSupportReport.Source(

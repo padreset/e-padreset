@@ -74,6 +74,14 @@
     <string name="waste_unsupported_title">No counter to reset on this model</string>
     <string name="waste_unsupported_body">This printer does not keep a waste ink counter the app can reset. Nothing is broken: neither the app nor the printer is at fault.</string>
     <string name="action_more_info">More Information</string>
+    <!-- A printer that answered, but is not in the catalog. Not the same as
+         waste_unsupported: that one means the catalog knows there is nothing
+         to reset. This one means we do not have a verified profile, so we
+         must not claim the printer has no counter. -->
+    <string name="partial_session_title">Connected, without a verified profile</string>
+    <string name="partial_session_body">Status and ink levels are available. Waste counters are not read or reset until a verified profile is in the app. You can send a model request; it does not have to finish before these readings.</string>
+    <string name="partial_cleaning_note">Head cleaning consumes ink and adds to the waste counter. This app cannot reset that counter on this printer, because it has no verified profile.</string>
+    <string name="error_power_clean_unverified">Power cleaning is not available without a verified profile. It uses more ink, and this app could not put the waste counter back.</string>
 
     <!-- Shown next to a counter whose ceiling the model does not publish, which
          is every model sourced from reinkpy. Without a ceiling there is no
@@ -163,6 +171,19 @@
     <string name="dialog_reset_warning">Resetting waste ink counters modifies internal printer firmware values. Use at your own risk.</string>
     <string name="field_target_percentage">Target percentage</string>
     <string name="action_reset_counters">Reset Counters</string>
+    <string name="action_reset_counters_unverified">Reset counters (unverified profile)</string>
+    <string name="action_paste_profile">Paste profile</string>
+    <string name="action_delete_profile">Remove local profile</string>
+    <string name="dialog_paste_profile_title">Paste a public profile</string>
+    <string name="paste_profile_hint">Paste one reinkpy model element, with source and version attributes. It fills a model this app does not already have. It does not replace a catalog entry, and the keys stay on this device.</string>
+    <string name="field_paste_profile">Profile</string>
+    <string name="paste_profile_invalid">This text is not a profile this app can store.</string>
+    <string name="error_gap_provenance">A profile needs a public source and a version.</string>
+    <string name="error_gap_malformed">The profile is incomplete or out of range.</string>
+    <string name="error_gap_box">A maintenance-box model cannot carry a waste reset.</string>
+    <string name="error_gap_doctype">That text is not a profile snippet.</string>
+    <string name="error_gap_catalogued">This model is already in the app. A paste cannot replace it.</string>
+    <string name="error_gap_full">The local list is full. Remove one profile first.</string>
 
     <!-- Head cleaning dialog, for models that accept service cleaning. -->
     <string name="dialog_cleaning_title">Head cleaning</string>

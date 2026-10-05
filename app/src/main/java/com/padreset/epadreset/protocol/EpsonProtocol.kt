@@ -14,7 +14,24 @@ import kotlin.math.min
  */
 private const val MAX_D4_FRAME_BYTES = 8192
 
-class EpsonProtocol(private val spec: PrinterSpec) {
+class EpsonProtocol(
+    private val modelName: String,
+    private val controlModel: ByteArray?,
+    private val keyword: ByteArray?,
+) {
+    /** A catalogued printer. Factory commands and EEPROM writes use its keys. */
+    constructor(spec: PrinterSpec) : this(spec.modelName, spec.controlModel, spec.keyword)
+
+    companion object {
+        /**
+         * Framing and status only.
+         *
+         * No control model and no write key, so a factory command cannot be
+         * built from this instance. That is the read-only session: not a stub
+         * profile with empty keys.
+         */
+        fun statusOnly(modelName: String): EpsonProtocol = EpsonProtocol(modelName, null, null)
+    }
     enum class ControlBackend {
         D4,
         END4,
@@ -147,7 +164,7 @@ class EpsonProtocol(private val spec: PrinterSpec) {
             (address and 0xFF).toByte(),
             ((address ushr 8) and 0xFF).toByte(),
             value.toByte(),
-        ) + spec.keyword
+        ) + requireNotNull(keyword) { "EEPROM writes need a catalogued profile" }
         return buildFactoryCommand(0x42, payload)
     }
 
@@ -157,7 +174,8 @@ class EpsonProtocol(private val spec: PrinterSpec) {
         val inverted = action xor 0xFF
         val rotated = ((action shr 1) and 0x7F) or ((action shl 7) and 0x80)
         val actionCode = byteArrayOf(action.toByte(), inverted.toByte(), rotated.toByte())
-        return buildControlCommand("||".encodeToByteArray(), spec.controlModel + actionCode + payload)
+        val model = requireNotNull(controlModel) { "Factory commands need a catalogued profile" }
+        return buildControlCommand("||".encodeToByteArray(), model + actionCode + payload)
     }
 
     fun buildD4Command(command: Int, payload: ByteArray = byteArrayOf()): D4Frame {
@@ -274,7 +292,7 @@ class EpsonProtocol(private val spec: PrinterSpec) {
         val parsedId = parseDeviceId(deviceId)
 
         return PrinterStatusSnapshot(
-            modelName = parsedId["MDL"] ?: spec.modelName,
+            modelName = parsedId["MDL"] ?: modelName,
             serialNumber = serial.ifBlank { parsedId["SN"] ?: "" },
             stateCode = stateCode,
             errorCode = errorCode,

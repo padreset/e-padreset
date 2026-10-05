@@ -112,6 +112,7 @@ fun MaintenanceScreen(
                 MaintenancePanel(
                     cleaningOptions = cleaningOptions,
                     supportsGenericMaintenanceJobs = uiState.supportsGenericMaintenanceJobs,
+                    readOnlySession = uiState.readOnlySession,
                     connected = uiState.status != null,
                     busy = uiState.isBusy,
                     onClean = {
@@ -212,12 +213,14 @@ fun MaintenanceScreen(
                             },
                         )
                     }
-                    PadSelectableRow(
-                        label = stringResource(R.string.cleaning_power_clean),
-                        selected = genericPowerClean,
-                        multi = true,
-                        onSelect = { genericPowerClean = it },
-                    )
+                    if (uiState.allowsPowerClean) {
+                        PadSelectableRow(
+                            label = stringResource(R.string.cleaning_power_clean),
+                            selected = genericPowerClean,
+                            multi = true,
+                            onSelect = { genericPowerClean = it },
+                        )
+                    }
                 }
             },
         )
@@ -258,6 +261,7 @@ fun MaintenanceScreen(
 private fun MaintenancePanel(
     cleaningOptions: List<String>,
     supportsGenericMaintenanceJobs: Boolean,
+    readOnlySession: Boolean,
     connected: Boolean,
     busy: Boolean,
     onClean: () -> Unit,
@@ -284,7 +288,9 @@ private fun MaintenancePanel(
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            text = stringResource(R.string.maintenance_note),
+            text = stringResource(
+                if (readOnlySession) R.string.partial_cleaning_note else R.string.maintenance_note,
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = pad.muted,
         )

@@ -4,6 +4,7 @@ import android.hardware.usb.UsbDevice
 import android.content.Context
 import android.hardware.usb.UsbConstants
 import com.padreset.epadreset.data.EpsonPrinterCatalog
+import com.padreset.epadreset.data.openProfile
 import com.padreset.epadreset.data.CleaningSpec
 import com.padreset.epadreset.data.PrinterSpec
 import com.padreset.epadreset.data.PrinterStatusSnapshot
@@ -101,16 +102,50 @@ class PrinterService(
 
     private val appContext = context.applicationContext
 
-    data class ConnectionState(
-        val session: UsbTransport.Session,
-        val spec: PrinterSpec,
-        val protocol: EpsonProtocol,
-        val deviceId: String,
-        val backend: EpsonProtocol.ControlBackend,
-        val controlChannel: EpsonProtocol.D4ChannelState? = null,
-    )
+    /**
+     * An open printer session.
+     *
+     * [Catalogued] is the only variant that holds a profile, and the only one
+     * write methods accept. [ReadOnly] is a printer that answered IEEE 1284.4
+     * and is not in the catalog: status and gentle maintenance, no keys, no
+     * stub profile to write through.
+     */
+    sealed class ConnectionState {
+        abstract val session: UsbTransport.Session
+        abstract val protocol: EpsonProtocol
+        abstract val deviceId: String
+        abstract val backend: EpsonProtocol.ControlBackend
+        abstract val controlChannel: EpsonProtocol.D4ChannelState?
+
+        data class Catalogued(
+            override val session: UsbTransport.Session,
+            val spec: PrinterSpec,
+            override val protocol: EpsonProtocol,
+            override val deviceId: String,
+            override val backend: EpsonProtocol.ControlBackend,
+            override val controlChannel: EpsonProtocol.D4ChannelState? = null,
+            /**
+             * True when this profile was pasted on this device and is not in
+             * the bundled catalog. Writes are allowed; they are not verified.
+             * Power cleaning stays off: it fills a pad this profile has not
+             * been shown to put back.
+             */
+            val unverifiedLocal: Boolean = false,
+        ) : ConnectionState()
+
+        data class ReadOnly(
+            override val session: UsbTransport.Session,
+            override val protocol: EpsonProtocol,
+            override val deviceId: String,
+            override val backend: EpsonProtocol.ControlBackend,
+            override val controlChannel: EpsonProtocol.D4ChannelState? = null,
+            val modelName: String?,
+            val usesMaintenanceBox: Boolean,
+        ) : ConnectionState()
+    }
 
     private val transport = UsbTransport(appContext)
+    private var lastSeenDeviceId: String? = null
 
     init {
         EpsonPrinterCatalog.logger = log
@@ -180,6 +215,7 @@ class PrinterService(
         }
 
         var lastError: Throwable? = null
+        lastSeenDeviceId = null
         candidates.forEachIndexed { index, usbInterface ->
             log("Trying USB interface ${usbInterface.id} (${index + 1}/${candidates.size})")
 
@@ -221,6 +257,10 @@ class PrinterService(
             log("Interface ${usbInterface.id} failed before D4 fallback: ${lastError?.message}")
         }
 
+        val seen = lastSeenDeviceId
+        if (seen != null && EpsonPrinterCatalog.resolve(appContext, seen) == null) {
+            throw unknownModelFailure(seen)
+        }
         throw lastError ?: ConnectException(ConnectFailure.UNKNOWN)
     }
 
@@ -253,7 +293,12 @@ class PrinterService(
     }
 
     suspend fun readPrinterStatus(connection: ConnectionState): PrinterStatusSnapshot = withContext(Dispatchers.IO) {
-        readStatus(connection) { address -> readEepromByte(connection, address) }
+        when (connection) {
+            is ConnectionState.Catalogued -> readStatus(connection) { address -> readEepromByte(connection, address) }
+            is ConnectionState.ReadOnly -> readStatus(connection) { _ ->
+                error("A read-only session has no EEPROM map")
+            }
+        }
     }
 
     private fun readStatus(
@@ -264,15 +309,18 @@ class PrinterService(
         val statusResponse = sendControlPayload(connection, connection.protocol.buildStatusRequest())
         val baseSnapshot = connection.protocol.parseStatusResponse(statusResponse, connection.deviceId)
         log("Status response parsed: state=${baseSnapshot.state} error=${baseSnapshot.error} inks=${baseSnapshot.inkLevels.size}")
-        val wasteCounters = connection.spec.wasteCounters.map { counter ->
-            val bytes = counter.addresses.map(readByte).toByteArray()
-            val masks = counter.addresses.map { counter.masks[it] ?: 0xFF }
-            log(
-                "Waste counter '${counter.name}' addresses=${
-                    counter.addresses.joinToString(prefix = "[", postfix = "]") { "0x%X".format(it) }
-                } bytes=${bytes.joinToString(" ") { "%02X".format(it) }}",
-            )
-            connection.protocol.parseWasteCounter(bytes, counter.max, counter.name, masks)
+        val wasteCounters = when (connection) {
+            is ConnectionState.Catalogued -> connection.spec.wasteCounters.map { counter ->
+                val bytes = counter.addresses.map(readByte).toByteArray()
+                val masks = counter.addresses.map { counter.masks[it] ?: 0xFF }
+                log(
+                    "Waste counter '${counter.name}' addresses=${
+                        counter.addresses.joinToString(prefix = "[", postfix = "]") { "0x%X".format(it) }
+                    } bytes=${bytes.joinToString(" ") { "%02X".format(it) }}",
+                )
+                connection.protocol.parseWasteCounter(bytes, counter.max, counter.name, masks)
+            }
+            is ConnectionState.ReadOnly -> emptyList()
         }
         return baseSnapshot.copy(wasteCounters = wasteCounters)
     }
@@ -371,7 +419,7 @@ class PrinterService(
     }
 
     suspend fun writeWasteCounters(
-        connection: ConnectionState,
+        connection: ConnectionState.Catalogued,
         selectedCounterNames: Set<String>,
         targetPercentage: Int,
         onBackup: (Map<Int, Byte>) -> Unit = {},
@@ -397,7 +445,7 @@ class PrinterService(
      * stops at the first address the printer refuses, exactly like a reset.
      */
     suspend fun restoreWasteBackup(
-        connection: ConnectionState,
+        connection: ConnectionState.Catalogued,
         backup: Map<Int, Byte>,
         onBackup: (Map<Int, Byte>) -> Unit = {},
     ): WasteRestoreOutcome = withContext(Dispatchers.IO) {
@@ -430,7 +478,7 @@ class PrinterService(
      * printer; this binds them to the transport and nothing more.
      */
     private fun applyWritePlan(
-        connection: ConnectionState,
+        connection: ConnectionState.Catalogued,
         plan: Map<Int, Int>,
         onBackup: (Map<Int, Byte>) -> Unit,
     ): WasteWriter.VerifiedWrite<PrinterStatusSnapshot> = WasteWriter(
@@ -440,7 +488,7 @@ class PrinterService(
     ).writeAndVerify(plan, onBackup) { readByte -> readStatus(connection, readByte) }
 
     /** Reads one EEPROM byte. */
-    private fun readEepromByte(connection: ConnectionState, address: Int): Byte {
+    private fun readEepromByte(connection: ConnectionState.Catalogued, address: Int): Byte {
         val response = sendControlPayload(connection, connection.protocol.buildReadEepromCommand(address))
         return parseEepromReadByte(response)
     }
@@ -456,7 +504,7 @@ class PrinterService(
      * is the worse failure.
      */
     private fun writeEeprom(
-        connection: ConnectionState,
+        connection: ConnectionState.Catalogued,
         address: Int,
         value: Int,
     ): EpsonProtocol.WriteReply {
@@ -484,7 +532,7 @@ class PrinterService(
     }
 
     suspend fun runHeadCleaning(
-        connection: ConnectionState,
+        connection: ConnectionState.Catalogued,
         cleaningName: String,
     ): ByteArray = withContext(Dispatchers.IO) {
         val cleaning = connection.spec.cleaningOptions.firstOrNull { it.name == cleaningName }
@@ -522,6 +570,11 @@ class PrinterService(
         powerClean: Boolean,
         alternativeMode: Boolean,
     ) = withContext(Dispatchers.IO) {
+        val offer = when (connection) {
+            is ConnectionState.ReadOnly -> SessionOffer.decide(null)
+            is ConnectionState.Catalogued -> SessionOffer.decide(connection.spec)
+        }
+        SessionOffer.refusePowerClean(offer, powerClean)
         val payload = Escp2MaintenanceProtocol.buildHeadCleaningJob(
             groupIndex = groupIndex,
             powerClean = powerClean,
@@ -618,13 +671,11 @@ class PrinterService(
 
             val deviceId = transport.getDeviceId(session)
             log("IEEE1284 device ID: $deviceId")
-            val spec = EpsonPrinterCatalog.resolve(appContext, deviceId)
-                ?: throw unknownModelFailure(deviceId)
-            log(
-                "Resolved model spec: ${spec.modelName}, counters=${spec.wasteCounters.size}, " +
-                    "resetEntries=${spec.resetMap.size}, cleanings=${spec.cleaningOptions.size}",
-            )
-            val protocol = EpsonProtocol(spec)
+            lastSeenDeviceId = deviceId
+            // Handshake and status do not use a profile. Resolve only after the
+            // channel is up, so a missing catalog entry does not throw away a
+            // session the printer already accepted.
+            val protocol = EpsonProtocol.statusOnly(EpsonPrinterCatalog.modelName(deviceId).orEmpty())
 
             val enterReply = enterDot4(session, protocol)
             // A lone 0x15 is the classic NAK, but a framed reply can carry it as
@@ -655,13 +706,29 @@ class PrinterService(
             sendD4Command(session, protocol, 0x03, protocol.buildCreditPayload(psid, ssid, channel.rxCreditsMax))
             log("Initial D4 credit granted=${channel.rxCreditsMax}")
 
-            return ConnectionState(
+            val opened = openProfile(appContext, deviceId)
+            if (opened == null) {
+                val name = EpsonPrinterCatalog.modelName(deviceId)
+                log("Model '${name ?: "?"}' is not in the catalog; keeping a read-only session")
+                return ConnectionState.ReadOnly(
+                    session = session,
+                    protocol = protocol,
+                    deviceId = deviceId,
+                    backend = EpsonProtocol.ControlBackend.D4,
+                    controlChannel = channel,
+                    modelName = name,
+                    usesMaintenanceBox = EpsonPrinterCatalog.usesMaintenanceBox(appContext, name),
+                )
+            }
+            log(opened.logLine)
+            return ConnectionState.Catalogued(
                 session = session,
-                spec = spec,
-                protocol = protocol,
+                spec = opened.spec,
+                protocol = EpsonProtocol(opened.spec),
                 deviceId = deviceId,
                 backend = EpsonProtocol.ControlBackend.D4,
                 controlChannel = channel,
+                unverifiedLocal = opened.unverified,
             )
         } catch (t: Throwable) {
             session.close()

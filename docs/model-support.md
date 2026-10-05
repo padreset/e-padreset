@@ -61,8 +61,9 @@ Reviewed limited app report / Informe limitado revisado:
 5. Prioritize read-only diagnostics. Any later write test requires an informed volunteer, a complete backup and physical maintenance considerations. No user is expected to agree to it to request support.
 6. Keep maintenance-box requests separate from internal pad reset requests. No promise to reset the box chip.
 7. Respond with status/link/release when known, without promising a schedule.
+8. A local profile is a gap on that device only. The issue may cite the public URL and version. It must not contain read keys, write keys or EEPROM addresses, and a maintainer must not ask for them in the issue. Promote the model by fetching that public source and running `scripts/sync-model-data.mjs`. An exact catalog name is never a gap: `PM-4000PX` and `WF-C5290BA` already have exact entries, and a shorter paste does not fill a longer model.
 
-Un mantenedor centraliza la evidencia, responde con el enlace y separa los estados de investigación, implementación y pruebas por función. Trasladar una petición no autoriza a publicar datos personales ni ejecutar escrituras. No hay plazo garantizado.
+Un mantenedor centraliza la evidencia, responde con el enlace y separa los estados de investigación, implementación y pruebas por función. Trasladar una petición no autoriza a publicar datos personales ni ejecutar escrituras. El issue puede citar la URL y la versión de un perfil local; no lleva claves ni direcciones. No hay plazo garantizado.
 
 ## Future account-free intake / Recepción futura sin cuentas nuevas
 

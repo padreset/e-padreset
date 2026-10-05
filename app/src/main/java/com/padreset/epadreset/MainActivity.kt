@@ -16,6 +16,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.padreset.epadreset.data.EpsonPrinterCatalog
 import com.padreset.epadreset.ui.EPadResetApp
 import com.padreset.epadreset.ui.MainViewModel
+import com.padreset.epadreset.ui.deleteGapProfile
+import com.padreset.epadreset.ui.pasteGapProfile
 import com.padreset.epadreset.ui.theme.EPadResetTheme
 
 class MainActivity : ComponentActivity() {
@@ -64,6 +66,8 @@ class MainActivity : ComponentActivity() {
                     onGenericClean = viewModel::runGenericHeadCleaning,
                     onNozzleCheck = viewModel::printNozzleCheck,
                     onDismissActionSuccess = viewModel::dismissActionSuccess,
+                    onPasteGap = viewModel::pasteGapProfile,
+                    onDeleteGap = viewModel::deleteGapProfile,
                 )
             }
         }

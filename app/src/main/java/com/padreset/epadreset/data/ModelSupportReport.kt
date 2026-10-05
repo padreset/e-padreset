@@ -29,7 +29,24 @@ internal object ModelSupportReport {
         val vendorId: Int?,
         val productId: Int?,
         val maintenanceBox: Boolean,
+        /**
+         * True when a status session was opened without a profile.
+         *
+         * The older wording said the maintenance session was not opened. That
+         * is no longer true for a read-only connect, and the report must not
+         * claim it.
+         */
+        val statusOpened: Boolean = false,
+        /**
+         * Provenance of a local gap profile, if the user stored one.
+         *
+         * The issue may cite the public source and its version. It must not
+         * carry the key or the addresses; those stay on the device.
+         */
+        val localProfile: Citation? = null,
     )
+
+    data class Citation(val source: String, val version: String)
 
     fun build(source: Source): Report {
         val fields = source.deviceId.split(';').mapNotNull { field ->
@@ -47,7 +64,24 @@ internal object ModelSupportReport {
             appendLine("IEEE1284 (MFG, MDL, CMD, CLS only):")
             allowedFields.forEach { key -> fields[key]?.takeIf { it.isNotBlank() }?.let { appendLine("$key: $it") } }
             appendLine()
-            appendLine("Result / Resultado: model not in the bundled catalog; maintenance session not opened.")
+            if (source.statusOpened) {
+                appendLine("Result / Resultado: status was read; no verified profile, so waste counters were not read or written.")
+            } else {
+                appendLine("Result / Resultado: model not in the bundled catalog; maintenance session not opened.")
+            }
+            appendLine(
+                "Generic status tried / Estado genérico probado: " +
+                    if (source.statusOpened) "yes" else "no",
+            )
+            val citation = source.localProfile
+            if (citation == null) {
+                appendLine("Local profile / Perfil local: none")
+            } else {
+                appendLine("Local profile / Perfil local: unverified, this device only")
+                appendLine(
+                    "Provenance / Procedencia: ${safeField(citation.source)} (${safeField(citation.version)})",
+                )
+            }
             if (source.maintenanceBox) {
                 appendLine("Community catalog classification: maintenance box. Request maintenance support only;")
                 appendLine("this app cannot reset a counter on the box chip / no reinicia el chip de la caja.")
