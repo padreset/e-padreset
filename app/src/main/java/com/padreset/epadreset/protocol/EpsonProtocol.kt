@@ -129,6 +129,15 @@ class EpsonProtocol(private val spec: PrinterSpec) {
         }
     }
 
+    /**
+     * Whether a service cleaning reply is a refusal.
+     *
+     * Same markers as [classifyWriteReply]: `:NA;` and `:NG;`. An unknown reply
+     * is not a refusal — stopping a cleaning that may have started is worse.
+     */
+    fun isNegativeMaintenanceReply(reply: ByteArray): Boolean =
+        classifyWriteReply(reply) == WriteReply.Rejected
+
     fun buildReadEepromCommand(address: Int): ByteArray {
         return buildFactoryCommand(0x41, byteArrayOf((address and 0xFF).toByte(), ((address ushr 8) and 0xFF).toByte()))
     }
@@ -195,6 +204,17 @@ class EpsonProtocol(private val spec: PrinterSpec) {
      * off after kilobytes that never arrive. When [channel] is given, its
      * endpoint ids must match too; management commands (psid/ssid 0) pass null
      * and get the size check only. Pure for tests.
+     *
+     * The id check is deliberately strict, not an oversight: no observed
+     * printer answers with asymmetric ids (two hardware units here, nothing in
+     * the sibling ecosystems either), while stale stream bytes are observed in
+     * our own logs — and length alone cannot tell those apart from a reply.
+     * The ids are the only authenticator binding a frame to our channel, so a
+     * mismatch fails loud instead of risking silent corruption of status,
+     * backup or verification reads. Revisit trigger, and only then: a protocol
+     * log showing repeated id mismatches with sane lengths. The way back in
+     * that case is acceptance with content validation (the `@BDC ST2` / `PS`
+     * markers the outstanding command expects), never length alone.
      */
     fun isPlausibleD4Header(header: ByteArray, channel: D4ChannelState? = null): Boolean {
         if (header.size != 6) return false
