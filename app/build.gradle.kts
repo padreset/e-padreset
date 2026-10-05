@@ -8,6 +8,8 @@ plugins {
     id("io.gitlab.arturbosch.detekt")
 }
 
+import org.gradle.api.tasks.testing.Test
+
 /**
  * Release signing, read from the machine rather than from the repository.
  *
@@ -271,6 +273,24 @@ val verifyPrinterData = tasks.register("verifyPrinterData") {
 }
 
 tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(verifyPrinterData) }
+
+//
+// ESC/P2 job bytes for the escapy cross-check. See Escp2JobDumper and
+// scripts/validate-escp2-with-escapy.py: the .bin files must come from the
+// builders, never from pinned copies, or the check passes while the app
+// drifts. Runs after the unit tests so a red suite stops it first.
+//
+val escp2Out = layout.buildDirectory.dir("escp2")
+val dumpEscp2Jobs by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Writes every remote-mode maintenance job variant to build/escp2 for the escapy cross-check."
+    dependsOn("testDebugUnitTest")
+    val unitTest = tasks.named<Test>("testDebugUnitTest")
+    classpath(unitTest.map { it.classpath })
+    mainClass.set("com.padreset.epadreset.protocol.Escp2JobDumper")
+    args(escp2Out.get().asFile.absolutePath)
+    outputs.dir(escp2Out)
+}
 
 //
 // Static analysis. See the note in the root build script for why it is here.

@@ -48,6 +48,21 @@ jobs:
       - name: Run unit tests
         run: ./gradlew :app:testDebugUnitTest --console=plain --stacktrace
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Independent framing check for the ESC/P2 maintenance jobs: escapy is a
+      # separate ESC/P2 implementation, and parsing our built bytes with it
+      # validates our remote-command length fields without hardware. The pin
+      # lives in the script (ESCAPY_PIN); keep the install line identical.
+      - name: Cross-check ESC/P2 jobs with escapy
+        run: |
+          pip install 'git+https://github.com/ysard/escapy@747055eaf12704a655c979bcb1c2de82db651870'
+          ./gradlew :app:dumpEscp2Jobs --console=plain --stacktrace
+          python3 scripts/validate-escp2-with-escapy.py app/build/escp2
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4

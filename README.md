@@ -397,6 +397,18 @@ moving the page.
 The write rules are tested the same way, with a fake printer standing in for the
 hardware: see `WasteWriterTest`.
 
+The ESC/P2 maintenance jobs get a second, independent reader: `:app:dumpEscp2Jobs`
+writes every remote-mode job variant built by `Escp2MaintenanceProtocol` to
+`build/escp2/`, and `scripts/validate-escp2-with-escapy.py` parses each one with
+[escapy](https://github.com/ysard/escapy) (pinned revision, installed as an
+external check, never vendored). It demands remote-mode enter/exit plus every
+maintenance command consumed as a length-prefixed REMOTE code — which is what
+validates our length fields without a printer. `escputil` remains the semantic
+reference and yusnel-rojas the hardware-proven one; escapy covers framing.
+Alternative-mode cleanings are raw service bytes rather than remote-mode traffic,
+so they are deliberately out of scope (see `Escp2JobDumper`). The check runs in
+CI after the unit tests.
+
 Key identifiers:
 
 - Project name: `epad-reset`
