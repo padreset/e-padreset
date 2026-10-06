@@ -279,7 +279,112 @@ val verifyPrinterData = tasks.register("verifyPrinterData") {
     }
 }
 
-tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(verifyPrinterData) }
+/**
+ * Fails the build when a translation is missing keys, adds unknown ones, or
+ * formats differently from English.
+ *
+ * Why this exists: a misspelled key falls back to English at runtime with
+ * nothing visible to the user, and a missing format specifier crashes with
+ * MissingFormatArgumentException only when that screen is opened in that
+ * locale. Neither failure is visible to the JVM unit tests or to lint.
+ *
+ * This is the build-time twin of scripts/check-locales.py, which the locales
+ * workflow runs without the Android SDK. The two must stay in sync: same
+ * rules, same wording, same exemption (English marks about_repo_label
+ * translatable="false", so leaving it out is the correct translation, not a
+ * gap). It is reimplemented here rather than called because a build gate
+ * cannot depend on which interpreter a machine happens to have installed.
+ */
+val checkLocales = tasks.register("checkLocales") {
+    group = "verification"
+    description = "Checks every values-*/strings.xml against the English keys and placeholders."
+    val resDir = layout.projectDirectory.dir("src/main/res")
+    inputs.files(resDir.asFileTree.matching { include("values*/strings.xml") })
+    doLast {
+        val spec = Regex("""%(?:\d+\$)?[a-zA-Z%]""")
+        val nameAttr = Regex("""<string\s[^>]*name="([^"]+)"""")
+
+        // Null texts means the file could not be read or parsed: the caller
+        // then reports those problems as-is instead of also listing every
+        // key as missing, which would bury the real error.
+        fun readStrings(file: java.io.File): Triple<Map<String, String>?, Set<String>, List<String>> {
+            val raw = try {
+                file.readText()
+            } catch (e: Exception) {
+                return Triple(null, emptySet(), listOf("cannot read ${file.name}: ${e.message}"))
+            }
+            val problems = mutableListOf<String>()
+            val seen = mutableSetOf<String>()
+            for (match in nameAttr.findAll(raw)) {
+                if (!seen.add(match.groupValues[1])) problems.add("${match.groupValues[1]}: duplicate key")
+            }
+            val texts = mutableMapOf<String, String>()
+            val locked = mutableSetOf<String>()
+            try {
+                // Plain settings, same reasoning as verifyPrinterData above:
+                // only element text is read here, so hardening would change
+                // nothing this task can see.
+                val doc = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                    .apply { isNamespaceAware = false }
+                    .newDocumentBuilder()
+                    .parse(file)
+                val nodes = doc.getElementsByTagName("string")
+                for (i in 0 until nodes.length) {
+                    val el = nodes.item(i) as? org.w3c.dom.Element ?: continue
+                    val name = el.getAttribute("name")
+                    texts[name] = el.textContent
+                    if (el.getAttribute("translatable") == "false") locked.add(name)
+                }
+            } catch (e: Exception) {
+                problems.add("not well-formed XML: ${e.message}")
+                return Triple(null, emptySet(), problems)
+            }
+            return Triple(texts, locked, problems)
+        }
+
+        fun specs(text: String): List<String> = spec.findAll(text).map { it.value }.toList()
+
+        val baseFile = resDir.file("values/strings.xml").asFile
+        val (baseTexts, baseLocked, baseProblems) = readStrings(baseFile)
+        val base = baseTexts ?: error("values/strings.xml cannot be read or parsed: ${baseProblems.joinToString("; ")}")
+        if (baseProblems.isNotEmpty()) error("values/strings.xml: ${baseProblems.joinToString("; ")}")
+
+        val locales = resDir.asFile.listFiles()
+            ?.filter { it.isDirectory && it.name != "values" && it.name.startsWith("values-") }
+            ?.map { it.resolve("strings.xml") }
+            ?.filter { it.isFile }
+            ?.sorted() ?: emptyList()
+        check(locales.isNotEmpty()) { "no values-*/strings.xml found under src/main/res" }
+
+        val failures = mutableListOf<String>()
+        for (file in locales) {
+            val locale = file.parentFile.name.removePrefix("values-")
+            val (texts, _, fileProblems) = readStrings(file)
+            val problems = fileProblems.toMutableList()
+            if (texts != null) {
+                for ((key, english) in base) {
+                    if (key in baseLocked) continue
+                    if (key !in texts) problems.add("missing key $key")
+                }
+                for ((key, text) in texts) {
+                    if (key !in base) {
+                        problems.add("extra key $key (not in English)")
+                    } else if (specs(text) != specs(base.getValue(key))) {
+                        problems.add("placeholder mismatch in $key: ${specs(text)} != English ${specs(base.getValue(key))}")
+                    }
+                }
+            }
+            if (problems.isNotEmpty()) {
+                failures.add("$locale: ${problems.size} problem(s)\n" + problems.joinToString("\n") { "  $it" })
+            } else {
+                logger.lifecycle("locales ok: $locale (${texts!!.size} keys)")
+            }
+        }
+        check(failures.isEmpty()) { failures.joinToString("\n") }
+    }
+}
+
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(verifyPrinterData, checkLocales) }
 
 //
 // ESC/P2 job bytes for the escapy cross-check. See Escp2JobDumper and

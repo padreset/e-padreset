@@ -18,6 +18,10 @@ For each `app/src/main/res/values-*/strings.xml`, demands:
   to move to CI.
 
 Stdlib only, so the workflow needs nothing but a checkout and Python.
+
+The build-time twin lives in app/build.gradle.kts (checkLocales, wired to
+preBuild): same rules, same wording, reimplemented in Kotlin so a local
+build does not depend on an interpreter. Keep the two in sync.
 """
 import re
 import sys
