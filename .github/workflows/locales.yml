@@ -1,0 +1,44 @@
+name: locales
+
+# Locale parity against English, on every push and every pull request.
+#
+# A misspelled key falls back to English at runtime with nothing visible to
+# the user, and a missing format specifier crashes only when that screen is
+# opened in that locale. Both failure modes are invisible to the JVM unit
+# tests and to lint, which is why they get their own gate instead of living
+# inside a workflow that needs the Android SDK.
+#
+# It is a separate workflow from a build because it is pure stdlib Python:
+# checkout, one interpreter, well under a minute. A check that does not get
+# run is not a check, and a slow check gets skipped.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only. Nothing in this workflow writes to the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: locales-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  locales:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Exits 1 on a missing or extra key, a duplicate name, malformed XML,
+      # or a placeholder sequence that differs from English. `about_repo_label`
+      # is exempt by rule, not by exception: English marks it
+      # translatable="false", so leaving it out is the correct translation.
+      - name: Check locale parity with English
+        run: python3 scripts/check-locales.py
