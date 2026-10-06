@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Deutsche Übersetzung von E-Pad Reset.
+
+  Muss exakt dieselben Schlüssel wie values/strings.xml enthalten. Fehlende
+  Schlüssel greifen automatisch auf das Englische zurück.
+
+  about_repo_label wird nicht aufgenommen: Dies ist die Repository-Kennung,
+  kein zu übersetzender Text.
+-->
+<resources>
+    <string name="app_name">E-Pad Reset</string>
+
+    <!-- Barrierefreiheitsbeschreibungen für Steuerelemente, die nur Symbole tragen. -->
+    <string name="action_about">Info</string>
+    <string name="action_refresh_status">Status aktualisieren</string>
+    <string name="action_connect_printer">Drucker verbinden</string>
+    <string name="action_copy_log">Protokoll kopieren</string>
+    <string name="action_open_maintenance">Wartung öffnen</string>
+    <string name="action_back">Zurück</string>
+
+    <!-- Abschnittsüberschriften. -->
+    <string name="section_printer">Drucker</string>
+    <string name="section_ink_levels">Tintenstände</string>
+    <string name="section_waste_levels">Resttintenstände</string>
+    <string name="section_maintenance">Wartung</string>
+    <string name="section_protocol_log">Protokoll</string>
+
+    <!-- Druckerstatusblock. -->
+    <string name="status_working">In Bearbeitung</string>
+    <string name="status_scanning">Suche nach einem Epson-Drucker über USB-OTG</string>
+    <string name="status_no_printer">Kein Drucker</string>
+    <string name="status_no_printer_hint">Schließe einen Epson-Drucker über USB-OTG an und tippe auf Aktualisieren</string>
+    <string name="status_printer_error">Der Drucker hat einen Fehler gemeldet</string>
+    <string name="status_ready">Bereit</string>
+    <string name="status_connected">Über USB-OTG verbunden</string>
+    <string name="status_busy_indicator">Wird verarbeitet…</string>
+    <!-- Wird angezeigt, wenn eine Verbindung Zeit auf einem Weg benötigt, auf dem der
+         Drucker nicht geantwortet hat, bevor der nächste versucht wird. -->
+    <string name="connect_slow_note">Keine Antwort über den ersten Verbindungsweg, daher wird ein anderer versucht. Dies kann einige Sekunden dauern und sollte beim nächsten Mal schneller gehen.</string>
+    <!-- Dieselbe Situation wie connect_slow_note, für das schwebende Statusfeld. -->
+    <string name="connect_slow_brief">Anderer Weg wird versucht…</string>
+
+    <!-- Detailzeilen in der Druckerkarte. -->
+    <string name="label_model">Modell</string>
+    <string name="label_serial">Seriennummer</string>
+    <string name="label_highest_pad">Höchster Kissenstand</string>
+
+    <!-- Protokollbereich. -->
+    <string name="log_empty">Noch keine Protokolleinträge vorhanden.</string>
+    <string name="log_copied">Protokoll kopiert</string>
+
+    <!-- Warnung über den Resttintenzählern. -->
+    <string name="pad_warning_title">Zurücksetzen reinigt nicht das Tintenkissen</string>
+    <string name="pad_warning_body">Der Zähler ist elektronisch, das Tintenkissen ist physisch. Wasche oder ersetze das Kissen oder leite die Resttinte ab, bevor du den Zähler zurücksetzt, da die Tinte sonst irgendwann im Drucker ausläuft.</string>
+
+    <!-- Wird anstelle der Zähler angezeigt, wenn der verbundene Drucker seinen
+         Resttintenzähler an einer Stelle speichert, auf die die App nicht schreiben kann. -->
+    <string name="waste_unsupported_title">Kein Zähler zum Zurücksetzen bei diesem Modell</string>
+    <string name="waste_unsupported_body">Dieser Drucker speichert keinen Resttintenzähler, den die App zurücksetzen kann. Es liegt kein Defekt vor: Weder die App noch der Drucker weisen einen Fehler auf.</string>
+    <string name="action_more_info">Weitere Informationen</string>
+    <!-- Ein Drucker, der geantwortet hat, aber nicht im Katalog verzeichnet ist. -->
+    <string name="partial_session_title">Verbunden, ohne verifiziertes Profil</string>
+    <string name="partial_session_body">Status und Tintenstände sind verfügbar. Resttintenzähler werden erst gelesen oder zurückgesetzt, wenn ein verifiziertes Profil in der App vorhanden ist. Du kannst eine Modellanfrage senden; diese Werte können bereits jetzt eingesehen werden.</string>
+    <string name="partial_cleaning_note">Die Druckkopfreinigung verbraucht Tinte und erhöht den Resttintenzähler. Diese App kann den Zähler bei diesem Drucker nicht zurücksetzen, da kein verifiziertes Profil vorliegt.</string>
+    <string name="error_power_clean_unverified">Die Power-Reinigung ist ohne verifiziertes Profil nicht verfügbar. Sie verbraucht mehr Tinte und diese App könnte den Resttintenzähler nicht zurücksetzen.</string>
+
+    <!-- Wird neben einem Zähler angezeigt, dessen Höchstwert das Modell nicht angibt. -->
+    <string name="waste_scale_unknown">Keine Prozentangabe: Der Zählergrenzwert dieses Modells ist nicht bekannt. Der obige Wert ist der Rohmesswert.</string>
+    <!-- Dialogtext zum Zurücksetzen bei denselben Modellen. -->
+    <string name="dialog_reset_model_values">Der Zählergrenzwert dieses Modells ist nicht bekannt, daher gibt es keinen Ziel-Prozentsatz. Beim Zurücksetzen werden die für dieses Modell bekannten Werte auf alle aufgeführten Adressen geschrieben.</string>
+
+    <!-- EEPROM-Sicherung vor jedem Schreibvorgang. -->
+    <string name="section_waste_backup">Sicherung vor dem Schreiben</string>
+    <string name="waste_backup_note">Die Werte, die diese Adressen vor dem Schreibvorgang enthielten. Bewahre eine Kopie auf, um sie bei Fehlern wiederherstellen zu können.</string>
+    <string name="action_copy_backup">Sicherung kopieren</string>
+    <string name="backup_copied">Sicherung kopiert</string>
+    <!-- Fehler beim Schreibvorgang. -->
+    <string name="error_backup_failed">Die aktuellen Werte konnten nicht gelesen werden, daher wurde nichts geschrieben. Die App erstellt vor dem Schreiben eine Sicherung.</string>
+    <string name="error_backup_failed_at">Der aktuelle Wert bei %1$s konnte nicht gelesen werden, daher wurde nichts geschrieben. Die App erstellt vor dem Schreiben eine Sicherung.</string>
+    <string name="error_write_rejected">Der Drucker hat den Schreibvorgang verweigert. Es wurden keine weiteren Daten geschrieben.</string>
+    <string name="error_write_rejected_at">Der Drucker hat den Schreibvorgang bei %1$s verweigert. %2$d Adresse(n) wurden bereits geschrieben; es wurden keine weiteren Daten geschrieben. Die Sicherung befindet sich unten.</string>
+
+    <!-- Wiederherstellen einer gespeicherten Sicherung. -->
+    <string name="section_restore_backup">Sicherung wiederherstellen</string>
+    <string name="restore_note">Vor jedem Schreibvorgang wird automatisch eine Sicherung erstellt. Wähle eine aus, um die Werte wiederherzustellen, oder füge eine behaltene Sicherung ein.</string>
+    <string name="restore_no_history">Noch keine Sicherungen vorhanden. Vor jedem Schreibvorgang wird automatisch eine Sicherung erstellt.</string>
+    <string name="action_restore_selected">Ausgewählte Sicherung wiederherstellen</string>
+    <string name="action_restore_paste">Aus eingefügtem Text wiederherstellen</string>
+    <string name="restore_record_label">%1$s — %2$s</string>
+    <string name="restore_unknown_model">Unbekanntes Modell</string>
+    <!-- Welcher Schreibvorgang den erfassten Zustand vorgefunden hat. -->
+    <string name="restore_origin_reset">Vor einem Zurücksetzen gespeichert</string>
+    <string name="restore_origin_restore">Vor einer Wiederherstellung gespeichert</string>
+    <string name="restore_origin_unknown">Vor einem Schreibvorgang gespeichert</string>
+    <string name="restore_record_detail">%1$s · %2$s</string>
+    <string name="restore_record_reads">Ausgelesen: %1$s</string>
+    <string name="dialog_restore_title">Diese Sicherung wiederherstellen?</string>
+    <string name="dialog_restore_body">Dadurch werden die vor einem früheren Schreibvorgang erfassten Werte zurückgeschrieben. Dies erhöht die Zähler, was das Gegenteil eines Zurücksetzens ist. Verwende dies nur, um ein Zurücksetzen rückgängig zu machen.</string>
+    <string name="dialog_restore_model">Sicherung von: %1$s</string>
+    <string name="dialog_restore_no_model">Diese Sicherung enthält kein Druckermodell. Stelle sicher, dass sie von diesem Drucker stammt.</string>
+    <string name="dialog_restore_addresses">%1$d Adresse(n) werden geschrieben.</string>
+    <string name="dialog_restore_counter_delta">%1$s: %2$s → %3$s</string>
+    <string name="action_restore">Wiederherstellen</string>
+    <string name="dialog_paste_backup_title">Sicherung einfügen</string>
+    <string name="field_paste_backup">Sicherungstext</string>
+    <string name="paste_backup_hint">Füge die zuvor kopierte Sicherung ein, mit oder ohne Kopfzeile.</string>
+    <string name="paste_backup_invalid">Keine Sicherungszeilen gefunden. Füge den Text ein, den die App ausgegeben hat, oder zumindest die Zeilen im Format „0x001C = 0x3F“.</string>
+    <string name="paste_backup_parsed">%1$d Adresse(n) gefunden.</string>
+    <!-- Blockiert statt gewarnt: Falsche Adressen könnten sonst überschrieben werden. -->
+    <string name="error_restore_model_mismatch">Diese Sicherung stammt von %1$s, der angeschlossene Drucker ist jedoch %2$s. Das Wiederherstellen auf einem anderen Modell könnte falsche Adressen überschreiben und wurde daher blockiert.</string>
+
+    <!-- Wird angezeigt, wenn das Modell auf der Liste der Resttintenbehälter steht. -->
+    <string name="waste_box_title">Dieser Drucker verwendet einen Resttintenbehälter</string>
+    <string name="waste_box_body">Die Resttinte fließt in einen Behälter, und dieser erfasst den Füllstand auf einem eigenen Chip. Im Drucker gibt es keinen Zähler, den die App zurücksetzen könnte – wenn der Behälter voll ist, wird er ausgetauscht.</string>
+    <string name="waste_box_dialog_title">Dein Drucker verwendet einen Resttintenbehälter</string>
+    <string name="waste_box_dialog_body">Die Resttinte aus der Druckkopfreinigung wird in einem Resttintenbehälter gesammelt und nicht in Tintenkissen im Inneren des Druckers. Der Behälter verfügt über einen eigenen Chip, der den Füllstand speichert, und der Drucker führt keinen eigenen internen Zähler – daher kann kein Reset-Programm hier etwas zurücksetzen.\n\nWenn der Behälter voll ist, wird er ausgetauscht oder sein Chip mit einem speziellen Hardware-Resetter zurückgesetzt. Beides kann eine App nicht über USB durchführen.\n\nDu kannst dies am Drucker selbst überprüfen: Auf dessen Statusanzeige wird der Resttintenbehälter aufgeführt und gewarnt, wenn er gewechselt werden muss.\n\nDruckkopfreinigung und Düsentest funktionieren bei diesem Drucker weiterhin. Du findest sie auf der Wartungsseite.</string>
+
+    <string name="waste_unsupported_dialog_title">Wo der Resttintenzähler gespeichert wird</string>
+    <string name="waste_unsupported_dialog_body">Epson speichert den Resttintenstand an einem von zwei Orten.\n\nInternes Tintenkissen: Die Tinte wird von Kissen im Inneren des Druckers aufgesaugt und der Füllstand wird im internen Speicher des Druckers abgelegt. Dies ist der Fall, den diese App zurücksetzen kann.\n\nResttintenbehälter: Die Tinte sammelt sich in einer austauschbaren Box, die über einen eigenen Chip zur Erfassung des Füllstands verfügt. Im Speicher des Druckers ist kein Zähler vorhanden, sodass keine Software ihn zurücksetzen kann. Der Behälter wird ausgetauscht oder sein Chip mit einem speziellen Hardware-Resetter zurückgesetzt.\n\nPrüfe die Statusanzeige am Drucker selbst, um festzustellen, welches System vorliegt. Wird dort ein Resttintenbehälter gemeldet, kann kein Reset-Programm helfen.\n\nVerwendet dein Drucker interne Tintenkissen und du siehst dennoch diesen Hinweis, fehlt das Modell lediglich in der Datenbank der App. Dies lässt sich beheben – gib uns in diesem Fall gerne Bescheid.\n\nDruckkopfreinigung und Düsentest funktionieren bei diesem Drucker weiterhin. Du findest sie auf der Wartungsseite.</string>
+
+    <!-- Wartungsbereich. -->
+    <string name="maintenance_head_cleaning">Druckkopfreinigung</string>
+    <string name="maintenance_nozzle_check">Düsentest</string>
+    <string name="maintenance_note">Die Druckkopfreinigung verbraucht Tinte und erhöht die Resttintenzähler.</string>
+
+    <!-- Geteilte Dialog-Aktionen. -->
+    <string name="action_cancel">Abbrechen</string>
+    <string name="action_ok">OK</string>
+    <string name="action_close">Schließen</string>
+
+    <!-- Dialog zum Zurücksetzen der Resttintenzähler. -->
+    <string name="dialog_reset_title">Resttintenzähler zurücksetzen</string>
+    <string name="dialog_reset_warning">Das Zurücksetzen der Resttintenzähler ändert interne Firmware-Werte des Druckers. Die Verwendung erfolgt auf eigene Gefahr.</string>
+    <string name="field_target_percentage">Ziel-Prozentsatz</string>
+    <string name="action_reset_counters">Zähler zurücksetzen</string>
+    <string name="action_reset_counters_unverified">Zähler zurücksetzen (nicht verifiziertes Profil)</string>
+    <string name="action_paste_profile">Profil einfügen</string>
+    <string name="action_delete_profile">Lokales Profil entfernen</string>
+    <string name="dialog_paste_profile_title">Öffentliches Profil einfügen</string>
+    <string name="paste_profile_hint">Füge ein reinkpy-Modellelement (&lt;model&gt;) mit den Attributen source und version ein. Es ergänzt ein Modell, das in dieser App noch nicht vorhanden ist. Es ersetzt keinen Katalogeintrag und die Schlüssel verbleiben auf diesem Gerät.</string>
+    <string name="field_paste_profile">Profil</string>
+    <string name="paste_profile_invalid">Dieser Text ist kein Profil, das diese App speichern kann.</string>
+    <string name="error_gap_provenance">Ein Profil erfordert eine öffentliche Quelle und eine Version.</string>
+    <string name="error_gap_malformed">Das Profil ist unvollständig oder außerhalb des gültigen Bereichs.</string>
+    <string name="error_gap_box">Ein Modell mit Resttintenbehälter unterstützt kein Zurücksetzen des Zählers.</string>
+    <string name="error_gap_doctype">Dieser Text ist kein Profil-Ausschnitt.</string>
+    <string name="error_gap_catalogued">Dieses Modell ist bereits in der App vorhanden. Ein Einfügen kann es nicht ersetzen.</string>
+    <string name="error_gap_full">Die lokale Liste ist voll. Entferne zuerst ein Profil.</string>
+
+    <!-- Dialog zur Druckkopfreinigung. -->
+    <string name="dialog_cleaning_title">Druckkopfreinigung</string>
+    <string name="dialog_cleaning_body">Die Druckkopfreinigung verbraucht Tinte. Wähle die von diesem Drucker unterstützte Reinigungsstufe.</string>
+    <string name="action_start_cleaning">Reinigung starten</string>
+
+    <!-- Dialog zur generischen ESC/P2-Reinigung. -->
+    <string name="dialog_generic_cleaning_body">Dieser Modus sendet einen generischen Epson ESC/P2-Wartungsauftrag. Die Unterstützung kann je nach Modell variieren.</string>
+    <string name="cleaning_all_nozzles">Alle Düsen reinigen</string>
+    <string name="cleaning_black_nozzle">Schwarzdüse reinigen</string>
+    <string name="cleaning_color_nozzles">Farbdüsen reinigen</string>
+    <string name="cleaning_alternative_mode">Druckkopfreinigung (alternativer Modus)</string>
+    <string name="cleaning_power_clean">Power-Reinigung</string>
+
+    <!-- Servicereinigungs-Modi. -->
+    <string name="cleaning_mode_gentle">Sanfte Reinigung</string>
+    <string name="cleaning_mode_normal">Normale Reinigung</string>
+    <string name="cleaning_mode_medium">Mittlere Reinigung</string>
+    <string name="cleaning_mode_strong">Starke Reinigung</string>
+    <string name="cleaning_mode_gentle_mode">Sanfte Reinigung (Modus)</string>
+    <string name="cleaning_mode_normal_mode">Normale Reinigung (Modus)</string>
+    <string name="cleaning_mode_strong_mode">Starke Reinigung (Modus)</string>
+    <string name="cleaning_mode_strong_a">Starke Reinigung, Modus A</string>
+    <string name="cleaning_mode_strong_b">Starke Reinigung, Modus B</string>
+    <string name="cleaning_all_gentle">Sanft, alle Düsen</string>
+    <string name="cleaning_all_normal">Normal, alle Düsen</string>
+    <string name="cleaning_all_medium">Mittel, alle Düsen</string>
+    <string name="cleaning_all_strong">Stark, alle Düsen</string>
+    <string name="cleaning_black_gentle">Sanft, Schwarzdüse</string>
+    <string name="cleaning_black_normal">Normal, Schwarzdüse</string>
+    <string name="cleaning_black_medium">Mittel, Schwarzdüse</string>
+    <string name="cleaning_black_strong">Stark, Schwarzdüse</string>
+    <string name="cleaning_color_gentle">Sanft, Farbdüsen</string>
+    <string name="cleaning_color_normal">Normal, Farbdüsen</string>
+    <string name="cleaning_color_medium">Mittel, Farbdüsen</string>
+    <string name="cleaning_color_strong">Stark, Farbdüsen</string>
+
+    <!-- Dialog zum Düsentest. -->
+    <string name="dialog_nozzle_check_title">Düsentest</string>
+    <string name="action_print_test">Test drucken</string>
+    <string name="dialog_nozzle_check_body">Druckt ein Düsentestmuster. Dies verbraucht ein Blatt Papier und etwas Tinte und ist die einzige Möglichkeit festzustellen, ob eine Druckkopfreinigung erforderlich ist.</string>
+
+    <!-- Info-Dialog. -->
+    <string name="dialog_about_title">Info</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_epson_only">Funktioniert nur mit Epson-Tintenstrahldruckern.</string>
+    <string name="action_check_updates">Nach Updates suchen</string>
+    <string name="about_updates_note">Öffnet die Release-Seite im Browser. Die App selbst baut keine Online-Verbindung auf.</string>
+    <string name="action_open_repo">Repository öffnen</string>
+    <string name="about_donation">E-Pad Reset ist kostenlos, werbefrei und erfordert kein Konto. Wenn es dir einen Werkstattbesuch erspart hat, kannst du die Weiterentwicklung unterstützen.</string>
+    <string name="action_support_development">Entwicklung unterstützen</string>
+    <string name="action_open_github">GitHub-Repository öffnen</string>
+
+    <!-- Beenden-Bestätigung. -->
+    <string name="dialog_exit_title">App beenden</string>
+    <string name="dialog_exit_body">Möchtest du %1$s beenden und schließen?</string>
+    <string name="action_exit">Beenden</string>
+
+    <!-- Dialogtitel bei erfolgreicher Aktion. -->
+    <string name="dialog_counters_updated_title">Zähler aktualisiert</string>
+    <string name="dialog_backup_restored_title">Sicherung wiederhergestellt</string>
+    <string name="dialog_job_sent_title">Auftrag gesendet</string>
+
+    <!-- Fehlermeldungen und Hinweise. -->
+    <string name="callout_operation_failed">Vorgang fehlgeschlagen</string>
+
+    <!-- Meldungen des ViewModels. -->
+    <string name="error_printer_not_connected">Drucker ist nicht verbunden</string>
+    <string name="error_no_printer_detected">Kein Epson-Drucker über USB-OTG erkannt. Hinweis: Diese App funktioniert nicht über WLAN.</string>
+    <string name="error_non_epson_printer_detected">Ein Drucker ist über USB verbunden, aber es ist kein Epson-Gerät. Diese App funktioniert nur mit Epson-Tintenstrahldruckern.</string>
+    <string name="error_connect_failed">Wartungssitzung mit dem Drucker konnte nicht geöffnet werden</string>
+
+    <!-- Hinweis bei getrenntem Drucker. -->
+    <string name="notice_printer_disconnected">Die Verbindung zum Drucker wurde getrennt. Schließe ihn wieder an und tippe auf Aktualisieren, um ihn erneut auszulesen.</string>
+
+    <!-- Verbindungsfehler. -->
+    <string name="error_connect_permission_denied">USB-Zugriff wurde verweigert. Schließe den Drucker erneut an und bestätige die Berechtigungsanfrage.</string>
+    <string name="error_connect_device_detached">Der Drucker ist nicht mehr verbunden. Schließe ihn wieder an und versuche es erneut.</string>
+    <string name="error_connect_no_interfaces">Dieses USB-Gerät hat keine Schnittstelle, die von der App genutzt werden kann. Möglicherweise handelt es sich nicht um einen unterstützten Epson-Drucker.</string>
+    <string name="error_connect_unsupported_model">Dieses Epson-Modell befindet sich nicht in der Datenbank der App, daher kann keine Wartungssitzung geöffnet werden. Du kannst eine Prüfung anfragen; die Unterstützung erfordert verifizierte Modelldaten sowie Hardwaretests und kann nicht garantiert werden.</string>
+    <string name="error_connect_unsupported_model_named">Das Epson-Modell \'%1$s\' befindet sich nicht in der Datenbank der App, daher kann keine Wartungssitzung geöffnet werden. Du kannst eine Prüfung anfragen; die Unterstützung erfordert verifizierte Modelldaten sowie Hardwaretests und kann nicht garantiert werden.</string>
+    <string name="error_connect_unsupported_model_box">Dieses Epson-Modell fehlt in der Datenbank der App und wird im Community-Katalog mit einem Resttintenbehälter geführt. Du kannst eine Prüfung bezüglich Reinigung und Düsentest anfragen, diese App kann jedoch den Zähler auf dem Chip des Behälters nicht zurücksetzen.</string>
+    <string name="error_connect_unsupported_model_box_named">Das Epson-Modell \'%1$s\' fehlt in der Datenbank der App und wird im Community-Katalog mit einem Resttintenbehälter geführt. Du kannst eine Prüfung bezüglich Reinigung und Düsentest anfragen, diese App kann jedoch den Zähler auf dem Chip des Behälters nicht zurücksetzen.</string>
+    <string name="error_connect_dot4_nak">Der Drucker hat die Wartungssitzung verweigert. Schalte ihn aus und wieder ein und versuche es erneut.</string>
+    <string name="error_connect_dot4_no_reply">Der Drucker hat auf keinem USB-Weg geantwortet. Probiere ein anderes Kabel oder einen anderen Anschluss, schalte ihn aus und wieder ein und versuche es erneut.</string>
+    <string name="error_connect_interface_busy">Die USB-Verbindung des Druckers konnte nicht belegt werden. Möglicherweise wird sie von einer anderen App verwendet (z. B. einem Druckdienst); schließe andere Drucker-Apps und versuche es erneut.</string>
+    <string name="error_reset_partial_shared">Diese Zähler teilen sich Speicherbytes mit einem anderen Zähler und können daher nur gemeinsam zurückgesetzt werden. Wähle alle Zähler aus, um fortzufahren.</string>
+    <string name="error_reset_no_counter_selected">Es wurde kein Resttintenzähler ausgewählt, daher gibt es nichts zum Zurücksetzen.</string>
+    <string name="error_reset_no_values">Dieses Modell stellt keine Reset-Werte für die ausgewählten Zähler bereit, daher kann nichts geschrieben werden.</string>
+    <string name="error_reset_percentage_unsupported">Für diese Auswahl kann kein Ziel-Prozentsatz geschrieben werden: Die Zähler müssen einen Grenzwert vorgeben, in vier Bytes passen und dürfen keine Bytes mit einem anderen Zähler teilen.</string>
+    <string name="error_restore_no_applicable_addresses">Diese Sicherung enthält keine Adressen, die der verbundene Drucker verwendet, daher können keine Werte zurückgeschrieben werden.</string>
+
+    <!-- Modellmeldung vorbereiten. -->
+    <string name="action_report_model">Helfen, dieses Modell hinzuzufügen</string>
+    <string name="action_copy_report">Bericht kopieren</string>
+    <string name="report_model_note">Erstelle lokal einen zusammenfassenden Bericht, prüfe ihn und wähle, wie du ihn teilen möchtest. Die App verbindet sich nicht mit dem Internet.</string>
+    <string name="dialog_model_support_title">Modellunterstützung anfragen</string>
+    <string name="field_model_report">Bericht zur Prüfung und Bearbeitung</string>
+    <string name="action_choose_report_channel">Freigabemethode wählen</string>
+    <string name="action_review_report">Bericht erneut prüfen</string>
+    <string name="action_report_discord">Discord öffnen</string>
+    <string name="action_report_github">GitHub-Anfrage öffnen</string>
+    <string name="action_share_report">Bericht teilen</string>
+    <string name="report_privacy_note">Unterstützung kann nicht garantiert werden. Dieser Entwurf enthält ausschließlich Modellfelder, USB-IDs sowie App- und Android-Versionen, keine Rohprotokolle, Seriennummern oder EEPROM-Sicherungen. Überprüfe alle zusätzlichen Angaben. Es wird nichts automatisch gesendet; eine andere App oder dein Browser übernimmt die Weitergabe gemäß eigener Datenschutzrichtlinien.</string>
+    <string name="report_discord_help">Discord erfordert ein Konto. Kopiere den geprüften Bericht, öffne die Community und frage, wo eine Modellanfrage gepostet werden soll. Das Öffnen der Einladung fügt den Bericht weder ein noch veröffentlicht es ihn.</string>
+    <string name="report_github_help">GitHub erfordert ein Konto. Kopiere den geprüften Bericht und füge ihn in die Vorlage für Modellanfragen ein. Über den Link werden keine Diagnosedaten übermittelt.</string>
+    <string name="report_share_help">Ohne GitHub- oder Discord-Konto kannst du den Bericht über eine installierte App an jemanden weiterleiten, der die Anfrage übermitteln kann. Es ist kein direkter Posteingang eingerichtet. Wähle den Empfänger selbst; das Öffnen des Teilen-Menüs bedeutet nicht, dass ein Entwickler den Bericht erhalten hat.</string>
+    <string name="report_external_unavailable">Keine App konnte diese Aktion ausführen. Du kannst den Bericht dennoch kopieren und das Ziel selbst wählen.</string>
+    <string name="report_copied">Bericht kopiert</string>
+    <string name="msg_counters_updated">Resttintenzähler wurden aktualisiert. Starte den Drucker neu, falls vom Modell erfordert.</string>
+    <string name="error_counters_not_applied">Die an %1$s zurückgelesenen Bytes stimmen nicht mit den gesendeten Reset-Werten überein. Einige Werte haben sich möglicherweise geändert. Die Sicherung befindet sich unten; erwartete und gelesene Bytes stehen im Protokoll.</string>
+    <string name="error_restore_not_applied">Die an %1$s zurückgelesenen Bytes stimmen nicht mit den gesendeten Wiederherstellungswerten überein. Einige Werte haben sich möglicherweise geändert. Die Sicherung befindet sich unten; erwartete und gelesene Bytes stehen im Protokoll.</string>
+    <string name="error_write_failed">Der Schreibvorgang bei %1$s konnte nicht abgeschlossen oder die Antwort nicht gelesen werden. %2$d vorherige Adresse(n) wurden geschrieben; diese Adresse hat sich eventuell ebenfalls geändert. Es wurden keine weiteren Daten geschrieben. Die Sicherung befindet sich unten.</string>
+    <string name="error_read_back_failed">Der Schreibvorgang ist abgeschlossen, aber die Werte konnten nicht zurückgelesen werden. Das Ergebnis ist nicht verifiziert; einige Werte haben sich möglicherweise geändert. Die Sicherung befindet sich unten.</string>
+    <string name="error_read_back_failed_at">Der Schreibvorgang ist abgeschlossen, aber das Byte bei %1$s konnte nicht zurückgelesen werden. Das Ergebnis ist nicht verifiziert; einige Werte haben sich möglicherweise geändert. Die Sicherung befindet sich unten.</string>
+    <string name="msg_backup_restored">Die gespeicherten Werte wurden zurückgeschrieben. Starte den Drucker neu, falls vom Modell erfordert.</string>
+    <string name="msg_cleaning_sent_named">Der Druckkopfreinigungs-Befehl \'%1$s\' wurde gesendet. Warte, bis der Drucker den Vorgang startet, und aktualisiere den Status anschließend manuell.</string>
+    <string name="msg_cleaning_sent">Der Druckkopfreinigungs-Auftrag wurde gesendet. Warte, bis der Drucker den Vorgang startet, und aktualisiere den Status anschließend manuell.</string>
+    <string name="msg_nozzle_check_sent">Der Düsentest-Druckauftrag wurde gesendet. Warte, bis die Seite gedruckt ist.</string>
+
+    <!-- Messwerte. -->
+    <string name="percent_value">%1$d%%</string>
+    <string name="waste_counter_default_name">Resttintenzähler %1$d</string>
+
+    <!-- Druckerstatus. -->
+    <string name="printer_state_self_printing">Selbstdruck</string>
+    <string name="printer_state_busy">Beschäftigt</string>
+    <string name="printer_state_waiting">Wartet</string>
+    <string name="printer_state_idle">Bereit</string>
+    <string name="printer_state_pause">Pausiert</string>
+    <string name="printer_state_cleaning">Reinigung läuft</string>
+    <string name="printer_state_error">Fehler</string>
+
+    <!-- Druckerfehler. -->
+    <string name="printer_error_interface">Schnittstellenfehler</string>
+    <string name="printer_error_paper_jam">Papierstau</string>
+    <string name="printer_error_ink_out">Tinte aufgebraucht</string>
+    <string name="printer_error_service_required">Wartung erforderlich</string>
+    <string name="printer_error_cover_open">Abdeckung offen</string>
+
+    <string name="temporary_backup_title">Sicherung wurde nicht gespeichert</string>
+    <string name="temporary_backup_warning">Die vollständige Sicherung befindet sich nur im Arbeitsspeicher. Beim Schließen der App oder Beenden des Prozesses geht sie verloren. Bisher wurden keine Bytes geschrieben. Fahre nur fort, wenn du dieses Risiko akzeptierst; kopiere die Sicherung zuerst.</string>
+    <string name="action_continue_temporary">Mit temporärer Sicherung fortfahren</string>
+    <string name="error_restore_incomplete_counter">Die Sicherung enthält nur einen Teil eines Zählers. Stelle eine vollständige Zählergruppe wieder her; es wurde nichts geschrieben.</string>
+    <string name="error_restore_unit_mismatch">Diese Sicherung gehört zu einem anderen Drucker-Exemplar. Es wurde nichts geschrieben.</string>
+    <string name="dialog_restore_legacy_identity">Diese Sicherung identifiziert das ursprüngliche Drucker-Exemplar nicht. Bestätige vor dem Wiederherstellen, dass sie von diesem Drucker stammt.</string>
+    <string name="exit_busy_warning">Ein Vorgang wird ausgeführt. Das Beenden kann einen Schreibvorgang unterbrechen und unvollständig geänderte Zähler hinterlassen. Warte nach Möglichkeit, bis der Vorgang abgeschlossen ist.</string>
+</resources>
