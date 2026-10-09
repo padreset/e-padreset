@@ -85,6 +85,12 @@ data class MainUiState(
      * must go through [MainViewModel.str].
      */
     val error: String? = null,
+    /** Alternate title for a specific error, such as a failed status refresh. */
+    val errorTitle: String? = null,
+    /** Raised when refreshing status failed while retaining the last snapshot. */
+    val statusRefreshFailed: Boolean = false,
+    /** True when [status] is retained from the last successful read after refresh failed. */
+    val statusIsStale: Boolean = false,
     /** Ready-to-paste report for a missing model. Null when there is nothing to report. */
     val modelReportBody: String? = null,
     /** Static GitHub template link without model/diagnostic parameters; optional. */
@@ -187,6 +193,9 @@ private class UserFacingException(
  * [logMessage] is what reaches the diagnostic log, so the two can differ: the
  * callout stays translatable while the log keeps the raw detail.
  */
+private class StatusRefreshException(cause: Throwable) :
+    Exception(cause.message ?: cause.javaClass.simpleName, cause)
+
 private class UnhandledJobException(
     val uiMessage: String,
     logMessage: String,
@@ -294,9 +303,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * first recomposition.
      *
      * Not reentrant. [readStatusHoldingLock] must be called by something that
-     * already holds it, never lock again around that call. The trailing status
-     * read stays inside the same lock as the write that preceded it: releasing
-     * first would let another job write between the two.
+     * already holds it, never lock again around that call. When a verified write
+     * has a trailing status read, it stays inside the same lock as that write so
+     * another job cannot write between them. ESC/P2 maintenance dispatches do not
+     * immediately re-enter D4: printer startup can make that read fail.
      */
     internal val sessionMutex = Mutex()
     internal val writeBackups = WriteBackupController(backupStore, { change -> _uiState.update(change) }, ::appendLog)
@@ -427,6 +437,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         sessionEpoch++
         _uiState.update { it.copy(
             status = null,
+            statusIsStale = false,
+            statusRefreshFailed = false,
+            errorTitle = null,
             connectedDeviceName = null,
             sessionToken = sessionEpoch,
             temporaryBackupConfirmation = false,
@@ -570,7 +583,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runJob("Reading printer status") {
                 sessionMutex.withLock {
                     if (connection !== current) return@withLock
-                    readStatusHoldingLock(current)
+                    try {
+                        readStatusHoldingLock(current)
+                    } catch (failure: CancellationException) {
+                        throw failure
+                    } catch (failure: Exception) {
+                        // A failed refresh is different from a failed maintenance
+                        // job: the status card still contains the last successful
+                        // snapshot, which must not look like a current reading.
+                        throw StatusRefreshException(failure)
+                    }
                 }
             }
         }
@@ -608,6 +630,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             connectedDeviceName = current.deviceId,
             sessionToken = sessionEpoch,
             status = status,
+            statusIsStale = false,
+            statusRefreshFailed = false,
             cleaningOptions = screen.cleaningOptions,
             supportsGenericMaintenanceJobs = screen.supportsGenericMaintenanceJobs,
             allowsPowerClean = screen.allowsPowerClean,
@@ -621,6 +645,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             error = null,
             modelReportBody = screen.modelReport?.body ?: if (screen.readOnlySession) it.modelReportBody else null,
             modelReportUrl = screen.modelReportUrl ?: if (screen.readOnlySession) it.modelReportUrl else null,
+            errorTitle = null,
         ) }
         appendLog("Status read: ${status.state}, ${status.error}")
         startPollingIfBusy(status, current)
@@ -629,12 +654,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Watches a live printer until it settles, without disturbing the UI.
      *
-     * A cleaning started from the app leaves the status page saying "Cleaning"
-     * with no way to learn it finished except a manual refresh — the state the
-     * user watched forever in the L365 log. The watch re-reads every
-     * [STATUS_POLL_INTERVAL_MS] and updates only the status (plus a log line on
-     * state transitions), never `isBusy`: a busy pill every ten seconds would
-     * flicker the buttons. When the printer settles, one full [refreshStatus]
+     * After an ESC/P2 maintenance job, a manual refresh can re-enter D4 once
+     * the printer is ready. If that read reports a live state (printing, busy,
+     * waiting, cleaning), the watch re-reads every [STATUS_POLL_INTERVAL_MS]
+     * and updates only the status (plus a log line on state transitions), never
+     * `isBusy`: a busy pill every ten seconds would flicker the buttons. When the printer settles, one full [refreshStatus]
      * follows so counters that moved meanwhile (cleaning feeds waste ink) are
      * re-read too.
      *
@@ -832,9 +856,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             cleaningModeLabel(getApplication(), cleaningName),
                         ),
                     ) }
-                    // The printer is likely working now; re-read so the watch can
-                    // follow it back to idle instead of freezing the old state.
-                    readStatusHoldingLock(current)
+                    // ESC/P2 leaves D4 packet mode invalidated. Do not immediately
+                    // renegotiate while the printer is starting its maintenance
+                    // cycle: a failed status read is not a failed print dispatch.
                 }
             }
         }
@@ -865,7 +889,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         actionSuccessTitle = str(R.string.dialog_job_sent_title),
                         actionSuccessMessage = str(R.string.msg_cleaning_sent),
                     ) }
-                    readStatusHoldingLock(current)
+                    // The ESC/P2 job is sent, but the ensuing D4 reopen can race
+                    // the printer's cleaning startup and falsely turn success red.
                 }
             }
         }
@@ -885,7 +910,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         actionSuccessTitle = str(R.string.dialog_job_sent_title),
                         actionSuccessMessage = str(R.string.msg_nozzle_check_sent),
                     ) }
-                    readStatusHoldingLock(current)
+                    // Sending the ESC/P2 job is the success criterion here. The
+                    // printer switches out of D4 to prepare the page, so an
+                    // immediate status renegotiation can fail while printing is
+                    // actually underway. A later manual refresh can reopen D4.
                 }
             }
         }
@@ -983,6 +1011,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(
             isBusy = true,
             error = null,
+            errorTitle = null,
+            statusIsStale = false,
+            statusRefreshFailed = false,
             // A notice describes the state before this job. Once something is
             // running it is stale, and leaving it up would put "the printer was
             // unplugged" above a job that just connected to one.
@@ -1041,6 +1072,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 appendLog("Error: $logged")
                 val uiMessage = when (failure) {
                     is UserFacingException -> failure.uiMessage
+                    is StatusRefreshException -> str(R.string.error_status_refresh_detail)
                     is UnhandledJobException -> failure.uiMessage
                     is PrinterService.WasteWriteException,
                     is PrinterService.WastePlanException,
@@ -1053,6 +1085,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // The backup was already published with its source model before writing.
                 _uiState.update { it.copy(
                     error = uiMessage,
+                    errorTitle = if (failure is StatusRefreshException) {
+                        str(R.string.error_status_refresh_title)
+                    } else {
+                        null
+                    },
+                    statusIsStale = failure is StatusRefreshException && it.status != null,
+                    statusRefreshFailed = failure is StatusRefreshException,
                     modelReportBody = report?.body,
                     modelReportUrl = report?.url,
                     wasteBackup = it.wasteBackup,

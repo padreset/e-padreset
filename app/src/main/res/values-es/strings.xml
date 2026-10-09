@@ -35,6 +35,9 @@
     <string name="status_printer_error">La impresora ha reportado un error</string>
     <string name="status_ready">Lista</string>
     <string name="status_connected">Conectada por USB OTG</string>
+    <string name="status_stale">Último estado leído correctamente; la actualización más reciente falló</string>
+    <string name="error_status_refresh_title">No se pudo actualizar el estado</string>
+    <string name="error_status_refresh_detail">Se muestra el último estado leído y podría estar desactualizado. Revisa el panel de la impresora para confirmar el estado actual e inténtalo de nuevo.</string>
     <string name="status_busy_indicator">Procesando…</string>
     <!-- Se muestra mientras una conexión gasta segundos en una vía por la que la
          impresora no respondió, antes de probar la siguiente. Dice qué pasa y
@@ -377,6 +380,7 @@
     <string name="printer_error_interface">Error de interfaz</string>
     <string name="printer_error_paper_jam">Atasco de papel</string>
     <string name="printer_error_ink_out">Sin tinta</string>
+    <string name="printer_error_paper_feed">Falta papel o hay un error de alimentación</string>
     <string name="printer_error_service_required">Requiere servicio técnico</string>
     <string name="printer_error_cover_open">Cubierta abierta</string>
     <string name="temporary_backup_title">El respaldo no se guardó</string>

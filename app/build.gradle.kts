@@ -185,12 +185,12 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("com.google.android.material:material:1.14.0")
 
-
     // The catalog parser asks for an org.xmlpull.v1 implementation, which the
     // Android framework already provides and a desktop JVM does not. Test-only:
     // kxml2 repackages org.xmlpull.v1, and shipping it puts a program class over
     // the platform's own XmlResourceParser, which R8 refuses to build.
     testImplementation("net.sf.kxml:kxml2:2.3.0")
+
     implementation(composeBom)
     androidTestImplementation(composeBom)
     implementation("androidx.compose.ui:ui")
@@ -298,14 +298,17 @@ val verifyPrinterData = tasks.register("verifyPrinterData") {
  * workflow runs without the Android SDK. The two must stay in sync: same
  * rules, same wording, same exemption (English marks about_repo_label
  * translatable="false", so leaving it out is the correct translation, not a
- * gap). It is reimplemented here rather than called because a build gate
- * cannot depend on which interpreter a machine happens to have installed.
+ * gap). The locale config must also match the actual translated resource sets,
+ * because it is the language list Android exposes in the system picker.
+ * It is reimplemented here rather than called because a build gate cannot
+ * depend on which interpreter a machine happens to have installed.
  */
 val checkLocales = tasks.register("checkLocales") {
     group = "verification"
-    description = "Checks every values-*/strings.xml against the English keys and placeholders."
+    description = "Checks translation keys, placeholders, and the app language picker locale list."
     val resDir = layout.projectDirectory.dir("src/main/res")
-    inputs.files(resDir.asFileTree.matching { include("values*/strings.xml") })
+    inputs.files(resDir.asFileTree.matching { include("values*/strings.xml", "xml/locales_config.xml") })
+
     doLast {
         val spec = Regex("""%(?:\d+\$)?[a-zA-Z%]""")
         val nameAttr = Regex("""<string\s[^>]*name="([^"]+)"""")
@@ -361,6 +364,22 @@ val checkLocales = tasks.register("checkLocales") {
             ?.filter { it.isFile }
             ?.sorted() ?: emptyList()
         check(locales.isNotEmpty()) { "no values-*/strings.xml found under src/main/res" }
+
+        val resourceLocales = locales.map { it.parentFile.name.removePrefix("values-") }.toSet() + "en"
+        val configuredLocales = Regex("""<locale\s+android:name="([^"]+)"\s*/>""")
+            .findAll(resDir.file("xml/locales_config.xml").asFile.readText())
+            .map { it.groupValues[1] }
+            .toList()
+        val configuredSet = configuredLocales.toSet()
+        val missingLocales = resourceLocales - configuredSet
+        val extraLocales = configuredSet - resourceLocales
+        val duplicateLocales = configuredLocales.groupingBy { it }.eachCount()
+            .filterValues { it > 1 }.keys
+        check(missingLocales.isEmpty() && extraLocales.isEmpty() && duplicateLocales.isEmpty()) {
+            "locales_config.xml must list exactly ${resourceLocales.sorted()}; " +
+                "missing=${missingLocales.sorted()}, extra=${extraLocales.sorted()}, " +
+                "duplicates=${duplicateLocales.sorted()}"
+        }
 
         val failures = mutableListOf<String>()
         for (file in locales) {

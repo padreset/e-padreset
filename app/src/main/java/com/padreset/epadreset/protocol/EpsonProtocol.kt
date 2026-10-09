@@ -394,6 +394,7 @@ class EpsonProtocol(
         0x01 -> "Interface error"
         0x04 -> "Paper jam"
         0x05 -> "Ink out"
+        0x06 -> "Paper feed error"
         0x10 -> "Service required"
         0x25 -> "Cover open"
         else -> "Error 0x${code.toString(16)}"

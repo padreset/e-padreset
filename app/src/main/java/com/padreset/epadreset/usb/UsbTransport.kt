@@ -50,6 +50,27 @@ class UsbTransport(private val context: Context) {
         val bytes: ByteArray,
     )
 
+    /** FIFO for USB stream fragments; incomplete reads stay queued for the next call. */
+    class ReadBuffer {
+        private val bytes = mutableListOf<Byte>()
+
+        val size: Int get() = bytes.size
+
+        fun append(chunk: ByteArray) {
+            chunk.forEach(bytes::add)
+        }
+
+        fun take(count: Int): ByteArray {
+            require(count >= 0) { "Read count cannot be negative" }
+            require(count <= bytes.size) { "Insufficient buffered bytes: requested=$count available=${bytes.size}" }
+            val result = ByteArray(count) { bytes[it] }
+            bytes.subList(0, count).clear()
+            return result
+        }
+
+        fun clear() = bytes.clear()
+    }
+
     /**
      * The device opened but its interface is held elsewhere — on Android
      * typically a print service or another printer app. Carries the open
@@ -66,7 +87,7 @@ class UsbTransport(private val context: Context) {
         val usbInterface: UsbInterface,
         val bulkIn: UsbEndpoint?,
         val bulkOut: UsbEndpoint?,
-        val readBuffer: MutableList<Byte> = mutableListOf(),
+        val readBuffer: ReadBuffer = ReadBuffer(),
         var controlModeInvalidated: Boolean = false,
     ) {
         /**
@@ -437,9 +458,7 @@ class UsbTransport(private val context: Context) {
             val transferred = session.connection.bulkTransfer(endpoint, chunk, chunk.size, transferTimeout)
             when {
                 transferred > 0 -> {
-                    repeat(transferred) { index ->
-                        session.readBuffer += chunk[index]
-                    }
+                    session.readBuffer.append(chunk.copyOf(transferred))
                 }
                 transferred == 0 -> continue
                 transferred < 0 -> {
@@ -454,9 +473,7 @@ class UsbTransport(private val context: Context) {
             "Bulk read failed: expected=$expectedBytes buffered=${session.readBuffer.size}"
         }
 
-        val read = session.readBuffer.take(expectedBytes).toByteArray()
-        session.readBuffer.subList(0, expectedBytes).clear()
-        return read
+        return session.readBuffer.take(expectedBytes)
     }
 
     fun bulkReadAvailable(session: Session, packetSize: Int = 16384, timeoutMs: Int = 250): ByteArray {
@@ -486,7 +503,7 @@ class UsbTransport(private val context: Context) {
             val transferred = session.connection.bulkTransfer(endpoint, buffer, buffer.size, idleTimeoutMs)
             if (transferred > 0) {
                 val chunk = buffer.copyOf(transferred)
-                chunk.forEach { session.readBuffer += it }
+                session.readBuffer.append(chunk)
                 chunks += ReadChunk(
                     offsetMs = SystemClock.elapsedRealtime() - startedAt,
                     bytes = chunk,

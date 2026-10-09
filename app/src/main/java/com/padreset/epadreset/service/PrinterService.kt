@@ -316,6 +316,15 @@ class PrinterService(
         readByte: (Int) -> Byte,
     ): PrinterStatusSnapshot {
         val baseSnapshot = readStatusOnly(connection)
+        if (baseSnapshot.errorCode != PrinterStatusSnapshot.ERROR_NONE) {
+            // When the printer reports a front-panel error (paper out, jam,
+            // cover, etc.), preserve and display that useful status rather than
+            // continuing into EEPROM counter reads which are unnecessary for an
+            // actionable status refresh and may fail while the device is in an
+            // error state. Counter readings are omitted for this refresh.
+            log("Skipping waste-counter reads while printer reports ${baseSnapshot.error}")
+            return baseSnapshot
+        }
         val wasteCounters = when (connection) {
             is ConnectionState.Catalogued -> connection.spec.wasteCounters.map { counter ->
                 val bytes = counter.addresses.map(readByte).toByteArray()
@@ -780,9 +789,7 @@ class PrinterService(
         val enterReply = if (buffered >= 8) {
             transport.bulkRead(session, 8, timeoutMs = 1)
         } else {
-            session.readBuffer.take(buffered).toByteArray().also {
-                repeat(buffered) { session.readBuffer.removeAt(0) }
-            }
+            session.readBuffer.take(buffered)
         }
         log("1284.4 enter aggregate: ${enterReply.joinToString(" ") { "%02X".format(it) }}")
         if (enterReply.size < 8) {

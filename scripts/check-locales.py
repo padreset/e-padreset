@@ -15,7 +15,10 @@ For each `app/src/main/res/values-*/strings.xml`, demands:
   `%%`, ...). The app formats with the English argument list, so a missing
   or reordered specifier crashes with MissingFormatArgumentException only
   when that screen is opened in that locale — the failure this check exists
-  to move to CI.
+  to move to CI;
+- exact parity between translated `values-*/strings.xml` locales (plus English)
+  and `xml/locales_config.xml`, which controls Android 13+'s per-app language
+  picker.
 
 Stdlib only, so the workflow needs nothing but a checkout and Python.
 
@@ -86,7 +89,40 @@ def main() -> int:
     if not locales:
         print("no values-*/strings.xml found under %s" % RES_DIR)
         return 1
+
+    config_path = RES_DIR / "xml/locales_config.xml"
+    try:
+        config_root = ET.parse(config_path).getroot()
+    except (OSError, ET.ParseError) as error:
+        print("%s cannot be read or parsed: %s" % (display(config_path), error))
+        return 1
+    android_name = "{http://schemas.android.com/apk/res/android}name"
+    configured_locales = [
+        entry.get(android_name)
+        for entry in config_root.findall("locale")
+        if entry.get(android_name) is not None
+    ]
+    configured_set = set(configured_locales)
+    resource_locales = {"en"} | {
+        path.parent.name.removeprefix("values-") for path in locales
+    }
+    missing_locales = sorted(resource_locales - configured_set)
+    extra_locales = sorted(configured_set - resource_locales)
+    duplicate_locales = sorted(
+        locale for locale in configured_set if configured_locales.count(locale) > 1
+    )
     failures = 0
+    if missing_locales or extra_locales or duplicate_locales:
+        print(
+            "locales_config.xml must list exactly %s; missing=%s, extra=%s, duplicates=%s"
+            % (
+                sorted(resource_locales),
+                missing_locales,
+                extra_locales,
+                duplicate_locales,
+            )
+        )
+        failures += 1
     for path in locales:
         locale = path.parent.name.replace("values-", "")
         texts, _, locale_errors, usable = load(path)

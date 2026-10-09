@@ -182,7 +182,7 @@ private fun ActionSuccessDialog(title: String, message: String, onDismiss: () ->
                 Text(message)
                 OutlinedButton(
                     onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(REPO_URL)))
+                        context.openExternal(Intent(Intent.ACTION_VIEW, Uri.parse(REPO_URL)))
                     },
                 ) {
                     Text(stringResource(R.string.action_open_github))

@@ -69,6 +69,18 @@ class ModelSupportDialogTest {
     }
 
     @Test
+    fun openingAnIntentWithNoHandlerShowsFallbackInsteadOfThrowing() {
+        instrumentation.removeMonitor(monitor)
+        try {
+            compose.runOnIdle {
+                assertFalse(context.openExternal(Intent("com.padreset.epadreset.NO_HANDLER")))
+            }
+        } finally {
+            instrumentation.addMonitor(monitor)
+        }
+    }
+
+    @Test
     fun reviewIsLocalAndCopyUsesTheEditedDraft() {
         render()
         compose.onNodeWithText(context.getString(R.string.field_model_report)).assertIsDisplayed()

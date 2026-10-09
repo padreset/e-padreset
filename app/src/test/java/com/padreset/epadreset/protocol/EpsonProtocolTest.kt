@@ -1,6 +1,7 @@
 package com.padreset.epadreset.protocol
 
 import com.padreset.epadreset.data.PrinterSpec
+import com.padreset.epadreset.usb.UsbTransport
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -141,6 +142,31 @@ class EpsonProtocolTest {
     }
 
     @Test
+    fun `L365 paper light on maps status error 0x06 to paper feed error`() {
+        // The live L365 reported ST2 parameter 0x02 = 0x06 while its paper
+        // indicator was lit. Epson's L365 guide describes a steady paper light
+        // as no paper loaded or multiple sheets fed at once; the wire status
+        // code is documented in the shared Epson status table as paper out.
+        val params = byteArrayOf(
+            0x01, 0x01, 0x00,
+            0x02, 0x01, 0x06,
+        )
+        val payload = byteArrayOf(
+            (params.size and 0xFF).toByte(),
+            ((params.size ushr 8) and 0xFF).toByte(),
+        ) + params
+        val snapshot = protocol.parseStatusResponse(
+            "@BDC ST2\r\n".encodeToByteArray() + payload,
+            "MFG:EPSON;MDL:L365;",
+        )
+
+        assertEquals(0x00, snapshot.stateCode)
+        assertEquals(0x06, snapshot.errorCode)
+        assertEquals("Error", snapshot.state)
+        assertEquals("Paper feed error", snapshot.error)
+    }
+
+    @Test
     fun `zero ink entry size yields no levels instead of hanging`() {
         // A 0x0F parameter whose first byte is 0x00 used to freeze the parse
         // loop (index never advances) and hang the status read on IO.
@@ -173,6 +199,128 @@ class EpsonProtocolTest {
         assertThrows(IllegalArgumentException::class.java) {
             protocol.parseStatusResponse(header + overrun, deviceId)
         }
+    }
+
+    @Test
+    fun `USB read buffer preserves and consumes partial transfer fragments in order`() {
+        val buffer = UsbTransport.ReadBuffer()
+        val frame = protocol.encodeD4Frame(
+            EpsonProtocol.D4Frame(
+                psid = 2,
+                ssid = 3,
+                credit = 0x7F,
+                control = 0x02,
+                payload = byteArrayOf(0x00, 0x7F, 0x80.toByte(), 0xFF.toByte(), 0x41),
+            ),
+        )
+        val fragments = listOf(
+            frame.copyOfRange(0, 1),
+            frame.copyOfRange(1, 4),
+            frame.copyOfRange(4, 6),
+            frame.copyOfRange(6, 8),
+            frame.copyOfRange(8, frame.size),
+        )
+
+        buffer.append(fragments[0])
+        buffer.append(fragments[1])
+        assertEquals(4, buffer.size)
+        assertThrows(IllegalArgumentException::class.java) { buffer.take(6) }
+        assertEquals(4, buffer.size)
+
+        buffer.append(fragments[2])
+        val header = buffer.take(6)
+        assertArrayEquals(frame.copyOfRange(0, 6), header)
+        assertEquals(0, buffer.size)
+
+        buffer.append(fragments[3])
+        assertEquals(2, buffer.size)
+        assertThrows(IllegalArgumentException::class.java) { buffer.take(frame.size - 6) }
+        assertEquals(2, buffer.size)
+
+        buffer.append(fragments[4])
+        val payload = buffer.take(frame.size - 6)
+        assertArrayEquals(frame.copyOfRange(6, frame.size), payload)
+        assertEquals(0, buffer.size)
+        assertArrayEquals(frame, header + payload)
+    }
+
+    @Test
+    fun `USB read buffer rejects negative or unavailable reads without consuming bytes`() {
+        val buffer = UsbTransport.ReadBuffer()
+        buffer.append(byteArrayOf(0x10, 0x20, 0x30))
+
+        assertThrows(IllegalArgumentException::class.java) { buffer.take(-1) }
+        assertThrows(IllegalArgumentException::class.java) { buffer.take(4) }
+        assertEquals(3, buffer.size)
+        assertArrayEquals(byteArrayOf(0x10, 0x20, 0x30), buffer.take(3))
+    }
+
+    @Test
+    fun `USB read buffer clear discards stale bytes before a new protocol session`() {
+        val buffer = UsbTransport.ReadBuffer()
+        buffer.append(byteArrayOf(0x40, 0x42, 0x44, 0x43))
+        buffer.clear()
+        buffer.append(byteArrayOf(0x02, 0x03, 0x00, 0x06, 0x01, 0x00))
+
+        assertArrayEquals(byteArrayOf(0x02, 0x03, 0x00, 0x06, 0x01, 0x00), buffer.take(6))
+        assertEquals(0, buffer.size)
+    }
+
+    @Test
+    fun `D4 frame survives arbitrary USB partial-read boundaries`() {
+        val frame = EpsonProtocol.D4Frame(
+            psid = 2,
+            ssid = 3,
+            credit = 0x7F,
+            control = 0x02,
+            payload = byteArrayOf(0x00, 0x7F, 0x80.toByte(), 0xFF.toByte(), 0x41),
+        )
+        val wire = protocol.encodeD4Frame(frame)
+        val buffer = UsbTransport.ReadBuffer()
+        buffer.append(wire.copyOfRange(0, 1))
+        buffer.append(wire.copyOfRange(1, 4))
+        buffer.append(wire.copyOfRange(4, 6))
+        buffer.append(wire.copyOfRange(6, wire.size))
+
+        val header = buffer.take(6)
+        assertTrue(protocol.isPlausibleD4Header(header, EpsonProtocol.D4ChannelState(2, 3, 64, 1)))
+        val payloadSize = ((header[2].toInt() and 0xFF) shl 8) or (header[3].toInt() and 0xFF)
+        val reconstructed = header + buffer.take(payloadSize - 6)
+
+        assertArrayEquals(wire, reconstructed)
+        assertEquals(frame.psid, protocol.decodeD4Frame(reconstructed).psid)
+        assertEquals(frame.ssid, protocol.decodeD4Frame(reconstructed).ssid)
+        assertArrayEquals(frame.payload, protocol.decodeD4Frame(reconstructed).payload)
+        assertEquals(0, buffer.size)
+    }
+
+    @Test
+    fun `D4 decoder rejects truncated header, partial payload, and inconsistent declared length`() {
+        val valid = protocol.encodeD4Frame(
+            EpsonProtocol.D4Frame(2, 3, 1, 0, byteArrayOf(0x10, 0x20, 0x30)),
+        )
+
+        assertThrows(IllegalArgumentException::class.java) {
+            protocol.decodeD4Frame(valid.copyOfRange(0, 5))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            protocol.decodeD4Frame(valid.copyOfRange(0, valid.lastIndex))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            protocol.decodeD4Frame(valid + byteArrayOf(0x40))
+        }
+    }
+
+    @Test
+    fun `D4 header plausibility rejects truncated, undersized, and oversized frames`() {
+        val channel = EpsonProtocol.D4ChannelState(psid = 2, ssid = 3, mtu = 64, txCredits = 0)
+        val tooLarge = byteArrayOf(0x02, 0x03, 0x20, 0x01, 0x01, 0x00) // 8193 bytes
+        val tooSmall = byteArrayOf(0x02, 0x03, 0x00, 0x05, 0x01, 0x00)
+
+        assertFalse(protocol.isPlausibleD4Header(byteArrayOf(0x02, 0x03), channel))
+        assertFalse(protocol.isPlausibleD4Header(tooSmall, channel))
+        assertFalse(protocol.isPlausibleD4Header(tooLarge, channel))
+        assertTrue(protocol.isPlausibleD4Header(byteArrayOf(0x02, 0x03, 0x00, 0x06, 0x01, 0x00), channel))
     }
 
     @Test

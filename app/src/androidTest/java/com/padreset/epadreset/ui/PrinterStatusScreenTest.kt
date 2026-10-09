@@ -165,6 +165,85 @@ class PrinterStatusScreenTest {
     }
 
     @Test
+    fun aDispatchedNozzleCheckShowsSentNotFailed() {
+        render(
+            MainUiState(
+                actionSuccessTitle = string(R.string.dialog_job_sent_title),
+                actionSuccessMessage = string(R.string.msg_nozzle_check_sent),
+            ),
+        )
+
+        compose.onNodeWithContentDescription(string(R.string.action_open_maintenance)).performClick()
+
+        compose.onNodeWithText(string(R.string.section_maintenance)).assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.dialog_job_sent_title)).assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.msg_nozzle_check_sent)).assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.callout_operation_failed)).assertDoesNotExist()
+    }
+
+    @Test
+    fun aPrinterReportedErrorTakesPrecedenceOverItsIdleState() {
+        render(
+            MainUiState(
+                status = PrinterStatusSnapshot(
+                    modelName = "L365",
+                    serialNumber = "",
+                    stateCode = 0x04,
+                    errorCode = 0x10,
+                    state = "Idle",
+                    error = "Service required",
+                    inkLevels = emptyList(),
+                    wasteCounters = emptyList(),
+                ),
+            ),
+        )
+
+        compose.onNodeWithText(string(R.string.printer_error_service_required)).assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.status_printer_error)).assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.printer_state_idle)).assertDoesNotExist()
+    }
+
+    @Test
+    fun theObservedL365PaperFeedErrorHasASpecificLabel() {
+        render(
+            MainUiState(
+                status = PrinterStatusSnapshot(
+                    modelName = "L365 Series",
+                    serialNumber = "",
+                    stateCode = 0x00,
+                    errorCode = 0x06,
+                    state = "Error",
+                    error = "Paper feed error",
+                    inkLevels = emptyList(),
+                    wasteCounters = emptyList(),
+                ),
+            ),
+        )
+
+        compose.onNodeWithText(string(R.string.printer_error_paper_feed)).assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.status_printer_error)).assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.printer_state_idle)).assertDoesNotExist()
+    }
+
+    @Test
+    fun aFailedRefreshExplainsThatTheVisibleStatusMayBeStale() {
+        render(
+            MainUiState(
+                status = snapshot(),
+                errorTitle = string(R.string.error_status_refresh_title),
+                error = string(R.string.error_status_refresh_detail),
+                statusIsStale = true,
+                statusRefreshFailed = true,
+            ),
+        )
+
+        compose.onNodeWithText(string(R.string.error_status_refresh_title)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.error_status_refresh_detail)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.status_stale)).assertIsDisplayed()
+        compose.onNodeWithText(string(R.string.callout_operation_failed)).assertDoesNotExist()
+    }
+
+    @Test
     fun aByteMismatchShowsItsAddressesAndKeepsTheBackupWithoutSuccess() {
         val error = string(R.string.error_counters_not_applied, "0x001C, 0x0032")
         render(

@@ -42,6 +42,9 @@
     <string name="status_printer_error">프린터에서 오류가 보고되었습니다</string>
     <string name="status_ready">준비 완료</string>
     <string name="status_connected">USB OTG로 연결됨</string>
+    <string name="status_stale">마지막으로 성공한 상태이며 최신 새로고침은 실패했습니다</string>
+    <string name="error_status_refresh_title">프린터 상태를 새로고침하지 못했습니다</string>
+    <string name="error_status_refresh_detail">마지막 상태를 표시하고 있으며 현재와 다를 수 있습니다. 프린터 패널에서 상태를 확인하고 다시 시도하세요.</string>
     <string name="status_busy_indicator">작업 중…</string>
     <!-- Shown while a connection is spending seconds on a route the printer did
          not answer on, before the next one is tried. Says what is happening and
@@ -378,6 +381,7 @@
     <string name="printer_error_interface">인터페이스 오류</string>
     <string name="printer_error_paper_jam">용지 걸림</string>
     <string name="printer_error_ink_out">잉크 소진</string>
+    <string name="printer_error_paper_feed">용지 없음 또는 급지 오류</string>
     <string name="printer_error_service_required">서비스 필요</string>
     <string name="printer_error_cover_open">커버 열림</string>
 

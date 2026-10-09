@@ -6,14 +6,8 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -85,12 +79,12 @@ import com.padreset.epadreset.data.WasteCounterSpec
 import com.padreset.epadreset.data.WasteCounterStatus
 import com.padreset.epadreset.data.backupModelMatches
 import com.padreset.epadreset.ui.components.BUSY_PILL_DELAY_MILLIS
-import com.padreset.epadreset.ui.components.BUSY_PILL_FADE_MILLIS
 import com.padreset.epadreset.ui.components.PadAlertDialog
 import com.padreset.epadreset.ui.components.PadButton
 import com.padreset.epadreset.ui.components.PadButtonVariant
 import com.padreset.epadreset.ui.components.PadBusyIndicator
 import com.padreset.epadreset.ui.components.PadCallout
+import com.padreset.epadreset.ui.components.PadTone
 import com.padreset.epadreset.ui.components.PadCard
 import com.padreset.epadreset.ui.components.PadHeaderBar
 import com.padreset.epadreset.ui.components.PadIconButton
@@ -99,7 +93,6 @@ import com.padreset.epadreset.ui.components.PadRule
 import com.padreset.epadreset.ui.components.PadSectionLabel
 import com.padreset.epadreset.ui.components.PadSelectableRow
 import com.padreset.epadreset.ui.components.PadStatusDot
-import com.padreset.epadreset.ui.components.PadTone
 import com.padreset.epadreset.ui.theme.PadColors
 import com.padreset.epadreset.ui.theme.PadMono
 import com.padreset.epadreset.ui.theme.PadRadius
@@ -250,42 +243,10 @@ fun PrinterStatusScreen(
             // replaying the expand: a refresh replaces the banner within
             // milliseconds, and an expand interrupted by another expand reads
             // as sliding in from an edge.
-            AnimatedVisibility(
-                visible = uiState.notice != null || !uiState.error.isNullOrBlank(),
-                enter = fadeIn(tween(BUSY_PILL_FADE_MILLIS)) +
-                    expandVertically(tween(BUSY_PILL_FADE_MILLIS), expandFrom = Alignment.Top),
-                exit = fadeOut(tween(BUSY_PILL_FADE_MILLIS)) +
-                    shrinkVertically(tween(BUSY_PILL_FADE_MILLIS), shrinkTowards = Alignment.Top),
-            ) {
-                Crossfade(
-                    targetState = Triple(
-                        uiState.notice,
-                        uiState.error,
-                        uiState.modelReportBody != null,
-                    ),
-                ) { (notice, error, hasReport) ->
-                    Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                        notice?.let {
-                            PadCallout(text = it, tone = PadTone.Info)
-                        }
-
-                        if (!error.isNullOrBlank()) {
-                            Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                                PadCallout(
-                                    title = stringResource(R.string.callout_operation_failed),
-                                    text = error,
-                                    tone = PadTone.Danger,
-                                )
-                                if (hasReport) {
-                                    ModelReportActions(
-                                        onReview = { showModelReport = true },
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            PrinterStatusCallouts(
+                uiState = uiState,
+                onReviewModelReport = { showModelReport = true },
+            )
 
             PadCard {
                 PadSectionLabel(stringResource(R.string.section_ink_levels))
@@ -545,7 +506,7 @@ fun PrinterStatusScreen(
                             variant = PadButtonVariant.Secondary,
                             onClick = {
                                 showAbout = false
-                                context.startActivity(
+                                context.openExternal(
                                     Intent(Intent.ACTION_VIEW, Uri.parse(RELEASES_URL)),
                                 )
                             },
@@ -568,7 +529,7 @@ fun PrinterStatusScreen(
                             variant = PadButtonVariant.Secondary,
                             onClick = {
                                 showAbout = false
-                                context.startActivity(
+                                context.openExternal(
                                     Intent(Intent.ACTION_VIEW, Uri.parse(DONATE_URL)),
                                 )
                             },
@@ -586,7 +547,7 @@ fun PrinterStatusScreen(
                 Button(
                     onClick = {
                         showAbout = false
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(REPO_URL)))
+                        context.openExternal(Intent(Intent.ACTION_VIEW, Uri.parse(REPO_URL)))
                     },
                 ) {
                     Text(stringResource(R.string.action_open_repo))
@@ -635,6 +596,7 @@ fun PrinterStatusScreen(
  * It answers the two questions a user actually has on opening the app: is a
  * printer connected, and how close is the waste pad to its limit.
  */
+
 @Composable
 private fun StatusHeroCard(
     uiState: MainUiState,
@@ -691,8 +653,10 @@ private fun StatusHeroCard(
         }
         else -> {
             label = printerStateLabel(status.stateCode, status.state).ifBlank { readyLabel }
-            detail = stringResource(R.string.status_connected)
-            accentColor = pad.ok
+            detail = stringResource(
+                if (uiState.statusIsStale) R.string.status_stale else R.string.status_connected,
+            )
+            accentColor = if (uiState.statusIsStale) pad.muted else pad.ok
         }
     }
 
@@ -1662,6 +1626,7 @@ private fun printerErrorLabel(code: Int, fallback: String): String = when (code)
     0x01 -> stringResource(R.string.printer_error_interface)
     0x04 -> stringResource(R.string.printer_error_paper_jam)
     0x05 -> stringResource(R.string.printer_error_ink_out)
+    0x06 -> stringResource(R.string.printer_error_paper_feed)
     0x10 -> stringResource(R.string.printer_error_service_required)
     0x25 -> stringResource(R.string.printer_error_cover_open)
     else -> fallback

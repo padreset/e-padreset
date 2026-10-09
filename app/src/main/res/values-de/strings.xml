@@ -34,6 +34,9 @@
     <string name="status_printer_error">Der Drucker hat einen Fehler gemeldet</string>
     <string name="status_ready">Bereit</string>
     <string name="status_connected">Über USB-OTG verbunden</string>
+    <string name="status_stale">Letzter erfolgreicher Status; die letzte Aktualisierung ist fehlgeschlagen</string>
+    <string name="error_status_refresh_title">Druckerstatus konnte nicht aktualisiert werden</string>
+    <string name="error_status_refresh_detail">Der letzte Status wird angezeigt und ist möglicherweise veraltet. Prüfe den Drucker selbst und versuche es erneut.</string>
     <string name="status_busy_indicator">Wird verarbeitet…</string>
     <!-- Wird angezeigt, wenn eine Verbindung Zeit auf einem Weg benötigt, auf dem der
          Drucker nicht geantwortet hat, bevor der nächste versucht wird. -->
@@ -284,6 +287,7 @@
     <string name="printer_error_interface">Schnittstellenfehler</string>
     <string name="printer_error_paper_jam">Papierstau</string>
     <string name="printer_error_ink_out">Tinte aufgebraucht</string>
+    <string name="printer_error_paper_feed">Papier fehlt oder Einzugsfehler</string>
     <string name="printer_error_service_required">Wartung erforderlich</string>
     <string name="printer_error_cover_open">Abdeckung offen</string>
 

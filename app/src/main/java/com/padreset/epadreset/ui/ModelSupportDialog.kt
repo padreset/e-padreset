@@ -1,6 +1,8 @@
 package com.padreset.epadreset.ui
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -44,13 +46,7 @@ internal fun ModelSupportDialog(
     val copied = stringResource(R.string.report_copied)
     val unavailable = stringResource(R.string.report_external_unavailable)
     val shareTitle = stringResource(R.string.action_share_report)
-    val openExternal: (Intent) -> Unit = { intent ->
-        try {
-            context.startActivity(intent)
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(context, unavailable, Toast.LENGTH_LONG).show()
-        }
-    }
+    val openExternal: (Intent) -> Unit = { intent -> context.openExternal(intent, unavailable) }
 
     PadAlertDialog(
         onDismissRequest = onDismiss,
@@ -128,4 +124,20 @@ internal fun ModelSupportDialog(
             }
         },
     )
+}
+
+/** Starts an external destination safely and returns false when no handler exists. */
+internal fun Context.openExternal(intent: Intent): Boolean = openExternal(
+    intent = intent,
+    unavailableMessage = getString(R.string.report_external_unavailable),
+)
+
+private fun Context.openExternal(intent: Intent, unavailableMessage: String): Boolean = try {
+    val launchIntent = Intent(intent)
+    if (this !is Activity) launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    startActivity(launchIntent)
+    true
+} catch (_: ActivityNotFoundException) {
+    Toast.makeText(this, unavailableMessage, Toast.LENGTH_LONG).show()
+    false
 }
