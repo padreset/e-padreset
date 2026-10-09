@@ -28,6 +28,34 @@ class AssetCatalogOnDeviceTest {
     }
 
     @Test
+    fun streamingAndDomCatalogsMatchEveryModelFieldOnDevice() {
+        val maintenanceModels = context.assets.open("maintenance_boxes.xml").use {
+            StreamingPrinterCatalog.parseMaintenanceBoxes(it)
+        }
+        val devices = context.assets.open("devices.xml").use {
+            StreamingPrinterCatalog.parseDevices(it, maintenanceModels)
+        }
+        val known = devices.mapTo(HashSet()) { EpsonPrinterCatalog.normalizeModelName(it.modelName) }
+        val extras = context.assets.open("reinkpy_models.xml").use {
+            StreamingPrinterCatalog.parseReinkpy(it, maintenanceModels)
+        }.filterNot { EpsonPrinterCatalog.normalizeModelName(it.modelName) in known }
+        val streaming = devices + extras
+        val dom = EpsonPrinterCatalog.load(context)
+        assertEquals("streaming catalog model names/order", dom.map { it.modelName }, streaming.map { it.modelName })
+        assertEquals("streaming catalog fields", dom.map(::signature), streaming.map(::signature))
+    }
+
+    private fun signature(spec: PrinterSpec): List<Any> = listOf(
+        spec.modelName,
+        spec.controlModel.toList(),
+        spec.keyword.toList(),
+        spec.wasteCounters.map { listOf(it.name, it.addresses, it.max, it.masks.toSortedMap(), it.kind) },
+        spec.resetMap.toSortedMap(),
+        spec.cleaningOptions.map { listOf(it.name, it.type, it.payload.toList()) },
+        spec.usesMaintenanceBox,
+    )
+
+    @Test
     fun maintenanceBoxListLoadsOnDevice() {
         // EC-4020 is on the reinkpy platen-only list; a broken parse answers
         // false for everything, so a true here proves the file parsed.

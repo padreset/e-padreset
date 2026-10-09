@@ -246,7 +246,7 @@ object EpsonPrinterCatalog {
 
             logger?.invoke("Loading Epson model database from assets/devices.xml")
             val fromDevices = context.assets.open("devices.xml")
-                .use { parseDevicesXml(it, maintenanceBoxModels) }
+                .use { StreamingPrinterCatalog.parseDevices(it, maintenanceBoxModels) }
             logger?.invoke("Loaded ${fromDevices.size} Epson printer specs from devices.xml")
 
             // The second file is an extension, never an override: a model that
@@ -256,7 +256,7 @@ object EpsonPrinterCatalog {
             val known = fromDevices.mapTo(HashSet()) { normalizeModelName(it.modelName) }
             val fromReinkpy = runCatching {
                 context.assets.open("reinkpy_models.xml")
-                    .use { parseReinkpyModels(it, maintenanceBoxModels) }
+                    .use { StreamingPrinterCatalog.parseReinkpy(it, maintenanceBoxModels) }
             }.getOrElse {
                 logger?.invoke("No reinkpy model extension available: ${it.message}")
                 emptyList()
@@ -285,6 +285,11 @@ object EpsonPrinterCatalog {
     internal fun parseReinkpyModels(
         input: InputStream,
         maintenanceBoxModels: Set<String>,
+    ): List<PrinterSpec> = StreamingPrinterCatalog.parseReinkpy(input, maintenanceBoxModels)
+
+    internal fun parseReinkpyModelsDomForBenchmark(
+        input: InputStream,
+        maintenanceBoxModels: Set<String>,
     ): List<PrinterSpec> {
         val document = assetFactory().newDocumentBuilder().parse(input)
 
@@ -310,14 +315,14 @@ object EpsonPrinterCatalog {
             val counters = mutableListOf<WasteCounterSpec>()
             val resetMap = linkedMapOf<Int, Int>()
             model.childElements("pad").forEachIndexed { padIndex, pad ->
-                val addresses = parseDecimals(pad.getAttribute("addresses"))
+                val addresses = StreamingPrinterCatalog.decimalValues(pad.getAttribute("addresses"))
                 if (addresses.isEmpty()) return@forEachIndexed
-                val reset = parseDecimals(pad.getAttribute("reset"))
+                val reset = StreamingPrinterCatalog.decimalValues(pad.getAttribute("reset"))
                 addresses.forEachIndexed { position, address ->
                     reset.getOrNull(position)?.let { resetMap[address] = it }
                 }
                 counters += WasteCounterSpec(
-                    name = counterNameForKind(pad.getAttribute("kind"), padIndex),
+                    name = StreamingPrinterCatalog.counterName(pad.getAttribute("kind"), padIndex),
                     addresses = addresses,
                     // Zero means "not published", not "zero capacity".
                     max = 0,
@@ -345,17 +350,6 @@ object EpsonPrinterCatalog {
         return printers.distinctBy { it.modelName }
     }
 
-    private fun parseDecimals(text: String): List<Int> =
-        text.split(Regex("\\s+")).filter { it.isNotBlank() }.mapNotNull { it.toIntOrNull() }
-
-    private fun counterNameForKind(kind: String, index: Int): String =
-        when (kind.trim().lowercase()) {
-            "main" -> "Main pad"
-            "platen" -> "Platen pad"
-            "borderless" -> "Borderless pad"
-            else -> defaultCounterName(index)
-        }
-
     /**
      * internal rather than private so [DevicesXmlParserTest] can reach it.
      *
@@ -366,6 +360,11 @@ object EpsonPrinterCatalog {
      * extraction below was split into helpers that no other test exercises.
      */
     internal fun parseDevicesXml(
+        input: InputStream,
+        maintenanceBoxModels: Set<String> = emptySet(),
+    ): List<PrinterSpec> = StreamingPrinterCatalog.parseDevices(input, maintenanceBoxModels)
+
+    internal fun parseDevicesXmlDomForBenchmark(
         input: InputStream,
         maintenanceBoxModels: Set<String> = emptySet(),
     ): List<PrinterSpec> {
@@ -584,7 +583,7 @@ object EpsonPrinterCatalog {
         if (addresses.isEmpty() || max <= 0) return null
 
         return WasteCounterSpec(
-            name = defaultCounterName(counterIndex),
+            name = StreamingPrinterCatalog.defaultCounterName(counterIndex),
             addresses = addresses,
             max = max,
             masks = masks,
@@ -626,7 +625,7 @@ object EpsonPrinterCatalog {
         synchronized(this) {
             cachedMaintenanceBoxModels?.let { return it }
             val models = runCatching {
-                context.assets.open("maintenance_boxes.xml").use(::parseMaintenanceBoxModels)
+                context.assets.open("maintenance_boxes.xml").use { StreamingPrinterCatalog.parseMaintenanceBoxes(it) }
             }.getOrElse {
                 logger?.invoke("No maintenance box list available: ${it.message}")
                 emptySet()
@@ -643,7 +642,10 @@ object EpsonPrinterCatalog {
      * without an Android Context, and so the one place that understands the
      * document stands on its own.
      */
-    internal fun parseMaintenanceBoxModels(input: InputStream): Set<String> {
+    internal fun parseMaintenanceBoxModels(input: InputStream): Set<String> =
+        StreamingPrinterCatalog.parseMaintenanceBoxes(input)
+
+    internal fun parseMaintenanceBoxModelsDomForBenchmark(input: InputStream): Set<String> {
         val document = assetFactory().newDocumentBuilder().parse(input)
         val nodes = document.getElementsByTagName("model")
         return (0 until nodes.length)
@@ -652,6 +654,7 @@ object EpsonPrinterCatalog {
             .filter { it.isNotEmpty() }
             .toSet()
     }
+
 
     /**
      * Model names in the catalog carry a " Series" suffix that the curated list
@@ -675,15 +678,11 @@ object EpsonPrinterCatalog {
             .toMap()
     }
 
-    private fun parseHexBytes(text: String): ByteArray {
-        return parseHexInts(text).map { it.toByte() }.toByteArray()
-    }
+    private fun parseHexBytes(text: String): ByteArray = parseHexInts(text).map { it.toByte() }.toByteArray()
 
-    private fun parseHexInts(text: String): List<Int> {
-        return HEX_TOKEN.findAll(text)
-            .map { token -> parseNumeric(token.value, "hex token in XML block") }
-            .toList()
-    }
+    private fun parseHexInts(text: String): List<Int> = HEX_TOKEN.findAll(text)
+        .map { parseNumeric(it.value, "hex token in XML block") }
+        .toList()
 
     private fun parseNumeric(text: String, context: String): Int {
         val value = text.trim()
@@ -714,13 +713,6 @@ object EpsonPrinterCatalog {
         return builder.toString()
     }
 
-    private fun defaultCounterName(index: Int): String = when (index) {
-        0 -> "Main pad"
-        1 -> "Platen pad"
-        2 -> "Borderless pad"
-        else -> "Waste counter ${index + 1}"
-    }
-
     private fun Element.firstChildElement(tagName: String): Element? {
         val children = childNodes
         for (index in 0 until children.length) {
@@ -743,6 +735,7 @@ object EpsonPrinterCatalog {
         }
         return items
     }
+
 
     private val HEX_TOKEN = Regex("0x[0-9A-Fa-f]+")
 }

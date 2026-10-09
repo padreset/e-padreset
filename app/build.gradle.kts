@@ -185,6 +185,12 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("com.google.android.material:material:1.14.0")
 
+
+    // The catalog parser asks for an org.xmlpull.v1 implementation, which the
+    // Android framework already provides and a desktop JVM does not. Test-only:
+    // kxml2 repackages org.xmlpull.v1, and shipping it puts a program class over
+    // the platform's own XmlResourceParser, which R8 refuses to build.
+    testImplementation("net.sf.kxml:kxml2:2.3.0")
     implementation(composeBom)
     androidTestImplementation(composeBom)
     implementation("androidx.compose.ui:ui")
