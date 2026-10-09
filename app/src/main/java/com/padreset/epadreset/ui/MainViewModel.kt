@@ -394,7 +394,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (printerService.isStillAttached(current)) return@launch
 
             appendLog("Printer detached; connection dropped")
-            dropConnection()
+            dropConnection(expected = current)
         }
     }
 
@@ -415,7 +415,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (printerService.isStillAttached(current)) return@launch
 
             appendLog("Printer is no longer attached; dropping the session")
-            dropConnection()
+            dropConnection(expected = current)
         }
     }
 
@@ -425,8 +425,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * Shared by every way the app can learn the printer is gone, so they cannot
      * drift into resetting different parts of the state.
      */
-    private fun dropConnection() {
+    private fun dropConnection(expected: PrinterService.ConnectionState? = null) {
         val current = connection
+        // The attachment check ran on IO. A replug may have installed a new
+        // session meanwhile, and that one must survive a drop meant for the old.
+        if (expected != null && current !== expected) return
         stopPolling()
         // Local close only: no D4 round-trip, minimal race window with a job
         // that may still hold this session. closeLocal never throws (single

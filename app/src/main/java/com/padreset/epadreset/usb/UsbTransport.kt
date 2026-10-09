@@ -50,25 +50,61 @@ class UsbTransport(private val context: Context) {
         val bytes: ByteArray,
     )
 
-    /** FIFO for USB stream fragments; incomplete reads stay queued for the next call. */
+    /**
+     * FIFO for USB stream fragments; incomplete reads stay queued for the next call.
+     *
+     * A byte ring instead of a list of boxed bytes. The list boxed every byte on the
+     * way in and shifted the whole queue on every read. Not thread-safe: every use
+     * happens under MainViewModel.sessionMutex, and nothing else may touch a session.
+     */
     class ReadBuffer {
-        private val bytes = mutableListOf<Byte>()
+        private var storage = ByteArray(INITIAL_CAPACITY)
+        private var head = 0
 
-        val size: Int get() = bytes.size
+        var size: Int = 0
+            private set
 
         fun append(chunk: ByteArray) {
-            chunk.forEach(bytes::add)
+            ensureCapacity(size + chunk.size)
+            val tail = (head + size) % storage.size
+            val firstPart = minOf(chunk.size, storage.size - tail)
+            System.arraycopy(chunk, 0, storage, tail, firstPart)
+            System.arraycopy(chunk, firstPart, storage, 0, chunk.size - firstPart)
+            size += chunk.size
         }
 
         fun take(count: Int): ByteArray {
             require(count >= 0) { "Read count cannot be negative" }
-            require(count <= bytes.size) { "Insufficient buffered bytes: requested=$count available=${bytes.size}" }
-            val result = ByteArray(count) { bytes[it] }
-            bytes.subList(0, count).clear()
+            require(count <= size) { "Insufficient buffered bytes: requested=$count available=$size" }
+            val result = ByteArray(count)
+            val firstPart = minOf(count, storage.size - head)
+            System.arraycopy(storage, head, result, 0, firstPart)
+            System.arraycopy(storage, 0, result, firstPart, count - firstPart)
+            size -= count
+            head = if (size == 0) 0 else (head + count) % storage.size
             return result
         }
 
-        fun clear() = bytes.clear()
+        fun clear() {
+            head = 0
+            size = 0
+        }
+
+        private fun ensureCapacity(required: Int) {
+            if (required <= storage.size) return
+            var capacity = storage.size
+            while (capacity < required) capacity *= 2
+            val grown = ByteArray(capacity)
+            val firstPart = minOf(size, storage.size - head)
+            System.arraycopy(storage, head, grown, 0, firstPart)
+            System.arraycopy(storage, 0, grown, firstPart, size - firstPart)
+            storage = grown
+            head = 0
+        }
+
+        private companion object {
+            const val INITIAL_CAPACITY = 1024
+        }
     }
 
     /**
@@ -338,17 +374,9 @@ class UsbTransport(private val context: Context) {
         val candidates = mutableListOf<UsbInterface>()
         for (index in 0 until device.interfaceCount) {
             val usbInterface = device.getInterface(index)
-            val hasBulkIn = (0 until usbInterface.endpointCount).any { endpointIndex ->
-                val endpoint = usbInterface.getEndpoint(endpointIndex)
-                endpoint.type == UsbConstants.USB_ENDPOINT_XFER_BULK &&
-                    endpoint.direction == UsbConstants.USB_DIR_IN
-            }
-            val hasBulkOut = (0 until usbInterface.endpointCount).any { endpointIndex ->
-                val endpoint = usbInterface.getEndpoint(endpointIndex)
-                endpoint.type == UsbConstants.USB_ENDPOINT_XFER_BULK &&
-                    endpoint.direction == UsbConstants.USB_DIR_OUT
-            }
-            if (hasBulkIn && hasBulkOut) {
+            if (usbInterface.hasBulkEndpoint(UsbConstants.USB_DIR_IN) &&
+                usbInterface.hasBulkEndpoint(UsbConstants.USB_DIR_OUT)
+            ) {
                 candidates += usbInterface
             }
         }
@@ -378,12 +406,7 @@ class UsbTransport(private val context: Context) {
         val candidates = buildList {
             for (index in 0 until device.interfaceCount) {
                 val usbInterface = device.getInterface(index)
-                val hasBulkOut = (0 until usbInterface.endpointCount).any { endpointIndex ->
-                    val endpoint = usbInterface.getEndpoint(endpointIndex)
-                    endpoint.type == UsbConstants.USB_ENDPOINT_XFER_BULK &&
-                        endpoint.direction == UsbConstants.USB_DIR_OUT
-                }
-                if (hasBulkOut) {
+                if (usbInterface.hasBulkEndpoint(UsbConstants.USB_DIR_OUT)) {
                     add(usbInterface)
                 }
             }
@@ -435,13 +458,11 @@ class UsbTransport(private val context: Context) {
         val endpoint = requireNotNull(session.bulkOut) { "Bulk OUT endpoint missing" }
         var offset = 0
         while (offset < data.size) {
-            val transferred = session.connection.bulkTransfer(
-                endpoint,
-                data.copyOfRange(offset, data.size),
-                data.size - offset,
-                timeoutMs,
-            )
-            require(transferred > 0) { "Bulk write failed: $transferred/${data.size - offset}" }
+            // One window per transfer. Copying the whole remainder each round trip
+            // made a payload that needed many partial writes quadratic in its size.
+            val window = data.copyOfRange(offset, minOf(data.size, offset + BULK_WRITE_WINDOW))
+            val transferred = session.connection.bulkTransfer(endpoint, window, window.size, timeoutMs)
+            require(transferred > 0) { "Bulk write failed: $transferred/${window.size}" }
             offset += transferred
         }
     }
@@ -460,7 +481,8 @@ class UsbTransport(private val context: Context) {
                 transferred > 0 -> {
                     session.readBuffer.append(chunk.copyOf(transferred))
                 }
-                transferred == 0 -> continue
+                // Zero bytes without the call waiting out its timeout: pause like the error branch.
+                transferred == 0 -> SystemClock.sleep(5)
                 transferred < 0 -> {
                     check(isAttached(session.device)) { "Printer disconnected during USB read" }
                     // Some drivers fail immediately. Avoid a tight CPU loop until the deadline.
@@ -512,6 +534,11 @@ class UsbTransport(private val context: Context) {
                 continue
             }
 
+            if (transferred < 0) {
+                // A failing transfer returns at once; without a pause this spun until the window closed.
+                check(isAttached(session.device)) { "Printer disconnected during USB capture" }
+                SystemClock.sleep(5)
+            }
             if (chunks.isNotEmpty() && SystemClock.elapsedRealtime() - lastDataAt >= idleTimeoutMs) {
                 break
             }
@@ -532,6 +559,12 @@ class UsbTransport(private val context: Context) {
         error("USB drain exceeded its time or byte limit")
     }
 
+    private fun UsbInterface.hasBulkEndpoint(direction: Int): Boolean =
+        (0 until endpointCount).any { index ->
+            val endpoint = getEndpoint(index)
+            endpoint.type == UsbConstants.USB_ENDPOINT_XFER_BULK && endpoint.direction == direction
+        }
+
     private fun findPrinterInterface(device: UsbDevice): UsbInterface? {
         return candidateInterfaces(device).firstOrNull()
     }
@@ -546,6 +579,9 @@ class UsbTransport(private val context: Context) {
         const val USB_RECIPIENT_INTERFACE = 0x01
         const val REQUEST_GET_DEVICE_ID = 0
         const val REQUEST_SOFT_RESET = 2
+
+        /** Largest slice handed to one bulkTransfer call; the rest waits for the next round. */
+        const val BULK_WRITE_WINDOW = 16 * 1024
 
         /** Where [interfacePreference] is stored. */
         const val PREFERENCE_FILE = "usb_interface_preference"
