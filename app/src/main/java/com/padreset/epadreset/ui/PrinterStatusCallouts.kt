@@ -18,6 +18,15 @@ import com.padreset.epadreset.ui.components.PadCallout
 import com.padreset.epadreset.ui.components.PadTone
 import com.padreset.epadreset.ui.theme.PadSpace
 
+/** Everything the callout content reads, so the Crossfade animates it as one state. */
+private data class CalloutTarget(
+    val notice: String?,
+    val error: String?,
+    val errorTitle: String?,
+    val refreshFailed: Boolean,
+    val hasModelReport: Boolean,
+)
+
 @Composable
 internal fun PrinterStatusCallouts(
     uiState: MainUiState,
@@ -31,15 +40,20 @@ internal fun PrinterStatusCallouts(
             shrinkVertically(tween(BUSY_PILL_FADE_MILLIS), shrinkTowards = Alignment.Top),
     ) {
         Crossfade(
-            targetState = Triple(uiState.notice, uiState.error, uiState.errorTitle) to
-                (uiState.modelReportBody != null),
+            targetState = CalloutTarget(
+                notice = uiState.notice,
+                error = uiState.error,
+                errorTitle = uiState.errorTitle,
+                refreshFailed = uiState.statusRefreshFailed,
+                hasModelReport = uiState.modelReportBody != null,
+            ),
         ) { target ->
             Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
-                target.first.first?.let { PadCallout(text = it, tone = PadTone.Info) }
-                val error = target.first.second
-                val errorTitle = target.first.third
+                target.notice?.let { PadCallout(text = it, tone = PadTone.Info) }
+                val error = target.error
+                val errorTitle = target.errorTitle
 
-                if (uiState.statusRefreshFailed) {
+                if (target.refreshFailed) {
                     PadCallout(
                         title = errorTitle ?: stringResource(R.string.error_status_refresh_title),
                         text = error ?: stringResource(R.string.error_status_refresh_detail),
@@ -51,7 +65,7 @@ internal fun PrinterStatusCallouts(
                         text = error,
                         tone = PadTone.Danger,
                     )
-                    if (target.second) {
+                    if (target.hasModelReport) {
                         ModelReportActions(onReview = onReviewModelReport)
                     }
                 }

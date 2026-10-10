@@ -316,16 +316,26 @@ class PrinterService(
         readByte: (Int) -> Byte,
     ): PrinterStatusSnapshot {
         val baseSnapshot = readStatusOnly(connection)
-        if (baseSnapshot.errorCode != PrinterStatusSnapshot.ERROR_NONE) {
-            // When the printer reports a front-panel error (paper out, jam,
-            // cover, etc.), preserve and display that useful status rather than
-            // continuing into EEPROM counter reads which are unnecessary for an
-            // actionable status refresh and may fail while the device is in an
-            // error state. Counter readings are omitted for this refresh.
-            log("Skipping waste-counter reads while printer reports ${baseSnapshot.error}")
+        val wasteCounters = try {
+            readWasteCounters(connection, readByte)
+        } catch (failure: Exception) {
+            // A printer reporting a front-panel error (paper out, jam, cover,
+            // service required) may not answer the EEPROM reads. The reads are
+            // still wanted, because the pad levels are what that error is about,
+            // but when they fail the error is the reading that matters: keep it
+            // on the card instead of failing the refresh.
+            if (baseSnapshot.errorCode == PrinterStatusSnapshot.ERROR_NONE) throw failure
+            log("Waste-counter reads failed while printer reports ${baseSnapshot.error}: ${failure.message ?: failure.javaClass.simpleName}")
             return baseSnapshot
         }
-        val wasteCounters = when (connection) {
+        return baseSnapshot.copy(wasteCounters = wasteCounters)
+    }
+
+    private fun readWasteCounters(
+        connection: ConnectionState,
+        readByte: (Int) -> Byte,
+    ): List<WasteCounterStatus> {
+        return when (connection) {
             is ConnectionState.Catalogued -> connection.spec.wasteCounters.map { counter ->
                 val bytes = counter.addresses.map(readByte).toByteArray()
                 val masks = counter.addresses.map { counter.masks[it] ?: 0xFF }
@@ -338,7 +348,6 @@ class PrinterService(
             }
             is ConnectionState.ReadOnly -> emptyList()
         }
-        return baseSnapshot.copy(wasteCounters = wasteCounters)
     }
 
     /**

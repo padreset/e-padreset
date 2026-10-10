@@ -613,8 +613,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         current: PrinterService.ConnectionState,
         verifiedStatus: PrinterStatusSnapshot? = null,
     ) {
-        val status = verifiedStatus ?: printerService.readPrinterStatus(current)
+        val fresh = verifiedStatus ?: printerService.readPrinterStatus(current)
         if (connection !== current) return
+        // A refresh that got no counters (the printer reported an error and the
+        // EEPROM did not answer) keeps the last readings from this same printer,
+        // marked stale, instead of blanking the pad levels on the card.
+        val previousCounters = _uiState.value.status?.wasteCounters.orEmpty()
+        val keepCounters = verifiedStatus == null && fresh.wasteCounters.isEmpty() &&
+            previousCounters.isNotEmpty() && _uiState.value.connectedDeviceName == current.deviceId
+        val status = if (keepCounters) fresh.copy(wasteCounters = previousCounters) else fresh
         val modelName = when (current) {
             is PrinterService.ConnectionState.Catalogued -> current.spec.modelName
             is PrinterService.ConnectionState.ReadOnly -> current.modelName
@@ -633,7 +640,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             connectedDeviceName = current.deviceId,
             sessionToken = sessionEpoch,
             status = status,
-            statusIsStale = false,
+            statusIsStale = keepCounters,
             statusRefreshFailed = false,
             cleaningOptions = screen.cleaningOptions,
             supportsGenericMaintenanceJobs = screen.supportsGenericMaintenanceJobs,
@@ -652,6 +659,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ) }
         appendLog("Status read: ${status.state}, ${status.error}")
         startPollingIfBusy(status, current)
+    }
+
+    /**
+     * Reads status after an ESC/P2 job, inside the job's lock.
+     *
+     * The job was already sent, and the printer may still be starting its
+     * maintenance cycle, so this read can fail without the job failing. A failure
+     * is logged and the card is marked stale with the refresh-failed notice.
+     * Letting it throw would send it into runJob's error path, where it turns the
+     * success message red.
+     */
+    private suspend fun readStatusAfterMaintenance(current: PrinterService.ConnectionState) {
+        try {
+            readStatusHoldingLock(current)
+        } catch (failure: CancellationException) {
+            throw failure
+        } catch (failure: Exception) {
+            appendLog("Status read after maintenance failed: ${failure.message ?: failure.javaClass.simpleName}")
+            _uiState.update { it.copy(statusIsStale = true, statusRefreshFailed = true) }
+        }
     }
 
     /**
@@ -859,9 +886,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             cleaningModeLabel(getApplication(), cleaningName),
                         ),
                     ) }
-                    // ESC/P2 leaves D4 packet mode invalidated. Do not immediately
-                    // renegotiate while the printer is starting its maintenance
-                    // cycle: a failed status read is not a failed print dispatch.
+                    // Re-read so the watch can follow the cycle back to idle. A
+                    // failed read is contained in the helper and cannot fail the
+                    // dispatch that was already sent.
+                    readStatusAfterMaintenance(current)
                 }
             }
         }
@@ -892,8 +920,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         actionSuccessTitle = str(R.string.dialog_job_sent_title),
                         actionSuccessMessage = str(R.string.msg_cleaning_sent),
                     ) }
-                    // The ESC/P2 job is sent, but the ensuing D4 reopen can race
-                    // the printer's cleaning startup and falsely turn success red.
+                    // Same as head cleaning: the job is sent, and the re-read is
+                    // contained so a race with the printer's startup stays a
+                    // stale card rather than a red success.
+                    readStatusAfterMaintenance(current)
                 }
             }
         }
@@ -913,10 +943,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         actionSuccessTitle = str(R.string.dialog_job_sent_title),
                         actionSuccessMessage = str(R.string.msg_nozzle_check_sent),
                     ) }
-                    // Sending the ESC/P2 job is the success criterion here. The
-                    // printer switches out of D4 to prepare the page, so an
-                    // immediate status renegotiation can fail while printing is
-                    // actually underway. A later manual refresh can reopen D4.
+                    // Sending the job is the success criterion. The printer leaves
+                    // D4 to prepare the page, so the re-read may fail while printing
+                    // is underway; readStatusAfterMaintenance contains that.
+                    readStatusAfterMaintenance(current)
                 }
             }
         }

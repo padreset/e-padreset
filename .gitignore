@@ -32,3 +32,4 @@ captures/
 # goes stale the moment anything is fixed — and fixing it is the whole point of
 # writing the report. They belong on the machine that produced them.
 AUDIT*.md
+all_strings.txt
