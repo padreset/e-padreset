@@ -534,9 +534,13 @@ class UsbTransport(private val context: Context) {
                 continue
             }
 
-            if (transferred < 0) {
-                // A failing transfer returns at once; without a pause this spun until the window closed.
-                check(isAttached(session.device)) { "Printer disconnected during USB capture" }
+            // Zero bytes and failures both return at once. Without a pause either
+            // one spun until the window closed, which is what the read loop was
+            // fixed for and this loop was not.
+            if (transferred <= 0) {
+                if (transferred < 0) {
+                    check(isAttached(session.device)) { "Printer disconnected during USB capture" }
+                }
                 SystemClock.sleep(5)
             }
             if (chunks.isNotEmpty() && SystemClock.elapsedRealtime() - lastDataAt >= idleTimeoutMs) {

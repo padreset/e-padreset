@@ -1060,9 +1060,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // handle that reaches nothing: the refresh button kept re-reading
                 // a dead connection instead of letting the app fall back to "no
                 // printer" and offer to connect again.
-                if (connection?.let { !printerService.isStillAttached(it) } == true) {
+                // Hold the instance that was checked. isStillAttached hops to IO,
+                // and a replug may install a new session while it runs; that one
+                // must survive a drop meant for the handle that just went away.
+                val detached = connection
+                if (detached != null && !printerService.isStillAttached(detached)) {
                     appendLog("Job failed and the printer is no longer attached; dropping the session")
-                    dropConnection()
+                    dropConnection(expected = detached)
                     if (origin == null) return@onFailure
                 }
 
