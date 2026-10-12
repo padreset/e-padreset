@@ -12,9 +12,12 @@
              windowBackground. -->
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="s">@drawable/splash_logo_animated</item>
         <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="s">680</item>
-        <!-- statusBarColor se retiró: con targetSdk 36 la app va edge-to-edge y
-             Android 15 lo marca como obsoleto *y deshabilitado*, así que no
-             pintaba nada. navigationBarColor se queda — es inerte con navegación
+        <!-- Antes de Android 15 la barra de estado no es edge-to-edge: sin este
+             color, toma el fondo por defecto de Material 3 (#FEF7FF, lavanda).
+             En Android 15+ el sistema lo ignora porque la app dibuja detrás de
+             la barra, así que no cambia nada allí. -->
+        <item name="android:statusBarColor" tools:targetApi="l">#F6F8FB</item>
+        <!-- navigationBarColor se queda — es inerte con navegación
              por gestos pero sigue aplicándose con los tres botones, así que
              quitarlo cambiaría esos dispositivos. Los dos flags de barra clara
              también se quedan: están obsoletos en favor de

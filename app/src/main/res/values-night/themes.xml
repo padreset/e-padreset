@@ -6,8 +6,9 @@
              @color/splash_logo, que aquí apunta a #3D7EFF. -->
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="s">@drawable/splash_logo_animated</item>
         <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="s">680</item>
-        <!-- Mismo criterio que en values/themes.xml: statusBarColor retirado por
-             inerte en edge-to-edge, y lo demás se queda con su razón. -->
+        <!-- Mismo criterio que en values/themes.xml: antes de Android 15 hace
+             falta el fondo de la app en la barra de estado. -->
+        <item name="android:statusBarColor" tools:targetApi="l">#050814</item>
         <item name="android:navigationBarColor" tools:targetApi="l">#050814</item>
         <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
