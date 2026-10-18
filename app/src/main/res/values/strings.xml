@@ -402,4 +402,11 @@
     <string name="error_restore_unit_mismatch">This backup belongs to another printer unit. Nothing was written.</string>
     <string name="dialog_restore_legacy_identity">This backup does not identify the original printer unit. Confirm that it came from this printer before restoring.</string>
     <string name="exit_busy_warning">An operation is in progress. Exiting can interrupt a write and leave partially changed counters. Wait until it finishes if possible.</string>
+    <!-- Shown inline above disabled actions while the printer itself reports a
+         live state (printing, busy, waiting, cleaning). Refresh stays enabled:
+         it is the way out, not another job. -->
+    <string name="printer_busy_note">The printer is still working. Wait until it is idle, then tap Refresh status before the next action.</string>
+    <!-- Guard in the ViewModel for the same state, in case an action is forced
+         while the printer reports it is busy. -->
+    <string name="error_printer_busy">The printer is still working. Wait until it finishes, then tap Refresh status and retry.</string>
 </resources>

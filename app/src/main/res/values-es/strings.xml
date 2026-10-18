@@ -390,4 +390,6 @@
     <string name="error_restore_unit_mismatch">Este respaldo pertenece a otra unidad de impresora. No se escribió nada.</string>
     <string name="dialog_restore_legacy_identity">Este respaldo no identifica la unidad original. Confirma que procede de esta impresora antes de restaurarlo.</string>
     <string name="exit_busy_warning">Hay una operación en curso. Salir puede interrumpir una escritura y dejar contadores parcialmente modificados. Espera a que termine si es posible.</string>
+    <string name="printer_busy_note">La impresora sigue trabajando. Espera a que quede en reposo y pulsa «Actualizar estado» antes de la siguiente acción.</string>
+    <string name="error_printer_busy">La impresora sigue trabajando. Espera a que termine, pulsa «Actualizar estado» y vuelve a intentarlo.</string>
 </resources>

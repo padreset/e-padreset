@@ -298,4 +298,6 @@
     <string name="error_restore_unit_mismatch">Diese Sicherung gehört zu einem anderen Drucker-Exemplar. Es wurde nichts geschrieben.</string>
     <string name="dialog_restore_legacy_identity">Diese Sicherung identifiziert das ursprüngliche Drucker-Exemplar nicht. Bestätige vor dem Wiederherstellen, dass sie von diesem Drucker stammt.</string>
     <string name="exit_busy_warning">Ein Vorgang wird ausgeführt. Das Beenden kann einen Schreibvorgang unterbrechen und unvollständig geänderte Zähler hinterlassen. Warte nach Möglichkeit, bis der Vorgang abgeschlossen ist.</string>
+    <string name="printer_busy_note">Der Drucker arbeitet noch. Warte, bis er bereit ist, und tippe dann auf „Status aktualisieren“, bevor du fortfährst.</string>
+    <string name="error_printer_busy">Der Drucker arbeitet noch. Warte, bis er fertig ist, tippe dann auf „Status aktualisieren“ und versuche es erneut.</string>
 </resources>

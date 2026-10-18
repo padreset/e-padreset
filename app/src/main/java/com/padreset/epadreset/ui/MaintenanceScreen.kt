@@ -115,6 +115,7 @@ fun MaintenanceScreen(
                     readOnlySession = uiState.readOnlySession,
                     connected = uiState.status != null,
                     busy = uiState.isBusy,
+                    printerBusy = uiState.printerBusy,
                     onClean = {
                         if (cleaningOptions.isNotEmpty()) {
                             showServiceCleaningDialog = true
@@ -264,12 +265,22 @@ private fun MaintenancePanel(
     readOnlySession: Boolean,
     connected: Boolean,
     busy: Boolean,
+    printerBusy: Boolean = false,
     onClean: () -> Unit,
     onNozzleCheck: () -> Unit,
 ) {
     val pad = PadTheme.colors
-    val enabled = connected && !busy
+    val enabled = connected && !busy && !printerBusy
     Column(verticalArrangement = Arrangement.spacedBy(PadSpace.sm)) {
+        // Same gate as the waste reset: the printer working is not an app job,
+        // so isBusy is false while it cleans or prints. Refresh on the status
+        // page stays enabled as the way out.
+        if (printerBusy && connected) {
+            PadCallout(
+                text = stringResource(R.string.printer_busy_note),
+                tone = PadTone.Info,
+            )
+        }
         // Nozzle check first: it is the diagnostic, and it costs almost no ink.
         // Head cleaning is the remedy, and it consumes ink and adds to the waste
         // counters, so it comes second — check before you clean.

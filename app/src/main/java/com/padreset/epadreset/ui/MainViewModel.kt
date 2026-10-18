@@ -167,7 +167,22 @@ data class MainUiState(
      * Already localized, like the message.
      */
     val actionSuccessTitle: String? = null,
-)
+) {
+    /**
+     * True while the connected printer itself reports a live machine state
+     * (printing, busy, waiting, cleaning).
+     *
+     * Different from [isBusy], which means the app has a job on the USB
+     * session. A printer can stay busy after the app-side job finished — a
+     * cleaning cycle runs minutes after its D4 command was sent — and sending
+     * another job (especially an EEPROM write) in that window fails with a
+     * cryptic USB error. The UI disables maintenance and reset/restore actions
+     * on this while leaving Refresh enabled: refresh is the way out, not
+     * another job.
+     */
+    val printerBusy: Boolean
+        get() = status?.needsPolling == true
+}
 
 /**
  * A failure that already carries a localized message destined for the UI.
@@ -181,7 +196,7 @@ data class MainUiState(
  * through here. Notes aimed at the user (like the no-Wi-Fi note on the
  * no-printer error) belong in [uiMessage] only.
  */
-private class UserFacingException(
+internal class UserFacingException(
     val uiMessage: String,
     val logMessage: String,
 ) : Exception(uiMessage)
@@ -773,6 +788,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Resetting waste counters", BackupOrigin.RESET) {
+                requirePrinterIdle(_uiState.value.status, str(R.string.error_printer_busy))
                 // No local copy of the shared-address rule any more. The service
                 // refuses with a typed reason and the message is translated from
                 // it. The copy that used to live here tested a slightly
@@ -829,6 +845,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Restoring EEPROM backup", BackupOrigin.RESTORE) {
+                requirePrinterIdle(_uiState.value.status, str(R.string.error_printer_busy))
                 val connected = current.spec.modelName
                 if (!backupModelMatches(model, connected)) {
                     throw UserFacingException(
@@ -874,6 +891,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Starting head cleaning") {
+                requirePrinterIdle(_uiState.value.status, str(R.string.error_printer_busy))
                 sessionMutex.withLock {
                     if (connection !== current) return@withLock
                     printerService.runHeadCleaning(current, cleaningName)
@@ -906,6 +924,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Starting head cleaning") {
+                requirePrinterIdle(_uiState.value.status, str(R.string.error_printer_busy))
                 if (powerClean && (current is PrinterService.ConnectionState.ReadOnly ||
                         (current as? PrinterService.ConnectionState.Catalogued)?.unverifiedLocal == true)) {
                     throw UserFacingException(
@@ -936,6 +955,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             runJob("Printing nozzle check") {
+                requirePrinterIdle(_uiState.value.status, str(R.string.error_printer_busy))
                 sessionMutex.withLock {
                     if (connection !== current) return@withLock
                     printerService.printNozzleCheck(current)

@@ -388,4 +388,6 @@
     <string name="error_restore_unit_mismatch">このバックアップは別のプリンター個体のものです。書き込みは行われませんでした。</string>
     <string name="dialog_restore_legacy_identity">このバックアップには元のプリンター個体識別情報がありません。このプリンターのものであることを確認の上で復元してください。</string>
     <string name="exit_busy_warning">処理が実行中です。今終了すると書き込みが中断され、カウンターの値が不整合になる恐れがあります。可能な限り完了までお待ちください。</string>
+    <string name="printer_busy_note">プリンターはまだ動作中です。アイドル状態になるまで待ってから「状態を更新」を押して、次の操作に進んでください。</string>
+    <string name="error_printer_busy">プリンターはまだ動作中です。終了まで待ってから「状態を更新」を押して、もう一度お試しください。</string>
 </resources>

@@ -388,4 +388,6 @@
     <string name="error_restore_unit_mismatch">Esta cópia de segurança pertence a outra unidade de impressora. Nada foi gravado.</string>
     <string name="dialog_restore_legacy_identity">Esta cópia de segurança não identifica a unidade original da impressora. Confirme que provém desta impressora antes de restaurar.</string>
     <string name="exit_busy_warning">Uma operação está em curso. Sair pode interromper uma gravação e deixar contadores parcialmente alterados. Aguarde que termine se possível.</string>
+    <string name="printer_busy_note">A impressora ainda está a trabalhar. Aguarde que fique em repouso e toque em «Atualizar estado» antes da próxima ação.</string>
+    <string name="error_printer_busy">A impressora ainda está a trabalhar. Aguarde que termine, toque em «Atualizar estado» e tente novamente.</string>
 </resources>

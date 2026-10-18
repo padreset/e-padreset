@@ -266,6 +266,7 @@ fun PrinterStatusScreen(
                     readOnlySession = uiState.readOnlySession,
                     unverifiedLocal = uiState.unverifiedLocalProfile,
                     busy = uiState.isBusy,
+                    printerBusy = uiState.printerBusy,
                     onReset = { showWarning = true },
                     onExplainUnsupported = { showWasteUnsupported = true },
                     onPasteGap = { showPasteGap = true },
@@ -302,6 +303,7 @@ fun PrinterStatusScreen(
                     connectedModel = uiState.connectedModelName.orEmpty(),
                     specs = uiState.wasteCounterSpecs,
                     busy = uiState.isBusy,
+                    printerBusy = uiState.printerBusy,
                     onRestore = { record ->
                         pendingRestore = PendingRestore(
                             model = record.model,
@@ -926,6 +928,7 @@ private fun RestoreBackupCard(
     connectedModel: String,
     specs: List<WasteCounterSpec>,
     busy: Boolean,
+    printerBusy: Boolean = false,
     onRestore: (WasteBackupRecord) -> Unit,
     onPaste: () -> Unit,
 ) {
@@ -978,16 +981,23 @@ private fun RestoreBackupCard(
             }
         }
 
+        if (printerBusy) {
+            PadCallout(
+                text = stringResource(R.string.printer_busy_note),
+                tone = PadTone.Info,
+            )
+        }
+
         PadButton(
             text = stringResource(R.string.action_restore_selected),
             variant = PadButtonVariant.Danger,
-            enabled = !busy && history.isNotEmpty() && selected != null,
+            enabled = !busy && !printerBusy && history.isNotEmpty() && selected != null,
             onClick = { history.firstOrNull { it.timestamp == selected }?.let(onRestore) },
             modifier = Modifier.fillMaxWidth(),
         )
         PadButton(
             text = stringResource(R.string.action_restore_paste),
-            enabled = !busy,
+            enabled = !busy && !printerBusy,
             onClick = onPaste,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -1396,6 +1406,7 @@ private fun WasteLevelsPanel(
     readOnlySession: Boolean,
     unverifiedLocal: Boolean,
     busy: Boolean,
+    printerBusy: Boolean = false,
     onReset: () -> Unit,
     onExplainUnsupported: () -> Unit,
     onPasteGap: () -> Unit,
@@ -1489,12 +1500,22 @@ private fun WasteLevelsPanel(
             tone = PadTone.Warn,
         )
 
+        // The printer working is not an app job: isBusy is false while it
+        // cleans or prints, so the gate needs the printer's own state too.
+        // Refresh stays enabled — it is the way out, not another job.
+        if (printerBusy && connected) {
+            PadCallout(
+                text = stringResource(R.string.printer_busy_note),
+                tone = PadTone.Info,
+            )
+        }
+
         PadButton(
             text = stringResource(
                 if (unverifiedLocal) R.string.action_reset_counters_unverified else R.string.action_reset_counters,
             ),
             variant = PadButtonVariant.Danger,
-            enabled = connected && !busy,
+            enabled = connected && !busy && !printerBusy,
             onClick = onReset,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -1502,7 +1523,7 @@ private fun WasteLevelsPanel(
             PadButton(
                 text = stringResource(R.string.action_delete_profile),
                 variant = PadButtonVariant.Secondary,
-                enabled = !busy,
+                enabled = !busy && !printerBusy,
                 onClick = onDeleteGap,
                 modifier = Modifier.fillMaxWidth(),
             )

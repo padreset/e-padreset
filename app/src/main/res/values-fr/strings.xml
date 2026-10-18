@@ -388,4 +388,6 @@
     <string name="error_restore_unit_mismatch">Cette sauvegarde appartient à une autre imprimante. Rien n\'a été écrit.</string>
     <string name="dialog_restore_legacy_identity">Cette sauvegarde n\'identifie pas l\'imprimante d\'origine. Confirmez qu\'elle provient bien de cet appareil avant de la restaurer.</string>
     <string name="exit_busy_warning">Une opération est en cours d\'exécution. Quitter maintenant peut interrompre une écriture et corrompre les compteurs. Attendez la fin de l\'opération si possible.</string>
+    <string name="printer_busy_note">L\'imprimante travaille encore. Attendez qu\'elle soit au repos, puis touchez « Actualiser l\'état » avant l\'action suivante.</string>
+    <string name="error_printer_busy">L\'imprimante travaille encore. Attendez la fin, touchez « Actualiser l\'état » puis réessayez.</string>
 </resources>

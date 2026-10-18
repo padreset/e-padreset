@@ -388,4 +388,6 @@
     <string name="error_restore_unit_mismatch">此备份属于另一台打印机设备。未写入任何内容。</string>
     <string name="dialog_restore_legacy_identity">此备份未记录原始打印机设备标识。还原前请确认它确来自当前打印机。</string>
     <string name="exit_busy_warning">操作正在进行中。此时退出可能会中断写入并导致计数器数值异常。若可能，请等待操作完成。</string>
+    <string name="printer_busy_note">打印机仍在工作中。请等待其空闲，然后点击“刷新状态”再进行下一步操作。</string>
+    <string name="error_printer_busy">打印机仍在工作中。请等待其完成，然后点击“刷新状态”再重试。</string>
 </resources>
