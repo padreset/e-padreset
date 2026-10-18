@@ -7,9 +7,9 @@
 </p>
 
 <p align="center">
-  <img src="play-store/Screenshot_20260312_215851_Android%20Epson%20Reset.jpg" alt="Android Epson Reset screenshot 1" width="30%" />
-  <img src="play-store/Screenshot_20260312_215906_Android%20Epson%20Reset.jpg" alt="Android Epson Reset screenshot 2" width="30%" />
-  <img src="play-store/Screenshot_20260312_215921_Android%20Epson%20Reset.jpg" alt="Android Epson Reset screenshot 3" width="30%" />
+  <img src="play-store/waste-03-normal.png" alt="E-Pad Reset showing printer status, ink levels and the waste ink counter at 92%" width="30%" />
+  <img src="play-store/nav-05-maintenance-order.png" alt="The Maintenance screen, with nozzle check and head cleaning" width="30%" />
+  <img src="play-store/waste-05-box.png" alt="A printer that reports a maintenance box instead of a waste ink counter" width="30%" />
 </p>
 
 Android port of [`ez-reset`](https://github.com/CiRIP/ez-reset) for Epson printer maintenance over USB OTG.

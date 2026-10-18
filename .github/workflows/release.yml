@@ -49,7 +49,13 @@ jobs:
       # A tag that disagrees with the manifest publishes a file whose version
       # nobody can predict from its name. Checking it here costs a second and
       # removes the only way this workflow could ship the wrong number.
+      #
+      # A suffix is allowed and means a pre-release of the same version: the
+      # manifest still carries 1.0.0 while the tag says which attempt this is.
+      # Without that, a rehearsal tag could not be checked at all, and the one
+      # run that matters most would be the first run of an untested workflow.
       - name: Check the tag matches versionName
+        id: version
         run: |
           set -euo pipefail
           version=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts | head -1)
@@ -58,9 +64,14 @@ jobs:
             echo "::error::Could not read versionName from app/build.gradle.kts."
             exit 1
           fi
-          if [ "$tag" != "$version" ]; then
+          if [ "${tag%%-*}" != "$version" ]; then
             echo "::error::Tag ${GITHUB_REF_NAME} does not match versionName ${version}."
             exit 1
+          fi
+          if [ "$tag" != "${tag%%-*}" ]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
           echo "OK: tag ${GITHUB_REF_NAME} matches versionName ${version}."
 
@@ -130,6 +141,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           APK_NAME: ${{ steps.apk.outputs.name }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
           set -euo pipefail
           digest=$(cut -d' ' -f1 "$RUNNER_TEMP/SHA256SUMS")
@@ -153,8 +165,13 @@ jobs:
             echo "${digest}  ${APK_NAME}"
             echo '```'
           } > "$RUNNER_TEMP/notes.md"
+          flags=()
+          if [ "$PRERELEASE" = "true" ]; then
+            flags+=(--prerelease)
+          fi
           gh release create "$GITHUB_REF_NAME" \
             "$RUNNER_TEMP/$APK_NAME" \
             "$RUNNER_TEMP/SHA256SUMS" \
             --title "E-Pad Reset ${GITHUB_REF_NAME}" \
-            --notes-file "$RUNNER_TEMP/notes.md"
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            "${flags[@]}"
