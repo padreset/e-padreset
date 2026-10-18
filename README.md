@@ -494,10 +494,19 @@ backups with it. Generate it once, keep copies somewhere that is neither this
 repository nor a runner, and do not regenerate it to get past a problem. Losing
 it is that outcome, and there is no recovery.
 
+`scripts/create-release-key.sh` does the whole setup: it asks for the password
+without echoing it, generates the key, and uploads the four secrets with
+`gh secret set`. It refuses to overwrite an existing keystore, which is the one
+mistake in this process that cannot be undone.
+
 ```sh
-keytool -genkeypair -v -keystore release.jks -alias epadreset \
-  -keyalg RSA -keysize 4096 -validity 10000
+scripts/create-release-key.sh
 ```
+
+It is a shell script rather than a paragraph of instructions on purpose. The
+equivalent is four commands where one wrong argument — a key alias typed
+differently in two places, a keystore written to the wrong directory — produces a
+key that looks fine until a release fails to install over the previous one.
 
 **Exercise the workflow once before trusting it.** A tag-triggered job that has
 never run is a guess, and this one runs at the moment it matters most. Push a
