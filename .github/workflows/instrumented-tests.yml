@@ -32,6 +32,12 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          # The action's default is `tools platform-tools`, and the legacy `tools`
+          # package no longer resolves: sdkmanager exits 1 and the job dies before
+          # Gradle starts. platform-tools is the only piece needed here; AGP
+          # downloads the platform and build-tools that compileSdk asks for.
+          packages: "platform-tools"
 
       - name: Cache Gradle
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
