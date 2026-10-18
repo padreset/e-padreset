@@ -20,6 +20,11 @@
 
 set -euo pipefail
 
+# Work from the repository root wherever this is invoked from, so the keystore
+# lands beside the .gitignore that protects it rather than in whatever directory
+# the terminal happened to open in. Launching it by absolute path is then safe.
+cd "$(dirname "$0")/.." || { echo "Cannot locate the repository root." >&2; exit 1; }
+
 repo="${1:-padreset/e-padreset}"
 keystore="${KEYSTORE:-release.jks}"
 alias_name="${RELEASE_KEY_ALIAS:-epadreset}"
