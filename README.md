@@ -462,48 +462,62 @@ to one domain, which is the claim a reader is checking before any of them is
 downloaded — the same claim the attestation below answers afterwards, and cheaper
 to state because it needs no tooling to verify.
 
-**Attest the APK.** The app is distributed by sideloading, so the question a user
+**Sign, attest and publish from a tag.** `.github/workflows/release.yml` does the
+whole release when a `v*` tag is pushed: it checks the tag against `versionName`,
+builds the release variant, refuses to continue if the resulting APK is unsigned,
+attests it, writes `SHA256SUMS`, and creates the GitHub release with the
+verification command already in the notes. Nothing is uploaded by hand, so the
+published file and the commit it came from cannot drift apart.
+
+Why it matters: the app is distributed by sideloading, so the question a user
 actually has is whether the file they downloaded was built from this source, by
-this repository's workflow, and not swapped for something else along the way.
-Artifact attestations answer exactly that, and they are free for public
-repositories on the Free, Pro and Team plans.
+this repository's workflow, and not swapped along the way. Artifact attestations
+answer exactly that, and they are free for public repositories on the Free, Pro
+and Team plans.
 
-The release workflow needs these permissions:
+It needs four repository secrets, and none of them belongs in this repository:
 
-```yaml
-permissions:
-  id-token: write
-  contents: read
-  attestations: write
+| Secret | What it holds |
+|---|---|
+| `RELEASE_KEYSTORE_BASE64` | the keystore, base64-encoded: `base64 -w0 release.jks` |
+| `RELEASE_STORE_PASSWORD` | the keystore password |
+| `RELEASE_KEY_ALIAS` | the key alias |
+| `RELEASE_KEY_PASSWORD` | the key password |
+
+Set them with `gh secret set <NAME>`, which reads the value from stdin instead of
+leaving it in your shell history.
+
+**The signing key is the app's identity, and it cannot be replaced.** Every later
+build has to carry the same key or Android refuses to install it over the
+previous one, and the user's only way forward is to uninstall — which takes their
+backups with it. Generate it once, keep copies somewhere that is neither this
+repository nor a runner, and do not regenerate it to get past a problem. Losing
+it is that outcome, and there is no recovery.
+
+```sh
+keytool -genkeypair -v -keystore release.jks -alias epadreset \
+  -keyalg RSA -keysize 4096 -validity 10000
 ```
 
-and, after the APK has been built and signed:
-
-```yaml
-- uses: actions/attest@v4
-  with:
-    subject-path: app/build/outputs/apk/release/*.apk
-```
+**Exercise the workflow once before trusting it.** A tag-triggered job that has
+never run is a guess, and this one runs at the moment it matters most. Push a
+throwaway tag, watch it produce a release, run the verification below on the
+downloaded file, then delete the release and the tag.
 
 Anyone can then check a file they downloaded:
 
 ```sh
-gh attestation verify EPadReset-1.0.0.apk -R padreset/e-padreset
+gh attestation verify EPadReset-v1.0.0.apk -R padreset/e-padreset
 ```
 
-That last line belongs in the release notes. An attestation nobody knows to check
-is worth nothing.
+That line belongs in the release notes, which the workflow writes for you. An
+attestation nobody knows to check is worth nothing.
 
-**Publish the SHA-256 as well.** Not as a second security measure: the digest is
-already inside the attestation, because the subject of a provenance statement is
-the artifact's hash. This is for the readers who will not install `gh`.
-
-```sh
-sha256sum app/build/outputs/apk/release/*.apk > SHA256SUMS
-```
-
-Attach `SHA256SUMS` to the release, and put the hash in the release notes too, so
-it can be read without downloading a second file.
+**The checksum is published too, and it is not a second security measure.** The
+digest is already inside the attestation, because the subject of a provenance
+statement is the artifact's hash. `SHA256SUMS` is attached to the release and the
+hash is written into the notes as well, so it can be read without downloading a
+second file. It is there for the reader who will not install `gh`.
 
 It is worth being precise about what a checksum does and does not do, because the
 two are easy to confuse. It catches a truncated or corrupted download, which is

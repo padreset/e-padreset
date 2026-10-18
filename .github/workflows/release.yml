@@ -1,0 +1,160 @@
+name: release
+
+# Builds, signs, attests and publishes the APK when a version tag is pushed.
+#
+# A tag is the release act, deliberately. `build.yml` already proves on every
+# push that the release variant builds; this one adds the two things that must
+# not be guessed at — the shipping signature, and a provenance statement binding
+# the published file to this repository and this workflow. Publishing on a tag
+# means the artifact and the source it came from are the same commit, which is
+# the whole claim the attestation makes.
+#
+# The signing key is not in this repository and never will be. It arrives as
+# base64 in a secret, is decoded into the runner's temporary directory, and is
+# written to a user-level Gradle properties file rather than passed on the
+# command line, so the passwords do not appear in the process list.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # to create the release
+  id-token: write # the OIDC token the attestation is signed with
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          # See build.yml: the action's default `tools` package no longer exists.
+          packages: "platform-tools"
+
+      # A tag that disagrees with the manifest publishes a file whose version
+      # nobody can predict from its name. Checking it here costs a second and
+      # removes the only way this workflow could ship the wrong number.
+      - name: Check the tag matches versionName
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts | head -1)
+          tag="${GITHUB_REF_NAME#v}"
+          if [ -z "$version" ]; then
+            echo "::error::Could not read versionName from app/build.gradle.kts."
+            exit 1
+          fi
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match versionName ${version}."
+            exit 1
+          fi
+          echo "OK: tag ${GITHUB_REF_NAME} matches versionName ${version}."
+
+      - name: Decode the signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then
+            echo "::error::RELEASE_KEYSTORE_BASE64 is not set. See README, Releasing."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Point Gradle at it
+        env:
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.gradle"
+          {
+            echo "epadreset.storeFile=$RUNNER_TEMP/release.jks"
+            echo "epadreset.storePassword=$STORE_PASSWORD"
+            echo "epadreset.keyAlias=$KEY_ALIAS"
+            echo "epadreset.keyPassword=$KEY_PASSWORD"
+          } >> "$HOME/.gradle/gradle.properties"
+
+      - name: Build the signed release APK
+        run: ./gradlew :app:assembleRelease --console=plain --stacktrace
+
+      # Without this, a missing secret produces an unsigned APK that looks like
+      # a successful build. `apksigner` refuses it, which turns that into a
+      # failure here rather than a published file nobody can install.
+      - name: Refuse an unsigned APK
+        run: |
+          set -euo pipefail
+          apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          "$apksigner" verify --print-certs "$apk"
+
+      - name: Name the file after the release
+        id: apk
+        run: |
+          set -euo pipefail
+          src=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          name="EPadReset-${GITHUB_REF_NAME}.apk"
+          cp "$src" "$RUNNER_TEMP/$name"
+          echo "path=$RUNNER_TEMP/$name" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Attest the APK
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ steps.apk.outputs.path }}
+
+      # The digest is already the subject of the attestation. This is for the
+      # reader who will not install `gh`, and it catches a truncated download.
+      - name: Checksum
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          sha256sum "${{ steps.apk.outputs.name }}" > SHA256SUMS
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK_NAME: ${{ steps.apk.outputs.name }}
+        run: |
+          set -euo pipefail
+          digest=$(cut -d' ' -f1 "$RUNNER_TEMP/SHA256SUMS")
+          {
+            echo "Signed release built from tag \`${GITHUB_REF_NAME}\` by this repository's"
+            echo "\`release.yml\`, and published with a build-provenance attestation."
+            echo
+            echo "### Verify the download"
+            echo
+            echo '```sh'
+            echo "gh attestation verify ${APK_NAME} -R ${GITHUB_REPOSITORY}"
+            echo '```'
+            echo
+            echo "That proves the file was built from this tag by this workflow. It is the"
+            echo "claim a checksum cannot make: a checksum beside the binary is replaced by"
+            echo "whoever replaces the binary."
+            echo
+            echo "### SHA-256"
+            echo
+            echo '```'
+            echo "${digest}  ${APK_NAME}"
+            echo '```'
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" \
+            "$RUNNER_TEMP/$APK_NAME" \
+            "$RUNNER_TEMP/SHA256SUMS" \
+            --title "E-Pad Reset ${GITHUB_REF_NAME}" \
+            --notes-file "$RUNNER_TEMP/notes.md"
