@@ -74,8 +74,8 @@ class ModelSupportReportTest {
 
     @Test
     fun `issue URL selects only the committed template and carries no report data`() {
-        val url = ModelSupportReport.issueUrl("https://github.com/DSGM-GMSD/e-padreset/")
-        assertEquals("https://github.com/DSGM-GMSD/e-padreset/issues/new?template=01-model-support.yml", url)
+        val url = ModelSupportReport.issueUrl("https://github.com/padreset/e-padreset/")
+        assertEquals("https://github.com/padreset/e-padreset/issues/new?template=01-model-support.yml", url)
         assertFalse(url.contains("body="))
         assertFalse(url.contains("title="))
         assertFalse(url.contains("ET-"))

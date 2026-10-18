@@ -245,7 +245,7 @@
          network permission, so this opens the page rather than checking. -->
     <string name="action_check_updates">Check for updates</string>
     <string name="about_updates_note">Opens the releases page in your browser. The app itself never goes online.</string>
-    <string name="about_repo_label" translatable="false">GitHub: DSGM-GMSD/e-padreset</string>
+    <string name="about_repo_label" translatable="false">GitHub: padreset/e-padreset</string>
     <string name="action_open_repo">Open Repo</string>
     <!-- Shown with the support button, and only while DONATE_URL has a value:
          the app does not ask for money it has nowhere to send. The button opens

@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
  * act on: the upstream is not maintained, and the fork's relicensing, its model
  * extension and its report action are not that author's to answer for.
  */
-internal const val REPO_URL = "https://github.com/DSGM-GMSD/e-padreset"
+internal const val REPO_URL = "https://github.com/padreset/e-padreset"
 
 /**
  * Where a model report is filed, or null when there is nowhere to file it.
@@ -47,7 +47,7 @@ internal const val REPO_URL = "https://github.com/DSGM-GMSD/e-padreset"
  * empty string standing in for "no destination" would be a trap of exactly the
  * kind this file is trying to avoid.
  */
-internal val REPORT_REPO_URL: String? = "https://github.com/DSGM-GMSD/e-padreset"
+internal val REPORT_REPO_URL: String? = "https://github.com/padreset/e-padreset"
 
 /** Opened by the user's browser/Discord app, never by an in-app network client. */
 internal const val COMMUNITY_URL = "https://discord.gg/NYqqn4b25"
@@ -65,7 +65,7 @@ internal const val COMMUNITY_URL = "https://discord.gg/NYqqn4b25"
  * sideloaded app does, and it is honest — the user watches a browser open,
  * rather than a spinner that decided something on its own.
  */
-internal val RELEASES_URL: String? = "https://github.com/DSGM-GMSD/e-padreset/releases"
+internal val RELEASES_URL: String? = "https://github.com/padreset/e-padreset/releases"
 
 /**
  * Where a donation is collected, or null while there is nowhere to collect it.

@@ -39,7 +39,7 @@ class ModelSupportDialogTest {
         }
     }
     private var previousClip: ClipData? = null
-    private val url = ModelSupportReport.issueUrl("https://github.com/DSGM-GMSD/e-padreset")
+    private val url = ModelSupportReport.issueUrl("https://github.com/padreset/e-padreset")
 
     @Before
     fun interceptExternalActivities() {

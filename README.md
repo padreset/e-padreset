@@ -1,8 +1,8 @@
 # E-Pad Reset
 
 <p align="center">
-  <a href="https://github.com/DSGM-GMSD/e-padreset/releases">
-    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/DSGM-GMSD/e-padreset?display_name=tag" />
+  <a href="https://github.com/padreset/e-padreset/releases">
+    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/padreset/e-padreset?display_name=tag" />
   </a>
 </p>
 
@@ -450,6 +450,18 @@ public repositories. It also offers branch protection that requires one approvin
 review, which is friction on a repository one person merges into; leave that one
 out with `gh secure ss vr dep cs` if it applies to you.
 
+**Verify the organization against the domain.** `padreset.com` is the root of the
+package name (`com.padreset.epadreset`), and it is the address the project's own
+pages are meant to be served from. GitHub lets an organization claim a domain it
+controls — Settings → Organization verification, then a DNS `TXT` record or a file
+published on the site — and it puts a verified mark beside the name everywhere the
+organization appears.
+
+That mark is not decoration here. It ties the repository, the pages and the binary
+to one domain, which is the claim a reader is checking before any of them is
+downloaded — the same claim the attestation below answers afterwards, and cheaper
+to state because it needs no tooling to verify.
+
 **Attest the APK.** The app is distributed by sideloading, so the question a user
 actually has is whether the file they downloaded was built from this source, by
 this repository's workflow, and not swapped for something else along the way.
@@ -476,7 +488,7 @@ and, after the APK has been built and signed:
 Anyone can then check a file they downloaded:
 
 ```sh
-gh attestation verify EPadReset-1.0.0.apk -R DSGM-GMSD/e-padreset
+gh attestation verify EPadReset-1.0.0.apk -R padreset/e-padreset
 ```
 
 That last line belongs in the release notes. An attestation nobody knows to check
@@ -755,6 +767,15 @@ This port was reverse-engineered primarily from:
 - `upstream-ez-reset/src/ez_reset/status.py`
 - `upstream-ez-reset/src/ez_reset/devices.py`
 - `upstream-ez-reset/src/ez_reset/devices.xml`
+
+The project is published from a fresh repository rather than as a GitHub fork of
+`tekware-it/android-epson-reset`, and that changes nothing about the derivation.
+`NOTICE` states what was changed and when, this section names what it came from,
+and the history still contains the upstream commits. What a GitHub fork adds on
+top is a permanent *forked from* banner and a shared fork network, and both keep
+describing the project as a smaller derivative of the original long after the
+interface, the service layer, the model catalog and the write path were replaced.
+GitHub offers no button to detach a fork from that network afterwards.
 
 Data sources:
 
