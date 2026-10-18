@@ -115,4 +115,51 @@ class BackupTextParserTest {
         assertEquals("L365", parsed?.model)
         assertEquals(mapOf(0x1C to 0x3F.toByte()), parsed?.values)
     }
+
+    @Test
+    fun `a stored block without magic header is accepted and extracts unit and metadata`() {
+        val clipped = buildString {
+            appendLine("model=ET-2820")
+            appendLine("time=1759500000000")
+            appendLine("unit=SERIAL-12345")
+            appendLine("count=2")
+            appendLine("sha256=abcdef0123456789")
+            appendLine("origin=reset")
+            appendLine("0x001C = 0x3F")
+            appendLine("0x001D = 0x00")
+        }
+
+        val parsed = BackupTextParser.parse(clipped)
+
+        assertEquals("ET-2820", parsed?.model)
+        assertEquals("SERIAL-12345", parsed?.unitId)
+        assertEquals(mapOf(0x1C to 0x3F.toByte(), 0x1D to 0x00.toByte()), parsed?.values)
+    }
+
+    @Test
+    fun `a stored block with mismatched count is refused`() {
+        val clipped = buildString {
+            appendLine("model=ET-2820")
+            appendLine("count=3")
+            appendLine("0x001C = 0x3F")
+            appendLine("0x001D = 0x00")
+        }
+
+        assertNull(BackupTextParser.parse(clipped))
+    }
+
+    @Test
+    fun `model and unit in stored blocks are unescaped`() {
+        val clipped = buildString {
+            appendLine("""model=ET-2820\\Special\nSeries""")
+            appendLine("""unit=SERIAL\\12345\nREV""")
+            appendLine("0x001C = 0x3F")
+        }
+
+        val parsed = BackupTextParser.parse(clipped)
+
+        assertEquals("ET-2820\\Special\nSeries", parsed?.model)
+        assertEquals("SERIAL\\12345\nREV", parsed?.unitId)
+        assertEquals(mapOf(0x1C to 0x3F.toByte()), parsed?.values)
+    }
 }

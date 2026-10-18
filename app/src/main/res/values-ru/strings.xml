@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Русский перевод E-Pad Reset.
+-->
+<resources>
+    <string name="app_name">E-Pad Reset</string>
+
+    <!-- Accessibility descriptions for the icon-only controls. The icons carry
+         the meaning visually, but screen readers need something to announce. -->
+    <string name="action_about">О приложении</string>
+    <string name="action_refresh_status">Обновить статус</string>
+    <string name="action_connect_printer">Подключить принтер</string>
+    <string name="action_copy_log">Копировать журнал протокола</string>
+    <string name="action_open_maintenance">Обслуживание</string>
+    <string name="action_back">Назад</string>
+
+    <!-- Section headings. -->
+    <string name="section_printer">Принтер</string>
+    <string name="section_ink_levels">Уровни чернил</string>
+    <string name="section_waste_levels">Уровни отработанных чернил</string>
+    <string name="section_maintenance">Обслуживание</string>
+    <string name="section_protocol_log">Журнал протокола</string>
+
+    <!-- Printer status block. -->
+    <string name="status_working">Обработка</string>
+    <string name="status_scanning">Поиск принтера Epson через USB OTG</string>
+    <string name="status_no_printer">Принтер не найден</string>
+    <string name="status_no_printer_hint">Подключите принтер Epson через USB OTG и нажмите кнопку обновления</string>
+    <string name="status_printer_error">Принтер сообщил об ошибке</string>
+    <string name="status_ready">Готов</string>
+    <string name="status_connected">Подключен через USB OTG</string>
+    <string name="status_stale">Отображается последний успешный статус; недавнее обновление не удалось</string>
+    <string name="error_status_refresh_title">Не удалось обновить статус принтера</string>
+    <string name="error_status_refresh_detail">Отображаются последние полученные данные, они могут быть устаревшими. Проверьте панель принтера и повторите попытку.</string>
+    <string name="status_busy_indicator">Обработка…</string>
+    <!-- Shown while a connection is spending seconds on a route the printer did
+         not answer on, before the next one is tried. Says what is happening and
+         how long, because the wait is otherwise unexplained. -->
+    <string name="connect_slow_note">Нет ответа по первому маршруту подключения, проверяется другой. Это может занять несколько секунд, в следующий раз подключение пройдет быстрее.</string>
+    <!-- The same situation as connect_slow_note, for the floating pill. Three
+         words, because the pill is small and the card below it carries the
+         explanation. Says what the app is doing, so the wait reads as progress
+         rather than a stall; the duration is the card's job. -->
+    <string name="connect_slow_brief">Проверка другого пути…</string>
+
+    <!-- Detail rows inside the printer card. -->
+    <string name="label_model">Модель</string>
+    <string name="label_serial">Серийный номер</string>
+    <string name="label_highest_pad">Наибольшее заполнение</string>
+
+    <!-- Protocol log panel. -->
+    <string name="log_empty">Записей в журнале пока нет.</string>
+    <string name="log_copied">Журнал протокола скопирован</string>
+
+    <!-- Warning shown above the waste counters. -->
+    <string name="pad_warning_title">Сброс счетчика не очищает впитывающую прокладку</string>
+    <string name="pad_warning_body">Счетчик является электронным, а памперс — физической деталью. Промойте, замените впитывающую губку или выведите слив чернил перед сбросом, иначе чернила переполнят принтер.</string>
+
+    <!-- Shown in place of the counters when the connected printer keeps its
+         waste ink counter somewhere the app cannot write to. Deliberately does
+         not claim to know which of the two causes applies: the catalog can tell
+         that a model has no counter, but not whether that is a maintenance box
+         or a gap in the database. The dialog explains both. -->
+    <string name="waste_unsupported_title">У этой модели нет счетчика для сброса</string>
+    <string name="waste_unsupported_body">В этом принтере нет счетчика отработанных чернил, доступного для сброса приложением. Ни принтер, ни приложение не неисправны.</string>
+    <string name="action_more_info">Подробнее</string>
+    <!-- A printer that answered, but is not in the catalog. Not the same as
+         waste_unsupported: that one means the catalog knows there is nothing
+         to reset. This one means we do not have a verified profile, so we
+         must not claim the printer has no counter. -->
+    <string name="partial_session_title">Подключен без проверенного профиля</string>
+    <string name="partial_session_body">Доступны данные о статусе и уровнях чернил. Счетчики отработки не считываются и не сбрасываются до добавления проверенного профиля в приложение. Вы можете отправить запрос на добавление модели; ожидать для просмотра этих показаний не требуется.</string>
+    <string name="partial_cleaning_note">Прочистка печатающей головки расходует чернила и увеличивает счетчик отработки. Приложение не может сбросить счетчик у этой модели из-за отсутствия проверенного профиля.</string>
+    <string name="error_power_clean_unverified">Усиленная прочистка недоступна без проверенного профиля. Она расходует много чернил, а приложение не сможет сбросить счетчик памперса.</string>
+
+    <!-- Shown next to a counter whose ceiling the model does not publish, which
+         is every model sourced from reinkpy. Without a ceiling there is no
+         percentage, and the raw value is what the printer actually reports. -->
+    <string name="waste_scale_unknown">Без процентов: лимит счетчика для этой модели не опубликован. Выше показано прямое считанное значение.</string>
+    <!-- Reset dialog body for those same models. There is no percentage field
+         and no per-counter choice, because the reset covers every address the
+         model publishes. -->
+    <string name="dialog_reset_model_values">Лимит счетчика этой модели не опубликован, поэтому целевой процент отсутствует. Сброс запишет стандартные опубликованные значения по всем указанным адресам.</string>
+
+    <!-- The EEPROM backup taken before any write. Shown after the write, whether
+         it succeeded or was refused partway through. -->
+    <string name="section_waste_backup">Резервная копия перед записью</string>
+    <string name="waste_backup_note">Значения, сохраненные по этим адресам перед записью. Сохраните копию, чтобы вернуть их в случае сбоя.</string>
+    <string name="action_copy_backup">Скопировать резервную копию</string>
+    <string name="backup_copied">Резервная копия скопирована</string>
+    <!-- Write-path failures. The first pair means nothing was written at all;
+         the second means the printer refused partway through. -->
+    <string name="error_backup_failed">Не удалось прочитать текущие значения, запись отменена. Приложение всегда создает резервную копию перед записью.</string>
+    <string name="error_backup_failed_at">Не удалось прочитать текущее значение по адресу %1$s, запись отменена. Приложение всегда создает резервную копию перед записью.</string>
+    <string name="error_write_rejected">Принтер отклонил запись. Дальнейшая запись остановлена.</string>
+    <string name="error_write_rejected_at">Принтер отклонил запись по адресу %1$s. Записано адресов: %2$d; дальнейшая запись остановлена. Резервная копия приведена ниже.</string>
+
+    <!-- Restoring a saved backup.
+         The backup is saved by the app before every write, so the case this
+         covers is the one where the mistake is noticed later - usually with the
+         app already closed. That is why it is automatic and why it is kept on
+         disk, and the wording says so rather than presenting a button.
+         Restoring raises the counters, which is the opposite of a reset, so the
+         dialog says that plainly instead of leaving it to be discovered. -->
+    <string name="section_restore_backup">Восстановить из резервной копии</string>
+    <string name="restore_note">Перед каждой записью автоматически сохраняется копия. Выберите нужную запись или вставьте сохраненный ранее текст.</string>
+    <string name="restore_no_history">Сохраненных копий пока нет. Копия создается автоматически перед каждой записью.</string>
+    <string name="action_restore_selected">Восстановить выбранную копию</string>
+    <string name="action_restore_paste">Восстановить из вставленного текста</string>
+    <string name="restore_record_label">%1$s — %2$s</string>
+    <string name="restore_unknown_model">Неизвестная модель</string>
+    <!-- Which write found the state a saved record holds, and what it reads.
+         Two records can look identical by model and time, so without these the
+         list gives no way to tell which one undoes the mistake. The "unknown"
+         wording covers records saved before the origin was recorded at all. -->
+    <string name="restore_origin_reset">Сохранено перед сбросом</string>
+    <string name="restore_origin_restore">Сохранено перед восстановлением</string>
+    <string name="restore_origin_unknown">Сохранено перед записью</string>
+    <string name="restore_record_detail">%1$s · %2$s</string>
+    <string name="restore_record_reads">Значения %1$s</string>
+    <string name="dialog_restore_title">Восстановить эту резервную копию?</string>
+    <string name="dialog_restore_body">Будут записаны значения, зафиксированные перед предыдущей записью. Это увеличит показатели счетчиков (действие, противоположное сбросу). Используйте только для отмены ошибочных действий.</string>
+    <string name="dialog_restore_model">Копия для модели: %1$s</string>
+    <string name="dialog_restore_no_model">В этой резервной копии не указана модель принтера. Убедитесь, что она сделана с этого принтера.</string>
+    <string name="dialog_restore_addresses">Будет выполнена запись по %1$d адресам.</string>
+    <string name="dialog_restore_counter_delta">%1$s: %2$s → %3$s</string>
+    <string name="action_restore">Восстановить</string>
+    <string name="dialog_paste_backup_title">Вставить резервную копию</string>
+    <string name="field_paste_backup">Текст резервной копии</string>
+    <string name="paste_backup_hint">Вставьте скопированный ранее текст резервной копии (с заголовком или без).</string>
+    <string name="paste_backup_invalid">Строки резервной копии не найдены. Вставьте текст из приложения или хотя бы строки вида \'0x001C = 0x3F\'.</string>
+    <string name="paste_backup_parsed">Найдено адресов: %1$d.</string>
+    <!-- Blocked rather than warned: the addresses belong to the model, so
+         writing one printer's record onto another would write to addresses that
+         mean something else there. -->
+    <string name="error_restore_model_mismatch">Эта резервная копия создана для %1$s, а подключен принтер %2$s. Восстановление на другую модель может перезаписать чужие адреса памяти, поэтому операция заблокирована.</string>
+
+    <!-- Shown when the model is on the curated maintenance-box list, so the
+         cause is known rather than guessed. The dialog that follows is the
+         tailored one below, not the two-cause one. -->
+    <string name="waste_box_title">Этот принтер использует емкость для отработанных чернил</string>
+    <string name="waste_box_body">Отработанные чернила попадают в съемный картридж (maintenance box), уровень заполнения фиксируется собственным чипом емкости. В самом принтере нет счетчика для сброса — емкость заменяется при заполнении.</string>
+    <string name="waste_box_dialog_title">Ваш принтер использует сменный картридж обслуживания</string>
+    <string name="waste_box_dialog_body">Отработанные чернила собираются в специальный сменный контейнер (maintenance box), а не во встроенный памперс. Контейнер оснащен чипом, отслеживающим наполнение, и в памяти принтера отдельный счетчик не ведется — поэтому программный сброс невозможен.\n\nПри заполнении контейнер заменяется новым либо его чип сбрасывается отдельным физическим программатором (ресеттером). Ни то, ни другое нельзя выполнить через USB-приложение.\n\nВы можете убедиться в этом на экране принтера: там отображается состояние емкости обслуживания и предупреждение о необходимости замены.\n\nПрочистка печатающей головки и проверка дюз полностью поддерживаются на этом принтере во вкладке «Обслуживание».</string>
+
+    <string name="waste_unsupported_dialog_title">Где хранится счетчик отработанных чернил</string>
+    <string name="waste_unsupported_dialog_body">Принтеры Epson используют один из двух вариантов учета отработки:\n\nВстроенный памперс: чернила впитываются прокладками внутри принтера, а счетчик хранится во встроенной памяти материнской платы принтера. Именно этот счетчик может сбросить данное приложение.\n\nСменный картридж (maintenance box): чернила собираются в съемную емкость с собственным чипом. Память принтера счетчик не ведет, и никакая программа не может его сбросить. Картридж меняют или сбрасывают чип внешним устройством.\n\nУзнать тип емкости можно на дисплее принтера. Если указан картридж обслуживания, программный сброс не поможет.\n\nЕсли в принтере точно встроенный памперс, но вы видите это сообщение — модель пока отсутствует в базе приложения. Мы можем ее добавить, сообщите нам о ней.\n\nПрочистка головки и проверка дюз доступны во вкладке «Обслуживание».</string>
+
+    <!-- Maintenance panel. -->
+    <string name="maintenance_head_cleaning">Прочистка печатающей головки</string>
+    <string name="maintenance_nozzle_check">Проверка дюз</string>
+    <string name="maintenance_note">Прочистка печатающей головки расходует чернила и увеличивает счетчик отработки.</string>
+
+    <!-- Dialog actions shared by more than one dialog. -->
+    <string name="action_cancel">Отмена</string>
+    <string name="action_ok">ОК</string>
+    <string name="action_close">Закрыть</string>
+
+    <!-- Reset waste counters dialog. -->
+    <string name="dialog_reset_title">Сброс счетчиков отработанных чернил</string>
+    <string name="dialog_reset_warning">Сброс счетчиков изменяет внутренние значения прошивки принтера. Вы действуете на свой собственный страх и риск.</string>
+    <string name="field_target_percentage">Целевой процент</string>
+    <string name="action_reset_counters">Сбросить счетчики</string>
+    <string name="action_reset_counters_unverified">Сбросить счетчики (непроверенный профиль)</string>
+    <string name="action_paste_profile">Вставить профиль</string>
+    <string name="action_delete_profile">Удалить локальный профиль</string>
+    <string name="dialog_paste_profile_title">Вставить публичный профиль</string>
+    <string name="paste_profile_hint">Вставьте элемент модели reinkpy (&lt;model&gt;) с атрибутами source и version. Это позволяет использовать модель, которой еще нет в приложении. Встроенный каталог не заменяется, профиль хранится только на устройстве.</string>
+    <string name="field_paste_profile">Профиль</string>
+    <string name="paste_profile_invalid">Этот текст не является поддерживаемым форматом профиля.</string>
+    <string name="error_gap_provenance">Профиль должен содержать публичный источник и версию.</string>
+    <string name="error_gap_malformed">Профиль не полон или содержит недопустимые значения.</string>
+    <string name="error_gap_box">Модели с картриджем обслуживания не поддерживают сброс памперса.</string>
+    <string name="error_gap_doctype">Текст не является валидным фрагментом профиля.</string>
+    <string name="error_gap_catalogued">Эта модель уже присутствует в каталоге приложения. Замена через вставку не допускается.</string>
+    <string name="error_gap_full">Локальный список заполнен. Сначала удалите один из профилей.</string>
+
+    <!-- Head cleaning dialog, for models that accept service cleaning. -->
+    <string name="dialog_cleaning_title">Прочистка печатающей головки</string>
+    <string name="dialog_cleaning_body">Прочистка головки расходует чернила. Выберите уровень прочистки, поддерживаемый этим принтером.</string>
+    <string name="action_start_cleaning">Начать прочистку</string>
+
+    <!-- Generic ESC/P2 cleaning dialog, used when service cleaning is refused. -->
+    <string name="dialog_generic_cleaning_body">Отправляет стандартную сервисную команду Epson ESC/P2. Поддержка зависит от модели.</string>
+    <string name="cleaning_all_nozzles">Прочистить все дюзы</string>
+    <string name="cleaning_black_nozzle">Прочистить дюзы черного цвета</string>
+    <string name="cleaning_color_nozzles">Прочистить дюзы цветных чернил</string>
+    <string name="cleaning_alternative_mode">Прочистка головки (альтернативный режим)</string>
+    <string name="cleaning_power_clean">Усиленная прочистка (Power Clean)</string>
+
+    <!-- Service cleaning modes, as the model database names them.
+         The dialog is read, so it gets these labels. The protocol log keeps the
+         database wording instead, because it is a diagnostic record and people
+         search for the exact string. That wording also carries a leftover "%"
+         where a placeholder was never substituted, which these drop.
+         A name the table does not know falls back to the database wording. -->
+    <string name="cleaning_mode_gentle">Мягкая прочистка</string>
+    <string name="cleaning_mode_normal">Обычная прочистка</string>
+    <string name="cleaning_mode_medium">Средняя прочистка</string>
+    <string name="cleaning_mode_strong">Глубокая прочистка</string>
+    <string name="cleaning_mode_gentle_mode">Мягкая прочистка (режим)</string>
+    <string name="cleaning_mode_normal_mode">Обычная прочистка (режим)</string>
+    <string name="cleaning_mode_strong_mode">Глубокая прочистка (режим)</string>
+    <string name="cleaning_mode_strong_a">Глубокая прочистка, режим A</string>
+    <string name="cleaning_mode_strong_b">Глубокая прочистка, режим B</string>
+    <string name="cleaning_all_gentle">Мягкая, все дюзы</string>
+    <string name="cleaning_all_normal">Обычная, все дюзы</string>
+    <string name="cleaning_all_medium">Средняя, все дюзы</string>
+    <string name="cleaning_all_strong">Глубокая, все дюзы</string>
+    <string name="cleaning_black_gentle">Мягкая, черный цвет</string>
+    <string name="cleaning_black_normal">Обычная, черный цвет</string>
+    <string name="cleaning_black_medium">Средняя, черный цвет</string>
+    <string name="cleaning_black_strong">Глубокая, черный цвет</string>
+    <string name="cleaning_color_gentle">Мягкая, цветные дюзы</string>
+    <string name="cleaning_color_normal">Обычная, цветные дюзы</string>
+    <string name="cleaning_color_medium">Средняя, цветные дюзы</string>
+    <string name="cleaning_color_strong">Глубокая, цветные дюзы</string>
+
+    <!-- Nozzle check dialog. There is one check, not two: the sequence is what
+         escputil sends and what yusnel-rojas proved on hardware. The pair of
+         options that used to live here were the two halves of that sequence
+         offered separately, which is why one of them did nothing. -->
+    <string name="dialog_nozzle_check_title">Проверка дюз</string>
+    <string name="action_print_test">Печать теста</string>
+    <string name="dialog_nozzle_check_body">Печатает страницу проверки дюз. Требуется один лист бумаги и немного чернил. Это единственный способ точно узнать, требуется ли прочистка.</string>
+
+    <!-- About dialog. -->
+    <string name="dialog_about_title">О приложении</string>
+    <string name="about_version">Версия %1$s</string>
+    <string name="about_epson_only">Работает только со струйными принтерами Epson.</string>
+    <!-- Shown only once the fork publishes releases of its own. The app holds no
+         network permission, so this opens the page rather than checking. -->
+    <string name="action_check_updates">Проверить обновления</string>
+    <string name="about_updates_note">Открывает страницу релизов в браузере. Само приложение не выходит в Интернет.</string>
+    <string name="action_open_repo">Открыть репозиторий</string>
+    <!-- Shown with the support button, and only while DONATE_URL has a value:
+         the app does not ask for money it has nowhere to send. The button opens
+         the browser, which is also what keeps this outside Google Play's billing
+         requirement - no payment is taken inside the app. -->
+    <string name="about_donation">E-Pad Reset полностью бесплатен, не содержит рекламы и не требует учетных записей. Если он спас вас от похода в сервис, вы можете поддержать разработку.</string>
+    <string name="action_support_development">Поддержать разработку</string>
+    <string name="action_open_github">Открыть репозиторий на GitHub</string>
+
+    <!-- Exit confirmation. -->
+    <string name="dialog_exit_title">Выход из приложения</string>
+    <string name="dialog_exit_body">Выйти и закрыть %1$s?</string>
+    <string name="action_exit">Выйти</string>
+
+    <!-- Titles for the dialog shown after an action succeeds. One per kind of
+         outcome, because the app knows different amounts about each: a counter
+         reset is read back and verified, a print job is only sent and has no
+         acknowledgement to wait for. A single title said the same thing about
+         both, which was true for one and a claim for the other. -->
+    <string name="dialog_counters_updated_title">Счетчики обновлены</string>
+    <string name="dialog_backup_restored_title">Резервная копия восстановлена</string>
+    <string name="dialog_job_sent_title">Задание отправлено</string>
+
+    <!-- Error callout. The title is fixed; the body is either a localized
+         message raised by the ViewModel, or this generic line when the failure
+         was a technical one with no localized wording of its own. -->
+    <string name="callout_operation_failed">Операция не удалась</string>
+
+    <!-- Messages raised by the ViewModel. -->
+    <string name="error_printer_not_connected">Принтер не подключен</string>
+    <!-- Shown in the red callout when a forced rescan comes up empty. The Wi-Fi
+         clause lives here and not in the "No printer" hint on purpose: the hint
+         is ambient, seen by everyone on every launch, and a reader who does not
+         have the language should not meet a wall of text there. This one only
+         appears after the user asked for a rescan, which is when the question
+         "why can it not see mine?" is actually being asked.
+
+         "Note:" is load-bearing, not decoration. Without it the two sentences
+         sit side by side and read as a diagnosis — as if the app had worked out
+         that the user was reaching for the printer over Wi-Fi, which may have
+         nothing to do with why the scan came up empty. Marked as a note it is
+         what it is: an aside about what this app does. -->
+    <string name="error_no_printer_detected">Принтер Epson не обнаружен через USB OTG. Примечание: приложение не работает по Wi-Fi.</string>
+    <!-- Raised when a USB printer is attached but its vendor is not Epson. The
+         generic line above reads as a fault to someone holding a printer, so
+         this one names the real reason: the app is Epson-only. -->
+    <string name="error_non_epson_printer_detected">Принтер подключен через USB, но это не Epson. Приложение работает только со струйными принтерами Epson.</string>
+    <string name="error_connect_failed">Не удалось открыть сеанс обслуживания с принтером</string>
+
+    <!-- Shown when the printer is unplugged while the app is open. A statement
+         rather than a failure: nothing the user did went wrong. -->
+    <string name="notice_printer_disconnected">Принтер был отключен. Подключите его снова и нажмите кнопку обновления.</string>
+
+    <!-- Connection failures, resolved from PrinterService.ConnectFailure so the
+         callout can name the actual cause instead of a generic failure. -->
+    <string name="error_connect_permission_denied">Доступ к USB запрещен. Переподключите принтер и разрешите доступ.</string>
+    <!-- Kept apart from error_connect_permission_denied: the check that failed
+         cannot tell a refusal from a printer that is no longer there, and
+         sending someone to look for a permission dialog that will never appear
+         is worse than saying nothing. -->
+    <string name="error_connect_device_detached">Принтер больше не подключен. Подключите его и повторите попытку.</string>
+    <string name="error_connect_no_interfaces">У этого USB-устройства нет интерфейсов, подходящих для приложения. Возможно, это неподдерживаемая модель.</string>
+    <string name="error_connect_unsupported_model">Эта модель Epson отсутствует в базе данных приложения, открыть сеанс обслуживания невозможно. Вы можете отправить заявку на добавление (требуются проверенные данные и тесты).</string>
+    <string name="error_connect_unsupported_model_named">Модель Epson \'%1$s\' отсутствует в базе данных приложения, открыть сеанс обслуживания невозможно. Вы можете отправить заявку на добавление (требуются проверенные данные и тесты).</string>
+    <!-- The mirror image of the two lines above. The model is missing from the
+         database as well, but the community database classifies it as using a
+         maintenance box, so adding it would never enable a reset. Kept apart so
+         the app does not promise an outcome the hardware cannot deliver. -->
+    <string name="error_connect_unsupported_model_box">Эта модель Epson отсутствует в базе данных приложения, и сообщество классифицирует ее как использующую картридж обслуживания. Можно запросить прочистку и проверку дюз, но сбросить чип картриджа приложение не может.</string>
+    <string name="error_connect_unsupported_model_box_named">Модель Epson \'%1$s\' отсутствует в базе данных приложения, и сообщество классифицирует ее как использующую картридж обслуживания. Можно запросить прочистку и проверку дюз, но сбросить чип картриджа приложение не может.</string>
+    <string name="error_connect_dot4_nak">Принтер отклонил сеанс обслуживания. Выключите и включите принтер, затем повторите попытку.</string>
+    <string name="error_connect_dot4_no_reply">Принтер не ответил ни по одному из маршрутов USB. Попробуйте другой кабель или порт, перезагрузите принтер и повторите попытку.</string>
+    <!-- "may be using it", not "is using it": claimInterface returns a bare
+         boolean, so a device that vanished mid-connect is indistinguishable
+         from one another app holds. The attachment re-check narrows it, and the
+         wording no longer asserts what the check cannot prove. -->
+    <string name="error_connect_interface_busy">Не удалось занять USB-соединение принтера. Возможно, его использует другое приложение (например, служба печати). Закройте другие приложения и повторите попытку.</string>
+    <string name="error_reset_partial_shared">Эти счетчики делят общие байты памяти с другими счетчиками, поэтому их можно сбросить только вместе. Выберите все связанные счетчики.</string>
+    <!-- The refusals the service raises before it writes anything. Each one used
+         to reach the user as "Operation failed"; they are kept apart because
+         each names a different thing the user can do about it. -->
+    <string name="error_reset_no_counter_selected">Счетчик отработки не выбран, сбрасывать нечего.</string>
+    <string name="error_reset_no_values">Для выбранных счетчиков этой модели не опубликованы значения сброса, записывать нечего.</string>
+    <string name="error_reset_percentage_unsupported">Для этого набора нельзя задать процент: счетчики должны иметь опубликованный лимит, помещаться в 4 байта и не делить байты с другими.</string>
+    <string name="error_restore_no_applicable_addresses">В этой резервной копии нет адресов, используемых подключенным принтером, записывать нечего.</string>
+
+    <!-- A local draft is reviewed before any external action. -->
+    <string name="action_report_model">Помочь добавить эту модель</string>
+    <string name="action_copy_report">Копировать отчет</string>
+    <string name="report_model_note">Сформируйте краткий отчет на устройстве, проверьте его и выберите способ отправки. Приложение не подключается к Интернету.</string>
+    <string name="dialog_model_support_title">Запрос поддержки модели</string>
+    <string name="field_model_report">Отчет для проверки и редактирования</string>
+    <string name="action_choose_report_channel">Выбрать способ отправки</string>
+    <string name="action_review_report">Просмотреть отчет еще раз</string>
+    <string name="action_report_discord">Открыть Discord</string>
+    <string name="action_report_github">Создать Issue на GitHub</string>
+    <string name="action_share_report">Поделиться отчетом</string>
+    <string name="report_privacy_note">Поддержка не гарантируется. Этот черновик содержит только название модели, USB ID и версии приложения и Android, без логов, серийных номеров или дампов EEPROM. Проверьте любые добавленные данные. Данные не отправляются автоматически.</string>
+    <string name="report_discord_help">Требуется аккаунт Discord. Скопируйте проверенный отчет, перейдите в сообщество и уточните, куда опубликовать запрос на модель.</string>
+    <string name="report_github_help">Требуется аккаунт GitHub. Скопируйте проверенный отчет и вставьте его в шаблон запроса модели. В ссылке нет диагностических данных.</string>
+    <string name="report_share_help">Если у вас нет учетной записи GitHub или Discord, перешлите отчет через любое удобное приложение тому, кто может передать запрос разработчикам.</string>
+    <string name="report_external_unavailable">Не найдено приложение для выполнения этого действия. Вы можете скопировать отчет вручную.</string>
+    <string name="report_copied">Отчет скопирован</string>
+    <string name="msg_counters_updated">Счетчики отработанных чернил обновлены. Перезагрузите принтер, если это требуется для модели.</string>
+    <!-- Byte-level verification names addresses, not derived percentages. A
+         mismatch does not mean nothing changed: other writes may have applied. -->
+    <string name="error_counters_not_applied">Байты, считанные по адресу %1$s, не соответствуют отправленным значениям сброса. Возможно, изменилась лишь часть значений. Резервная копия ниже; детали смотрите в журнале.</string>
+    <string name="error_restore_not_applied">Байты, считанные по адресу %1$s, не соответствуют отправленным значениям восстановления. Возможно, изменилась лишь часть значений. Резервная копия ниже; детали смотрите в журнале.</string>
+    <string name="error_write_failed">Запись по адресу %1$s не завершилась или ответ не был получен. Предыдущие адреса (%2$d) были записаны; текущий адрес также мог измениться. Дальнейшая запись остановлена. Копия ниже.</string>
+    <string name="error_read_back_failed">Запись завершена, но не удалось считать значения для проверки. Результат не верифицирован. Резервная копия ниже.</string>
+    <string name="error_read_back_failed_at">Запись завершена, но не удалось считать байт по адресу %1$s для проверки. Результат не верифицирован. Резервная копия ниже.</string>
+    <string name="msg_backup_restored">Сохраненные значения записаны обратно. Перезагрузите принтер, если требуется.</string>
+    <string name="msg_cleaning_sent_named">Команда прочистки головки \'%1$s\' отправлена. Дождитесь начала процедуры и обновите статус вручную.</string>
+    <string name="msg_cleaning_sent">Задание прочистки печатающей головки отправлено. Дождитесь начала процедуры и обновите статус вручную.</string>
+    <string name="msg_nozzle_check_sent">Задание печати теста дюз отправлено. Ожидайте выхода страницы.</string>
+
+    <!-- Readouts. The em dash stands for "no reading yet". -->
+    <string name="percent_value">%1$d%%</string>
+    <string name="waste_counter_default_name">Счетчик отработки %1$d</string>
+
+    <!-- Printer state, resolved from the code the printer reports. EpsonProtocol
+         still produces English text for the diagnostic log; the UI maps the code
+         to these labels, so the status line is translatable. -->
+    <string name="printer_state_self_printing">Печать отчета</string>
+    <string name="printer_state_busy">Занят</string>
+    <string name="printer_state_waiting">Ожидание</string>
+    <string name="printer_state_idle">Ожидание (простой)</string>
+    <string name="printer_state_pause">Пауза</string>
+    <string name="printer_state_cleaning">Прочистка</string>
+    <string name="printer_state_error">Ошибка</string>
+
+    <!-- Printer error, resolved from the code the printer reports. -->
+    <string name="printer_error_interface">Ошибка интерфейса</string>
+    <string name="printer_error_paper_jam">Замятие бумаги</string>
+    <string name="printer_error_ink_out">Закончились чернила</string>
+    <string name="printer_error_paper_feed">Закончилась бумага или ошибка подачи</string>
+    <string name="printer_error_service_required">Требуется сервисное обслуживание</string>
+    <string name="printer_error_cover_open">Крышка открыта</string>
+
+    <!--
+      Still not translatable, and deliberately left in the protocol layer:
+
+        Ink colour names (InkLevel.color), e.g. "Black", "Light Cyan".
+
+      They are never shown to the user. The gauges display short labels derived
+      from them, and the same strings double as matching keys for the sort order
+      and for the gauge colour, so translating them would change behaviour
+      rather than just wording.
+    -->
+    <string name="temporary_backup_title">Резервная копия не сохранена на диск</string>
+    <string name="temporary_backup_warning">Полная копия находится только в оперативной памяти. Закрытие приложения приведет к ее утрате. Запись еще не производилась. Продолжайте, только если принимаете риск; сначала скопируйте текст резервной копии.</string>
+    <string name="action_continue_temporary">Продолжить с временной копией</string>
+    <string name="error_restore_incomplete_counter">Резервная копия содержит только часть счетчика. Восстановите группу счетчиков целиком; запись не производилась.</string>
+    <string name="error_restore_unit_mismatch">Эта резервная копия принадлежит другому экземпляру принтера. Запись не производилась.</string>
+    <string name="dialog_restore_legacy_identity">В этой резервной копии нет идентификатора конкретного устройства. Убедитесь, что она сделана с этого принтера перед восстановлением.</string>
+    <string name="exit_busy_warning">Выполняется операция. Выход сейчас может прервать запись и повредить значения счетчиков. По возможности дождитесь окончания.</string>
+</resources>

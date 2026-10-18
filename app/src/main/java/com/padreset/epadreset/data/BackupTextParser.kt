@@ -65,6 +65,8 @@ internal object BackupTextParser {
         }
 
         var model: String? = null
+        var unitId: String? = null
+        var declaredCount: Int? = null
         val values = linkedMapOf<Int, Byte>()
 
         var headerSeen = false
@@ -84,8 +86,24 @@ internal object BackupTextParser {
                 trimmed.startsWith(MODEL_PREFIX) -> {
                     if (headerSeen) return null
                     headerSeen = true
-                    model = trimmed.substring(MODEL_PREFIX.length).trim().asModelName()
+                    model = BackupCodec.unescape(trimmed.substring(MODEL_PREFIX.length)).trim().asModelName()
                 }
+
+                trimmed.startsWith("unit=") -> {
+                    val candidate = BackupCodec.unescape(trimmed.substring(5)).trim()
+                    if (candidate.isNotEmpty()) {
+                        unitId = candidate
+                    }
+                }
+
+                trimmed.startsWith("count=") -> {
+                    val count = trimmed.substring(6).trim().toIntOrNull() ?: return null
+                    declaredCount = count
+                }
+
+                trimmed.startsWith("time=") ||
+                trimmed.startsWith("sha256=") ||
+                trimmed.startsWith("origin=") -> Unit
 
                 else -> {
                     val match = ADDRESS_LINE.matchEntire(line) ?: return null
@@ -100,7 +118,8 @@ internal object BackupTextParser {
         }
 
         if (values.isEmpty()) return null
-        return ParsedBackup(model = model, values = values)
+        if (declaredCount != null && declaredCount != values.size) return null
+        return ParsedBackup(model = model, values = values, unitId = unitId)
     }
 
     /**

@@ -203,7 +203,7 @@ class DevicesXmlParserTest {
             val candidate = File(dir, "src/main/assets/devices.xml")
             if (candidate.isFile) {
                 return candidate.inputStream().use {
-                    EpsonPrinterCatalog.parseDevicesXmlDomForBenchmark(it, parseMaintenanceBoxes())
+                    EpsonPrinterCatalog.parseDevicesXml(it, parseMaintenanceBoxes())
                 }
             }
             dir = dir.parentFile

@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  E-Pad Reset 简体中文翻译。
+-->
+<resources>
+    <string name="app_name">E-Pad Reset</string>
+
+    <!-- Accessibility descriptions for the icon-only controls. The icons carry
+         the meaning visually, but screen readers need something to announce. -->
+    <string name="action_about">关于</string>
+    <string name="action_refresh_status">刷新状态</string>
+    <string name="action_connect_printer">连接打印机</string>
+    <string name="action_copy_log">复制协议日志</string>
+    <string name="action_open_maintenance">打开维护</string>
+    <string name="action_back">返回</string>
+
+    <!-- Section headings. -->
+    <string name="section_printer">打印机</string>
+    <string name="section_ink_levels">墨水余量</string>
+    <string name="section_waste_levels">废墨量</string>
+    <string name="section_maintenance">维护</string>
+    <string name="section_protocol_log">协议日志</string>
+
+    <!-- Printer status block. -->
+    <string name="status_working">处理中</string>
+    <string name="status_scanning">正在通过 USB OTG 扫描爱普生 (Epson) 打印机</string>
+    <string name="status_no_printer">未检测到打印机</string>
+    <string name="status_no_printer_hint">请通过 USB OTG 连接爱普生打印机，然后点击刷新按钮</string>
+    <string name="status_printer_error">打印机报告错误</string>
+    <string name="status_ready">就绪</string>
+    <string name="status_connected">已通过 USB OTG 连接</string>
+    <string name="status_stale">显示上次成功读取的状态；最近一次刷新失败</string>
+    <string name="error_status_refresh_title">无法刷新打印机状态</string>
+    <string name="error_status_refresh_detail">当前显示上次读取的状态，可能已过期。请查看打印机面板确认当前状况，然后重试。</string>
+    <string name="status_busy_indicator">处理中…</string>
+    <!-- Shown while a connection is spending seconds on a route the printer did
+         not answer on, before the next one is tried. Says what is happening and
+         how long, because the wait is otherwise unexplained. -->
+    <string name="connect_slow_note">首选连接途径无响应，正在尝试其他途径。这可能需要几秒钟，下次连接时通常会更快。</string>
+    <!-- The same situation as connect_slow_note, for the floating pill. Three
+         words, because the pill is small and the card below it carries the
+         explanation. Says what the app is doing, so the wait reads as progress
+         rather than a stall; the duration is the card's job. -->
+    <string name="connect_slow_brief">正在尝试其他途径…</string>
+
+    <!-- Detail rows inside the printer card. -->
+    <string name="label_model">型号</string>
+    <string name="label_serial">序列号</string>
+    <string name="label_highest_pad">最高废墨垫</string>
+
+    <!-- Protocol log panel. -->
+    <string name="log_empty">暂无日志记录。</string>
+    <string name="log_copied">协议日志已复制</string>
+
+    <!-- Warning shown above the waste counters. -->
+    <string name="pad_warning_title">重置计数器并不能清洁废墨垫</string>
+    <string name="pad_warning_body">计数器是电子记录，废墨垫是物理部件。在重置前请清洗、更换废墨垫或外接废墨瓶，否则废墨最终会溢出到打印机内部。</string>
+
+    <!-- Shown in place of the counters when the connected printer keeps its
+         waste ink counter somewhere the app cannot write to. Deliberately does
+         not claim to know which of the two causes applies: the catalog can tell
+         that a model has no counter, but not whether that is a maintenance box
+         or a gap in the database. The dialog explains both. -->
+    <string name="waste_unsupported_title">该型号没有可重置的废墨计数器</string>
+    <string name="waste_unsupported_body">此打印机没有本应用可重置的废墨计数器。设备未发生故障，应用与打印机均正常。</string>
+    <string name="action_more_info">更多信息</string>
+    <!-- A printer that answered, but is not in the catalog. Not the same as
+         waste_unsupported: that one means the catalog knows there is nothing
+         to reset. This one means we do not have a verified profile, so we
+         must not claim the printer has no counter. -->
+    <string name="partial_session_title">已连接，但无已验证的配置文件</string>
+    <string name="partial_session_body">可查看状态和墨水余量。在应用收录已验证的配置文件之前，无法读取或重置废墨计数器。您可以提交型号适配请求；无需等待收录即可查看当前读数。</string>
+    <string name="partial_cleaning_note">打印头清洗会消耗墨水并增加废墨计数。由于缺少已验证的配置文件，本应用无法重置该打印机的计数器。</string>
+    <string name="error_power_clean_unverified">未收录验证配置文件时无法使用深度清洗。深度清洗消耗大量墨水，且本应用无法重置该废墨计数。</string>
+
+    <!-- Shown next to a counter whose ceiling the model does not publish, which
+         is every model sourced from reinkpy. Without a ceiling there is no
+         percentage, and the raw value is what the printer actually reports. -->
+    <string name="waste_scale_unknown">无百分比：此型号未公开计数器上限值。上方显示为原始读数。</string>
+    <!-- Reset dialog body for those same models. There is no percentage field
+         and no per-counter choice, because the reset covers every address the
+         model publishes. -->
+    <string name="dialog_reset_model_values">该型号未公开计数器上限，因此没有目标百分比。重置操作将向该型号公开的所有地址写入默认值。</string>
+
+    <!-- The EEPROM backup taken before any write. Shown after the write, whether
+         it succeeded or was refused partway through. -->
+    <string name="section_waste_backup">写入前备份</string>
+    <string name="waste_backup_note">写入前这些地址保存的原始值。请保存一份备份，以便出现异常时进行恢复。</string>
+    <string name="action_copy_backup">复制备份</string>
+    <string name="backup_copied">备份已复制</string>
+    <!-- Write-path failures. The first pair means nothing was written at all;
+         the second means the printer refused partway through. -->
+    <string name="error_backup_failed">无法读取当前数值，未执行任何写入。应用在写入前必须先备份。</string>
+    <string name="error_backup_failed_at">无法读取 %1$s 处的当前数值，未执行任何写入。应用在写入前必须先备份。</string>
+    <string name="error_write_rejected">打印机拒绝写入。未执行进一步写入。</string>
+    <string name="error_write_rejected_at">打印机在 %1$s 处拒绝写入。已有 %2$d 个地址写入完成；未再写入后续内容。备份见下方。</string>
+
+    <!-- Restoring a saved backup.
+         The backup is saved by the app before every write, so the case this
+         covers is the one where the mistake is noticed later - usually with the
+         app already closed. That is why it is automatic and why it is kept on
+         disk, and the wording says so rather than presenting a button.
+         Restoring raises the counters, which is the opposite of a reset, so the
+         dialog says that plainly instead of leaving it to be discovered. -->
+    <string name="section_restore_backup">还原备份</string>
+    <string name="restore_note">每次写入前均会自动保存备份。您可以选择一份备份还原数值，或粘贴之前保存的备份文本。</string>
+    <string name="restore_no_history">暂无保存的备份。每次写入前均会自动保存一次备份。</string>
+    <string name="action_restore_selected">还原选中的备份</string>
+    <string name="action_restore_paste">从粘贴的文本还原</string>
+    <string name="restore_record_label">%1$s — %2$s</string>
+    <string name="restore_unknown_model">未知型号</string>
+    <!-- Which write found the state a saved record holds, and what it reads.
+         Two records can look identical by model and time, so without these the
+         list gives no way to tell which one undoes the mistake. The "unknown"
+         wording covers records saved before the origin was recorded at all. -->
+    <string name="restore_origin_reset">重置前保存</string>
+    <string name="restore_origin_restore">还原前保存</string>
+    <string name="restore_origin_unknown">写入前保存</string>
+    <string name="restore_record_detail">%1$s · %2$s</string>
+    <string name="restore_record_reads">读取值 %1$s</string>
+    <string name="dialog_restore_title">还原此备份？</string>
+    <string name="dialog_restore_body">此操作将写回之前记录的数值。这会增加计数器读数（与重置相反）。仅在撤销错误操作时使用。</string>
+    <string name="dialog_restore_model">备份来源型号：%1$s</string>
+    <string name="dialog_restore_no_model">此备份中未指明打印机型号。请确保它来自当前打印机。</string>
+    <string name="dialog_restore_addresses">将写入 %1$d 个地址。</string>
+    <string name="dialog_restore_counter_delta">%1$s：%2$s → %3$s</string>
+    <string name="action_restore">还原</string>
+    <string name="dialog_paste_backup_title">粘贴备份</string>
+    <string name="field_paste_backup">备份文本</string>
+    <string name="paste_backup_hint">粘贴您先前复制的备份文本，可带或不带标题行。</string>
+    <string name="paste_backup_invalid">未找到有效的备份行。请粘贴应用生成的文本，或至少包含形如 \'0x001C = 0x3F\' 的行。</string>
+    <string name="paste_backup_parsed">已找到 %1$d 个地址。</string>
+    <!-- Blocked rather than warned: the addresses belong to the model, so
+         writing one printer's record onto another would write to addresses that
+         mean something else there. -->
+    <string name="error_restore_model_mismatch">此备份来自于 %1$s，但当前连接的打印机是 %2$s。还原到不同型号可能写入错误地址，操作已被拦截。</string>
+
+    <!-- Shown when the model is on the curated maintenance-box list, so the
+         cause is known rather than guessed. The dialog that follows is the
+         tailored one below, not the two-cause one. -->
+    <string name="waste_box_title">此打印机使用独立维护箱</string>
+    <string name="waste_box_body">废墨排入可更换的维护箱中，维护箱芯片会独立记录废墨水平。打印机主板内没有可供软件重置的废墨计数器——维护箱满时请直接更换。</string>
+    <string name="waste_box_dialog_title">您的打印机使用独立维护箱</string>
+    <string name="waste_box_dialog_body">清洗打印头产生的废墨收集在独立的维护箱中，而非机身内部的吸墨垫。维护箱自带芯片记录废墨余量，打印机内部不保存该计数——因此任何软件重置工具都无法在此重置。\n\n维护箱满时需直接更换新维护箱，或使用物理芯片复位器复位芯片。这两种方式都无法通过 USB 软件操作完成。\n\n您可以在打印机屏幕上确认：状态面板会标明维护箱状态，并在需要更换时发出警告。\n\n此打印机仍支持打印头清洗和喷嘴检查，可在“维护”页面中使用。</string>
+
+    <string name="waste_unsupported_dialog_title">废墨计数的存储位置</string>
+    <string name="waste_unsupported_dialog_body">爱普生将废墨计数保存在以下两处之一：\n\n内置废墨垫：废墨由打印机内部的吸墨垫吸收，充满度记录在打印机自身的主板内存中。这是本应用可以重置的情况。\n\n独立维护箱：废墨收集在可拆卸的维护箱中，箱体芯片独立记录墨量。打印机主板不保存该计数，软件无法清除。维护箱满后需更换新箱或使用物理硬件复位芯片。\n\n若想确认属于哪一种，请查看打印机面板。若提示维护箱，则无法通过任何软件重置。\n\n如果您的打印机确为内置废墨垫却依然显示此提示，说明应用数据库尚未收录该型号。该问题可以修复，欢迎向我们反馈。\n\n打印头清洗和喷嘴检查依然可用，位于“维护”页面。</string>
+
+    <!-- Maintenance panel. -->
+    <string name="maintenance_head_cleaning">打印头清洗</string>
+    <string name="maintenance_nozzle_check">喷嘴检查</string>
+    <string name="maintenance_note">打印头清洗会消耗墨水并增加废墨计数。</string>
+
+    <!-- Dialog actions shared by more than one dialog. -->
+    <string name="action_cancel">取消</string>
+    <string name="action_ok">确定</string>
+    <string name="action_close">关闭</string>
+
+    <!-- Reset waste counters dialog. -->
+    <string name="dialog_reset_title">重置废墨计数器</string>
+    <string name="dialog_reset_warning">重置废墨计数器将修改打印机内部固件数值。请自行承担风险。</string>
+    <string name="field_target_percentage">目标百分比</string>
+    <string name="action_reset_counters">重置计数器</string>
+    <string name="action_reset_counters_unverified">重置计数器（未验证配置文件）</string>
+    <string name="action_paste_profile">粘贴配置文件</string>
+    <string name="action_delete_profile">删除本地配置文件</string>
+    <string name="dialog_paste_profile_title">粘贴公开配置文件</string>
+    <string name="paste_profile_hint">粘贴 reinkpy 的模型代码片段（&lt;model&gt;），需包含 source 和 version 属性。用于填补未收录的型号。它不会覆盖内置目录，密钥仅保留在本机。</string>
+    <string name="field_paste_profile">配置文件</string>
+    <string name="paste_profile_invalid">该文本不是应用可存储的有效配置文件。</string>
+    <string name="error_gap_provenance">配置文件必须包含公开来源和版本号。</string>
+    <string name="error_gap_malformed">配置文件不完整或格式超出有效范围。</string>
+    <string name="error_gap_box">使用维护箱的型号不能包含废墨重置配置。</string>
+    <string name="error_gap_doctype">该文本不是有效的配置文件片段。</string>
+    <string name="error_gap_catalogued">该型号已存在于应用目录中，无法通过粘贴替换。</string>
+    <string name="error_gap_full">本地配置列表已满，请先删除一个配置文件。</string>
+
+    <!-- Head cleaning dialog, for models that accept service cleaning. -->
+    <string name="dialog_cleaning_title">打印头清洗</string>
+    <string name="dialog_cleaning_body">清洗打印头会消耗墨水。请选择该打印机支持的清洗级别。</string>
+    <string name="action_start_cleaning">开始清洗</string>
+
+    <!-- Generic ESC/P2 cleaning dialog, used when service cleaning is refused. -->
+    <string name="dialog_generic_cleaning_body">此模式发送通用爱普生 ESC/P2 维护任务。不同型号支持程度可能有所不同。</string>
+    <string name="cleaning_all_nozzles">清洗所有喷嘴</string>
+    <string name="cleaning_black_nozzle">清洗黑色喷嘴</string>
+    <string name="cleaning_color_nozzles">清洗彩色喷嘴</string>
+    <string name="cleaning_alternative_mode">打印头清洗（备用模式）</string>
+    <string name="cleaning_power_clean">强力深度清洗 (Power Clean)</string>
+
+    <!-- Service cleaning modes, as the model database names them.
+         The dialog is read, so it gets these labels. The protocol log keeps the
+         database wording instead, because it is a diagnostic record and people
+         search for the exact string. That wording also carries a leftover "%"
+         where a placeholder was never substituted, which these drop.
+         A name the table does not know falls back to the database wording. -->
+    <string name="cleaning_mode_gentle">轻度清洗</string>
+    <string name="cleaning_mode_normal">标准清洗</string>
+    <string name="cleaning_mode_medium">中度清洗</string>
+    <string name="cleaning_mode_strong">强力清洗</string>
+    <string name="cleaning_mode_gentle_mode">轻度清洗（模式）</string>
+    <string name="cleaning_mode_normal_mode">标准清洗（模式）</string>
+    <string name="cleaning_mode_strong_mode">强力清洗（模式）</string>
+    <string name="cleaning_mode_strong_a">强力清洗模式 A</string>
+    <string name="cleaning_mode_strong_b">强力清洗模式 B</string>
+    <string name="cleaning_all_gentle">轻度，所有喷嘴</string>
+    <string name="cleaning_all_normal">标准，所有喷嘴</string>
+    <string name="cleaning_all_medium">中度，所有喷嘴</string>
+    <string name="cleaning_all_strong">强力，所有喷嘴</string>
+    <string name="cleaning_black_gentle">轻度，黑色喷嘴</string>
+    <string name="cleaning_black_normal">标准，黑色喷嘴</string>
+    <string name="cleaning_black_medium">中度，黑色喷嘴</string>
+    <string name="cleaning_black_strong">强力，黑色喷嘴</string>
+    <string name="cleaning_color_gentle">轻度，彩色喷嘴</string>
+    <string name="cleaning_color_normal">标准，彩色喷嘴</string>
+    <string name="cleaning_color_medium">中度，彩色喷嘴</string>
+    <string name="cleaning_color_strong">强力，彩色喷嘴</string>
+
+    <!-- Nozzle check dialog. There is one check, not two: the sequence is what
+         escputil sends and what yusnel-rojas proved on hardware. The pair of
+         options that used to live here were the two halves of that sequence
+         offered separately, which is why one of them did nothing. -->
+    <string name="dialog_nozzle_check_title">喷嘴检查</string>
+    <string name="action_print_test">打印测试页</string>
+    <string name="dialog_nozzle_check_body">打印喷嘴检查测试样张。需要一张纸和少量墨水，这是判断是否需要清洗打印头的唯一可靠方法。</string>
+
+    <!-- About dialog. -->
+    <string name="dialog_about_title">关于</string>
+    <string name="about_version">版本 %1$s</string>
+    <string name="about_epson_only">仅适用于爱普生 (Epson) 喷墨打印机。</string>
+    <!-- Shown only once the fork publishes releases of its own. The app holds no
+         network permission, so this opens the page rather than checking. -->
+    <string name="action_check_updates">检查更新</string>
+    <string name="about_updates_note">在浏览器中打开版本发布页面。应用本身绝不联网。</string>
+    <string name="action_open_repo">打开代码仓库</string>
+    <!-- Shown with the support button, and only while DONATE_URL has a value:
+         the app does not ask for money it has nowhere to send. The button opens
+         the browser, which is also what keeps this outside Google Play's billing
+         requirement - no payment is taken inside the app. -->
+    <string name="about_donation">E-Pad Reset 免费开源、无广告且无需登录。如果它帮您省去了维修费用，欢迎支持后续开发。</string>
+    <string name="action_support_development">支持开发</string>
+    <string name="action_open_github">打开 GitHub 仓库</string>
+
+    <!-- Exit confirmation. -->
+    <string name="dialog_exit_title">退出应用</string>
+    <string name="dialog_exit_body">确定要退出并关闭 %1$s 吗？</string>
+    <string name="action_exit">退出</string>
+
+    <!-- Titles for the dialog shown after an action succeeds. One per kind of
+         outcome, because the app knows different amounts about each: a counter
+         reset is read back and verified, a print job is only sent and has no
+         acknowledgement to wait for. A single title said the same thing about
+         both, which was true for one and a claim for the other. -->
+    <string name="dialog_counters_updated_title">计数器已更新</string>
+    <string name="dialog_backup_restored_title">备份已还原</string>
+    <string name="dialog_job_sent_title">任务已发送</string>
+
+    <!-- Error callout. The title is fixed; the body is either a localized
+         message raised by the ViewModel, or this generic line when the failure
+         was a technical one with no localized wording of its own. -->
+    <string name="callout_operation_failed">操作失败</string>
+
+    <!-- Messages raised by the ViewModel. -->
+    <string name="error_printer_not_connected">打印机未连接</string>
+    <!-- Shown in the red callout when a forced rescan comes up empty. The Wi-Fi
+         clause lives here and not in the "No printer" hint on purpose: the hint
+         is ambient, seen by everyone on every launch, and a reader who does not
+         have the language should not meet a wall of text there. This one only
+         appears after the user asked for a rescan, which is when the question
+         "why can it not see mine?" is actually being asked.
+
+         "Note:" is load-bearing, not decoration. Without it the two sentences
+         sit side by side and read as a diagnosis — as if the app had worked out
+         that the user was reaching for the printer over Wi-Fi, which may have
+         nothing to do with why the scan came up empty. Marked as a note it is
+         what it is: an aside about what this app does. -->
+    <string name="error_no_printer_detected">未通过 USB OTG 检测到爱普生打印机。注意：本应用不支持 Wi-Fi 连接。</string>
+    <!-- Raised when a USB printer is attached but its vendor is not Epson. The
+         generic line above reads as a fault to someone holding a printer, so
+         this one names the real reason: the app is Epson-only. -->
+    <string name="error_non_epson_printer_detected">检测到通过 USB 连接的打印机，但不是爱普生品牌。本应用仅适用于爱普生喷墨打印机。</string>
+    <string name="error_connect_failed">无法与打印机建立维护会话</string>
+
+    <!-- Shown when the printer is unplugged while the app is open. A statement
+         rather than a failure: nothing the user did went wrong. -->
+    <string name="notice_printer_disconnected">打印机已断开连接。请重新连接并点击刷新以重新读取。</string>
+
+    <!-- Connection failures, resolved from PrinterService.ConnectFailure so the
+         callout can name the actual cause instead of a generic failure. -->
+    <string name="error_connect_permission_denied">USB 访问权限被拒绝。请重新连接打印机并允许授权请求。</string>
+    <!-- Kept apart from error_connect_permission_denied: the check that failed
+         cannot tell a refusal from a printer that is no longer there, and
+         sending someone to look for a permission dialog that will never appear
+         is worse than saying nothing. -->
+    <string name="error_connect_device_detached">打印机已断开。请重新连接后重试。</string>
+    <string name="error_connect_no_interfaces">此 USB 设备没有应用可用的接口。它可能不是受支持的爱普生打印机。</string>
+    <string name="error_connect_unsupported_model">此爱普生型号未收录在应用数据库中，无法开启维护会话。您可以申请适配；支持需要经过验证的数据和硬件测试，无法保证一定支持。</string>
+    <string name="error_connect_unsupported_model_named">爱普生型号 \'%1$s\' 未收录在应用数据库中，无法开启维护会话。您可以申请适配；支持需要经过验证的数据和硬件测试，无法保证一定支持。</string>
+    <!-- The mirror image of the two lines above. The model is missing from the
+         database as well, but the community database classifies it as using a
+         maintenance box, so adding it would never enable a reset. Kept apart so
+         the app does not promise an outcome the hardware cannot deliver. -->
+    <string name="error_connect_unsupported_model_box">此爱普生型号未收录在应用数据库中，且社区目录将其归类为使用维护箱。您可以申请清洗和喷嘴检查支持，但本应用无法重置维护箱芯片上的计数器。</string>
+    <string name="error_connect_unsupported_model_box_named">爱普生型号 \'%1$s\' 未收录在应用数据库中，且社区目录将其归类为使用维护箱。您可以申请清洗和喷嘴检查支持，但本应用无法重置维护箱芯片上的计数器。</string>
+    <string name="error_connect_dot4_nak">打印机拒绝了维护会话请求。请将打印机开关机重启后重试。</string>
+    <string name="error_connect_dot4_no_reply">打印机在所有 USB 通道上均无应答。请尝试更换数据线或接口，重启打印机后重试。</string>
+    <!-- "may be using it", not "is using it": claimInterface returns a bare
+         boolean, so a device that vanished mid-connect is indistinguishable
+         from one another app holds. The attachment re-check narrows it, and the
+         wording no longer asserts what the check cannot prove. -->
+    <string name="error_connect_interface_busy">无法占用打印机的 USB 连接。可能有其他应用正在使用（例如打印服务）；请关闭其他打印应用后重试。</string>
+    <string name="error_reset_partial_shared">这些计数器与其他计数器共享内存字节，只能一起重置。请选择所有关联计数器后继续。</string>
+    <!-- The refusals the service raises before it writes anything. Each one used
+         to reach the user as "Operation failed"; they are kept apart because
+         each names a different thing the user can do about it. -->
+    <string name="error_reset_no_counter_selected">未选择废墨计数器，无内容可重置。</string>
+    <string name="error_reset_no_values">该型号未公布选定计数器的重置值，无数据可写入。</string>
+    <string name="error_reset_percentage_unsupported">无法为所选项设置目标百分比：计数器必须公布上限、不超过4字节且不与其他计数器共享字节。</string>
+    <string name="error_restore_no_applicable_addresses">此备份不包含当前打印机使用的地址，无数据可写回。</string>
+
+    <!-- A local draft is reviewed before any external action. -->
+    <string name="action_report_model">协助添加该型号</string>
+    <string name="action_copy_report">复制报告</string>
+    <string name="report_model_note">在本地生成受限报告，检查后选择分享方式。应用本身不连接互联网。</string>
+    <string name="dialog_model_support_title">申请型号支持</string>
+    <string name="field_model_report">可审核与编辑的报告</string>
+    <string name="action_choose_report_channel">选择分享方式</string>
+    <string name="action_review_report">再次检查报告</string>
+    <string name="action_report_discord">打开 Discord</string>
+    <string name="action_report_github">打开 GitHub Issue</string>
+    <string name="action_share_report">分享报告</string>
+    <string name="report_privacy_note">不保证一定能提供支持。此草稿仅包含型号名称、USB ID、应用及 Android 版本，不包含原始日志、序列号或 EEPROM 备份。请检查添加的任何内容。无自动发送行为；外部分享由其他应用或浏览器根据其隐私政策处理。</string>
+    <string name="report_discord_help">Discord 需要账号。复制检查后的报告，进入社区并咨询在何处发布型号适配请求。打开邀请链接不会自动粘贴或发布任何内容。</string>
+    <string name="report_github_help">GitHub 需要账号。复制检查后的报告并粘贴到型号请求模板中。链接中不包含任何诊断数据。</string>
+    <string name="report_share_help">如果没有 GitHub 或 Discord 账号，可通过您已有的聊天软件分享给能够转交请求的人。本应用未配置接收邮箱。请自行选择接收方；打开分享面板不代表维护者已收到。</string>
+    <string name="report_external_unavailable">无法打开任何应用以执行此操作。您仍然可以复制报告并自行选择发送目标。</string>
+    <string name="report_copied">报告已复制</string>
+    <string name="msg_counters_updated">废墨计数器已更新。若该型号有要求，请重启打印机。</string>
+    <!-- Byte-level verification names addresses, not derived percentages. A
+         mismatch does not mean nothing changed: other writes may have applied. -->
+    <string name="error_counters_not_applied">在 %1$s 处读回的字节与发送的重置值不匹配。部分数值可能已变更。备份见下方；预期值与读回值请见协议日志。</string>
+    <string name="error_restore_not_applied">在 %1$s 处读回的字节与发送的还原值不匹配。部分数值可能已变更。备份见下方；预期值与读回值请见协议日志。</string>
+    <string name="error_write_failed">无法完成 %1$s 处的写入或读取其响应。已有 %2$d 个先前地址写入；此地址可能也已改变。未再执行后续写入。备份见下方。</string>
+    <string name="error_read_back_failed">写入已完成，但无法读回数值进行核对。结果未经验证；部分数值可能已改变。备份见下方。</string>
+    <string name="error_read_back_failed_at">写入已完成，但无法读回 %1$s 处的字节。结果未经验证；部分数值可能已改变。备份见下方。</string>
+    <string name="msg_backup_restored">保存的数值已写回。若该型号有要求，请重启打印机。</string>
+    <string name="msg_cleaning_sent_named">已发送打印头清洗命令 \'%1$s\'。请等待打印机开始清洗程序，然后手动刷新状态。</string>
+    <string name="msg_cleaning_sent">已发送打印头清洗任务。请等待打印机开始清洗程序，然后手动刷新状态。</string>
+    <string name="msg_nozzle_check_sent">已发送喷嘴检查打印任务。请等待页面打印完成。</string>
+
+    <!-- Readouts. The em dash stands for "no reading yet". -->
+    <string name="percent_value">%1$d%%</string>
+    <string name="waste_counter_default_name">废墨计数器 %1$d</string>
+
+    <!-- Printer state, resolved from the code the printer reports. EpsonProtocol
+         still produces English text for the diagnostic log; the UI maps the code
+         to these labels, so the status line is translatable. -->
+    <string name="printer_state_self_printing">正在自检打印</string>
+    <string name="printer_state_busy">忙碌</string>
+    <string name="printer_state_waiting">等待中</string>
+    <string name="printer_state_idle">空闲</string>
+    <string name="printer_state_pause">已暂停</string>
+    <string name="printer_state_cleaning">正在清洗</string>
+    <string name="printer_state_error">错误</string>
+
+    <!-- Printer error, resolved from the code the printer reports. -->
+    <string name="printer_error_interface">接口错误</string>
+    <string name="printer_error_paper_jam">卡纸</string>
+    <string name="printer_error_ink_out">墨水耗尽</string>
+    <string name="printer_error_paper_feed">缺纸或进纸错误</string>
+    <string name="printer_error_service_required">需要维修服务</string>
+    <string name="printer_error_cover_open">机盖打开</string>
+
+    <!--
+      Still not translatable, and deliberately left in the protocol layer:
+
+        Ink colour names (InkLevel.color), e.g. "Black", "Light Cyan".
+
+      They are never shown to the user. The gauges display short labels derived
+      from them, and the same strings double as matching keys for the sort order
+      and for the gauge colour, so translating them would change behaviour
+      rather than just wording.
+    -->
+    <string name="temporary_backup_title">备份未保存至存储</string>
+    <string name="temporary_backup_warning">完整备份当前仅保存在内存中。关闭应用或进程被终止将导致备份丢失。尚未写入任何字节。仅当您自愿承担此风险时才继续；建议先复制备份文本。</string>
+    <string name="action_continue_temporary">使用临时备份继续</string>
+    <string name="error_restore_incomplete_counter">备份仅包含计数器的一部分。请还原完整的计数器组；未写入任何内容。</string>
+    <string name="error_restore_unit_mismatch">此备份属于另一台打印机设备。未写入任何内容。</string>
+    <string name="dialog_restore_legacy_identity">此备份未记录原始打印机设备标识。还原前请确认它确来自当前打印机。</string>
+    <string name="exit_busy_warning">操作正在进行中。此时退出可能会中断写入并导致计数器数值异常。若可能，请等待操作完成。</string>
+</resources>

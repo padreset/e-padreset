@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  E-Pad Reset 日本語翻訳。
+-->
+<resources>
+    <string name="app_name">E-Pad Reset</string>
+
+    <!-- Accessibility descriptions for the icon-only controls. The icons carry
+         the meaning visually, but screen readers need something to announce. -->
+    <string name="action_about">アプリ情報</string>
+    <string name="action_refresh_status">状態を更新</string>
+    <string name="action_connect_printer">プリンターに接続</string>
+    <string name="action_copy_log">通信ログをコピー</string>
+    <string name="action_open_maintenance">メンテナンスを開く</string>
+    <string name="action_back">戻る</string>
+
+    <!-- Section headings. -->
+    <string name="section_printer">プリンター</string>
+    <string name="section_ink_levels">インク残量</string>
+    <string name="section_waste_levels">廃インク量</string>
+    <string name="section_maintenance">メンテナンス</string>
+    <string name="section_protocol_log">通信ログ</string>
+
+    <!-- Printer status block. -->
+    <string name="status_working">処理中</string>
+    <string name="status_scanning">USB OTG経由でエプソンプリンターを検索中</string>
+    <string name="status_no_printer">プリンター未検出</string>
+    <string name="status_no_printer_hint">USB OTG経由でエプソンプリンターを接続し、更新ボタンをタップしてください</string>
+    <string name="status_printer_error">プリンターでエラーが発生しました</string>
+    <string name="status_ready">準備完了</string>
+    <string name="status_connected">USB OTGで接続中</string>
+    <string name="status_stale">前回の正常取得時の状態です（最新の更新に失敗しました）</string>
+    <string name="error_status_refresh_title">プリンターの状態を更新できませんでした</string>
+    <string name="error_status_refresh_detail">前回の状態を表示しており、最新ではない可能性があります。プリンター本体の画面を確認してから再試行してください。</string>
+    <string name="status_busy_indicator">処理中…</string>
+    <!-- Shown while a connection is spending seconds on a route the printer did
+         not answer on, before the next one is tried. Says what is happening and
+         how long, because the wait is otherwise unexplained. -->
+    <string name="connect_slow_note">最初の接続経路で応答がないため、別の経路を試しています。数秒かかる場合があります（次回以降は早くなります）。</string>
+    <!-- The same situation as connect_slow_note, for the floating pill. Three
+         words, because the pill is small and the card below it carries the
+         explanation. Says what the app is doing, so the wait reads as progress
+         rather than a stall; the duration is the card's job. -->
+    <string name="connect_slow_brief">別の経路を試行中…</string>
+
+    <!-- Detail rows inside the printer card. -->
+    <string name="label_model">機種名</string>
+    <string name="label_serial">製造番号</string>
+    <string name="label_highest_pad">最大パッド値</string>
+
+    <!-- Protocol log panel. -->
+    <string name="log_empty">ログエントリはまだありません。</string>
+    <string name="log_copied">通信ログをコピーしました</string>
+
+    <!-- Warning shown above the waste counters. -->
+    <string name="pad_warning_title">リセットしてもパッドは清掃されません</string>
+    <string name="pad_warning_body">カウンターは電子的な記録であり、吸収パッドは物理部品です。リセット前に廃インクパッドを洗浄・交換するか廃液ボトルへ逃がしてください。放置するとプリンター内部へインクが漏れ出します。</string>
+
+    <!-- Shown in place of the counters when the connected printer keeps its
+         waste ink counter somewhere the app cannot write to. Deliberately does
+         not claim to know which of the two causes applies: the catalog can tell
+         that a model has no counter, but not whether that is a maintenance box
+         or a gap in the database. The dialog explains both. -->
+    <string name="waste_unsupported_title">この機種にはリセット対象のカウンターがありません</string>
+    <string name="waste_unsupported_body">このプリンターにはアプリからリセット可能な廃インクカウンターが存在しません。故障ではなく、アプリにもプリンターにも異常はありません。</string>
+    <string name="action_more_info">詳細情報</string>
+    <!-- A printer that answered, but is not in the catalog. Not the same as
+         waste_unsupported: that one means the catalog knows there is nothing
+         to reset. This one means we do not have a verified profile, so we
+         must not claim the printer has no counter. -->
+    <string name="partial_session_title">検証済みプロファイルなしで接続中</string>
+    <string name="partial_session_body">状態とインク残量は確認できます。検証済みプロファイルが登録されるまで、廃インクカウンターの読み込みやリセットは行われません。機種サポートをリクエストできます（現在の表示確認に影響はありません）。</string>
+    <string name="partial_cleaning_note">ヘッドクリーニングはインクを消費し、廃インクカウンターを増加させます。検証済みプロファイルがないため、本アプリではこの機種のカウンターをリセットできません。</string>
+    <string name="error_power_clean_unverified">検証済みプロファイルがない場合、強力クリーニングは利用できません。多量のインクを消費し、本アプリで廃インクカウンターを戻すことができません。</string>
+
+    <!-- Shown next to a counter whose ceiling the model does not publish, which
+         is every model sourced from reinkpy. Without a ceiling there is no
+         percentage, and the raw value is what the printer actually reports. -->
+    <string name="waste_scale_unknown">パーセント表示なし：この機種のカウンター上限値が公開されていません。上記は直接の測定値です。</string>
+    <!-- Reset dialog body for those same models. There is no percentage field
+         and no per-counter choice, because the reset covers every address the
+         model publishes. -->
+    <string name="dialog_reset_model_values">この機種のカウンター上限値が未公開のため、目標パーセントはありません。リセットを実行すると、この機種に登録されている全アドレスへ既定値を書き込みます。</string>
+
+    <!-- The EEPROM backup taken before any write. Shown after the write, whether
+         it succeeded or was refused partway through. -->
+    <string name="section_waste_backup">書き込み前のバックアップ</string>
+    <string name="waste_backup_note">書き込み前にこれらのアドレスに保存されていた値です。不測の事態に備えてコピーを保管してください。</string>
+    <string name="action_copy_backup">バックアップをコピー</string>
+    <string name="backup_copied">バックアップをコピーしました</string>
+    <!-- Write-path failures. The first pair means nothing was written at all;
+         the second means the printer refused partway through. -->
+    <string name="error_backup_failed">現在の値を読み取れなかったため、書き込みは行われませんでした。アプリは書き込み前に必ずバックアップを行います。</string>
+    <string name="error_backup_failed_at">%1$s の現在値を読み取れなかったため、書き込みは行われませんでした。アプリは書き込み前に必ずバックアップを行います。</string>
+    <string name="error_write_rejected">プリンターにより書き込みが拒否されました。以降の書き込みは行われていません。</string>
+    <string name="error_write_rejected_at">%1$s で書き込みが拒否されました。すでに %2$d 件のアドレスが書き込まれ、それ以降の書き込みは中断されました。バックアップは以下にあります。</string>
+
+    <!-- Restoring a saved backup.
+         The backup is saved by the app before every write, so the case this
+         covers is the one where the mistake is noticed later - usually with the
+         app already closed. That is why it is automatic and why it is kept on
+         disk, and the wording says so rather than presenting a button.
+         Restoring raises the counters, which is the opposite of a reset, so the
+         dialog says that plainly instead of leaving it to be discovered. -->
+    <string name="section_restore_backup">バックアップの復元</string>
+    <string name="restore_note">書き込みごとにバックアップが自動保存されます。復元したいものを選択するか、保存したバックアップテキストを貼り付けてください。</string>
+    <string name="restore_no_history">保存されたバックアップはありません。各書き込みの直前に自動保存されます。</string>
+    <string name="action_restore_selected">選択したバックアップを復元</string>
+    <string name="action_restore_paste">貼り付けたテキストから復元</string>
+    <string name="restore_record_label">%1$s — %2$s</string>
+    <string name="restore_unknown_model">不明な機種</string>
+    <!-- Which write found the state a saved record holds, and what it reads.
+         Two records can look identical by model and time, so without these the
+         list gives no way to tell which one undoes the mistake. The "unknown"
+         wording covers records saved before the origin was recorded at all. -->
+    <string name="restore_origin_reset">リセット前に保存</string>
+    <string name="restore_origin_restore">復元前に保存</string>
+    <string name="restore_origin_unknown">書き込み前に保存</string>
+    <string name="restore_record_detail">%1$s · %2$s</string>
+    <string name="restore_record_reads">読み取り値 %1$s</string>
+    <string name="dialog_restore_title">このバックアップを復元しますか？</string>
+    <string name="dialog_restore_body">以前の書き込み前に記録された値を書き戻します。リセットとは逆にカウンターが増加します。誤った操作を元に戻す場合のみ使用してください。</string>
+    <string name="dialog_restore_model">バックアップ元機種：%1$s</string>
+    <string name="dialog_restore_no_model">このバックアップにはプリンター機種名が含まれていません。このプリンターのものであることを確認してください。</string>
+    <string name="dialog_restore_addresses">%1$d 件のアドレスを書き込みます。</string>
+    <string name="dialog_restore_counter_delta">%1$s: %2$s → %3$s</string>
+    <string name="action_restore">復元</string>
+    <string name="dialog_paste_backup_title">バックアップを貼り付け</string>
+    <string name="field_paste_backup">バックアップテキスト</string>
+    <string name="paste_backup_hint">以前コピーしたバックアップテキストを貼り付けてください（ヘッダー行の有無は問いません）。</string>
+    <string name="paste_backup_invalid">有効なバックアップ行が見つかりません。アプリから出力されたテキスト、または「0x001C = 0x3F」形式の行を貼り付けてください。</string>
+    <string name="paste_backup_parsed">%1$d 件のアドレスを検出しました。</string>
+    <!-- Blocked rather than warned: the addresses belong to the model, so
+         writing one printer's record onto another would write to addresses that
+         mean something else there. -->
+    <string name="error_restore_model_mismatch">このバックアップは %1$s 用ですが、接続中のプリンターは %2$s です。異なる機種に復元すると不正なアドレスに書き込む恐れがあるためブロックされました。</string>
+
+    <!-- Shown when the model is on the curated maintenance-box list, so the
+         cause is known rather than guessed. The dialog that follows is the
+         tailored one below, not the two-cause one. -->
+    <string name="waste_box_title">このプリンターはメンテナンスボックスを使用します</string>
+    <string name="waste_box_body">廃インクは交換可能なメンテナンスボックスに排出され、ボックス内のICチップに残量が記録されます。プリンター本体側にリセット可能なカウンターはありません（満杯時は交換します）。</string>
+    <string name="waste_box_dialog_title">この機種はメンテナンスボックス方式です</string>
+    <string name="waste_box_dialog_body">ヘッドクリーニング等で発生する廃インクは、本体内部のパッドではなくメンテナンスボックスに溜まります。ボックス自体のICチップが残量を記録しており、プリンター内部にはカウンターが存在しません。そのためソフトウェアによるリセットはできません。\n\nボックスが満杯になった場合は新品に交換するか、専用の物理リセッターでチップを初期化します（USB接続のアプリからは実行できません）。\n\nプリンター本体の画面でも確認できます。メンテナンスボックスの状態が表示され、交換時期が警告されます。\n\nヘッドクリーニングやノズルチェック機能は本機でも引き続き利用可能です（メンテナンス画面から実行できます）。</string>
+
+    <string name="waste_unsupported_dialog_title">廃インクカウンターの記録場所について</string>
+    <string name="waste_unsupported_dialog_body">エプソン製プリンターの廃インク記録方式には以下の2種類があります。\n\n本体内蔵パッド方式：本体内部の吸収材にインクを溜め、プリンター内部の基板メモリにカウントを保存します。本アプリでリセットできるのはこの方式です。\n\nメンテナンスボックス方式：着脱可能なボックスに溜め、ボックス上のチップに残量を記録します。本体メモリにはカウンターがないため、ソフトウェアからは消去できません。ボックスを交換するか専用リセッター器具を用います。\n\nどちらの方式かはプリンター本体の画面で確認できます。「メンテナンスボックス」の表示があればソフトウェアでは対応できません。\n\n本体内蔵パッド方式であるにもかかわらずこのメッセージが出る場合、アプリのデータベースに未登録の機種です。追加調査が可能ですので、ぜひご報告ください。\n\nヘッドクリーニングやノズルチェックは「メンテナンス」画面から引き続き利用できます。</string>
+
+    <!-- Maintenance panel. -->
+    <string name="maintenance_head_cleaning">ヘッドクリーニング</string>
+    <string name="maintenance_nozzle_check">ノズルチェック</string>
+    <string name="maintenance_note">ヘッドクリーニングはインクを消費し、廃インクカウンターを増加させます。</string>
+
+    <!-- Dialog actions shared by more than one dialog. -->
+    <string name="action_cancel">キャンセル</string>
+    <string name="action_ok">OK</string>
+    <string name="action_close">閉じる</string>
+
+    <!-- Reset waste counters dialog. -->
+    <string name="dialog_reset_title">廃インクカウンターのリセット</string>
+    <string name="dialog_reset_warning">廃インクカウンターのリセットはプリンター内部のファームウェア値を書き換えます。自己責任でご使用ください。</string>
+    <string name="field_target_percentage">目標パーセント</string>
+    <string name="action_reset_counters">カウンターをリセット</string>
+    <string name="action_reset_counters_unverified">カウンターをリセット（未検証プロファイル）</string>
+    <string name="action_paste_profile">プロファイルを貼り付け</string>
+    <string name="action_delete_profile">ローカルプロファイルを削除</string>
+    <string name="dialog_paste_profile_title">公開プロファイルを貼り付け</string>
+    <string name="paste_profile_hint">reinkpyのmodelタグ（&lt;model&gt;）をsourceとversion属性を含めて貼り付けてください。未収録の機種に対応できます。既存カタログを上書きすることはなく、端末内にのみ保存されます。</string>
+    <string name="field_paste_profile">プロファイル</string>
+    <string name="paste_profile_invalid">本アプリで保存可能なプロファイル形式ではありません。</string>
+    <string name="error_gap_provenance">プロファイルには公開ソースとバージョンが必要です。</string>
+    <string name="error_gap_malformed">プロファイルが不完全か、範囲外です。</string>
+    <string name="error_gap_box">メンテナンスボックス機種に廃インクリセットを含めることはできません。</string>
+    <string name="error_gap_doctype">プロファイルのスニペットではありません。</string>
+    <string name="error_gap_catalogued">この機種はすでにアプリに収録されています。貼り付けによる上書きはできません。</string>
+    <string name="error_gap_full">ローカル保存件数が上限に達しました。先に既存のプロファイルを削除してください。</string>
+
+    <!-- Head cleaning dialog, for models that accept service cleaning. -->
+    <string name="dialog_cleaning_title">ヘッドクリーニング</string>
+    <string name="dialog_cleaning_body">ヘッドクリーニングはインクを消費します。このプリンターが対応しているクリーニングレベルを選択してください。</string>
+    <string name="action_start_cleaning">クリーニング開始</string>
+
+    <!-- Generic ESC/P2 cleaning dialog, used when service cleaning is refused. -->
+    <string name="dialog_generic_cleaning_body">汎用のエプソン ESC/P2 メンテナンスジョブを送信します。対応状況は機種により異なります。</string>
+    <string name="cleaning_all_nozzles">全ノズルクリーニング</string>
+    <string name="cleaning_black_nozzle">ブラックノズルクリーニング</string>
+    <string name="cleaning_color_nozzles">カラーノズルクリーニング</string>
+    <string name="cleaning_alternative_mode">ヘッドクリーニング（代替モード）</string>
+    <string name="cleaning_power_clean">強力クリーニング (Power Clean)</string>
+
+    <!-- Service cleaning modes, as the model database names them.
+         The dialog is read, so it gets these labels. The protocol log keeps the
+         database wording instead, because it is a diagnostic record and people
+         search for the exact string. That wording also carries a leftover "%"
+         where a placeholder was never substituted, which these drop.
+         A name the table does not know falls back to the database wording. -->
+    <string name="cleaning_mode_gentle">弱クリーニング</string>
+    <string name="cleaning_mode_normal">標準クリーニング</string>
+    <string name="cleaning_mode_medium">中クリーニング</string>
+    <string name="cleaning_mode_strong">強クリーニング</string>
+    <string name="cleaning_mode_gentle_mode">弱クリーニング（モード）</string>
+    <string name="cleaning_mode_normal_mode">標準クリーニング（モード）</string>
+    <string name="cleaning_mode_strong_mode">強クリーニング（モード）</string>
+    <string name="cleaning_mode_strong_a">強クリーニング モードA</string>
+    <string name="cleaning_mode_strong_b">強クリーニング モードB</string>
+    <string name="cleaning_all_gentle">全ノズル（弱）</string>
+    <string name="cleaning_all_normal">全ノズル（標準）</string>
+    <string name="cleaning_all_medium">全ノズル（中）</string>
+    <string name="cleaning_all_strong">全ノズル（強）</string>
+    <string name="cleaning_black_gentle">ブラック（弱）</string>
+    <string name="cleaning_black_normal">ブラック（標準）</string>
+    <string name="cleaning_black_medium">ブラック（中）</string>
+    <string name="cleaning_black_strong">ブラック（強）</string>
+    <string name="cleaning_color_gentle">カラー（弱）</string>
+    <string name="cleaning_color_normal">カラー（標準）</string>
+    <string name="cleaning_color_medium">カラー（中）</string>
+    <string name="cleaning_color_strong">カラー（強）</string>
+
+    <!-- Nozzle check dialog. There is one check, not two: the sequence is what
+         escputil sends and what yusnel-rojas proved on hardware. The pair of
+         options that used to live here were the two halves of that sequence
+         offered separately, which is why one of them did nothing. -->
+    <string name="dialog_nozzle_check_title">ノズルチェック</string>
+    <string name="action_print_test">テスト印刷</string>
+    <string name="dialog_nozzle_check_body">ノズルチェックパターンを用紙に印刷します。用紙1枚と少量のインクを消費しますが、クリーニングが必要かどうかを正しく判断する唯一の方法です。</string>
+
+    <!-- About dialog. -->
+    <string name="dialog_about_title">アプリ情報</string>
+    <string name="about_version">バージョン %1$s</string>
+    <string name="about_epson_only">エプソン製インクジェットプリンター専用です。</string>
+    <!-- Shown only once the fork publishes releases of its own. The app holds no
+         network permission, so this opens the page rather than checking. -->
+    <string name="action_check_updates">更新を確認</string>
+    <string name="about_updates_note">ブラウザでリリースページを開きます。アプリ自体が通信することはありません。</string>
+    <string name="action_open_repo">リポジトリを開く</string>
+    <!-- Shown with the support button, and only while DONATE_URL has a value:
+         the app does not ask for money it has nowhere to send. The button opens
+         the browser, which is also what keeps this outside Google Play's billing
+         requirement - no payment is taken inside the app. -->
+    <string name="about_donation">E-Pad Resetは完全無料・広告なし・アカウント不要です。修理の手間や費用を節約できた際は、開発のサポートをご検討ください。</string>
+    <string name="action_support_development">開発を支援</string>
+    <string name="action_open_github">GitHubリポジトリを開く</string>
+
+    <!-- Exit confirmation. -->
+    <string name="dialog_exit_title">アプリを終了</string>
+    <string name="dialog_exit_body">%1$s を終了して閉じますか？</string>
+    <string name="action_exit">終了</string>
+
+    <!-- Titles for the dialog shown after an action succeeds. One per kind of
+         outcome, because the app knows different amounts about each: a counter
+         reset is read back and verified, a print job is only sent and has no
+         acknowledgement to wait for. A single title said the same thing about
+         both, which was true for one and a claim for the other. -->
+    <string name="dialog_counters_updated_title">カウンターを更新しました</string>
+    <string name="dialog_backup_restored_title">バックアップを復元しました</string>
+    <string name="dialog_job_sent_title">ジョブを送信しました</string>
+
+    <!-- Error callout. The title is fixed; the body is either a localized
+         message raised by the ViewModel, or this generic line when the failure
+         was a technical one with no localized wording of its own. -->
+    <string name="callout_operation_failed">処理に失敗しました</string>
+
+    <!-- Messages raised by the ViewModel. -->
+    <string name="error_printer_not_connected">プリンターが接続されていません</string>
+    <!-- Shown in the red callout when a forced rescan comes up empty. The Wi-Fi
+         clause lives here and not in the "No printer" hint on purpose: the hint
+         is ambient, seen by everyone on every launch, and a reader who does not
+         have the language should not meet a wall of text there. This one only
+         appears after the user asked for a rescan, which is when the question
+         "why can it not see mine?" is actually being asked.
+
+         "Note:" is load-bearing, not decoration. Without it the two sentences
+         sit side by side and read as a diagnosis — as if the app had worked out
+         that the user was reaching for the printer over Wi-Fi, which may have
+         nothing to do with why the scan came up empty. Marked as a note it is
+         what it is: an aside about what this app does. -->
+    <string name="error_no_printer_detected">USB OTG経由でエプソンプリンターが検出されませんでした。※本アプリはWi-Fi接続に対応していません。</string>
+    <!-- Raised when a USB printer is attached but its vendor is not Epson. The
+         generic line above reads as a fault to someone holding a printer, so
+         this one names the real reason: the app is Epson-only. -->
+    <string name="error_non_epson_printer_detected">USBプリンターが接続されましたが、エプソン製ではありません。本アプリはエプソン製インクジェットプリンター専用です。</string>
+    <string name="error_connect_failed">プリンターとのメンテナンスセッションを開始できませんでした</string>
+
+    <!-- Shown when the printer is unplugged while the app is open. A statement
+         rather than a failure: nothing the user did went wrong. -->
+    <string name="notice_printer_disconnected">プリンターが切断されました。再接続して「更新」をタップしてください。</string>
+
+    <!-- Connection failures, resolved from PrinterService.ConnectFailure so the
+         callout can name the actual cause instead of a generic failure. -->
+    <string name="error_connect_permission_denied">USBアクセス権限が拒否されました。プリンターを再接続し、権限を許可してください。</string>
+    <!-- Kept apart from error_connect_permission_denied: the check that failed
+         cannot tell a refusal from a printer that is no longer there, and
+         sending someone to look for a permission dialog that will never appear
+         is worse than saying nothing. -->
+    <string name="error_connect_device_detached">プリンターが取り外されました。再度接続してやり直してください。</string>
+    <string name="error_connect_no_interfaces">このUSB機器には使用可能なインターフェースがありません。対応するエプソンプリンターではない可能性があります。</string>
+    <string name="error_connect_unsupported_model">このエプソン機種はアプリのデータベースに未登録のため、セッションを開けません。追加調査をリクエストできます（対応には検証済みデータと実機検証が必要であり保証はされません）。</string>
+    <string name="error_connect_unsupported_model_named">エプソン「%1$s」はデータベースに未登録のため、セッションを開けません。追加調査をリクエストできます（対応には検証済みデータと実機検証が必要であり保証はされません）。</string>
+    <!-- The mirror image of the two lines above. The model is missing from the
+         database as well, but the community database classifies it as using a
+         maintenance box, so adding it would never enable a reset. Kept apart so
+         the app does not promise an outcome the hardware cannot deliver. -->
+    <string name="error_connect_unsupported_model_box">このエプソン機種はデータベースに未登録で、コミュニティカタログ上ではメンテナンスボックス方式に分類されています。クリーニングやノズルチェック対応はリクエストできますが、本アプリでボックスチップのカウンターをリセットすることはできません。</string>
+    <string name="error_connect_unsupported_model_box_named">エプソン「%1$s」はデータベースに未登録で、コミュニティカタログ上ではメンテナンスボックス方式に分類されています。クリーニングやノズルチェック対応はリクエストできますが、本アプリでボックスチップのカウンターをリセットすることはできません。</string>
+    <string name="error_connect_dot4_nak">プリンターがメンテナンスセッションを拒否しました。プリンターの電源を入れ直して再試行してください。</string>
+    <string name="error_connect_dot4_no_reply">いずれのUSB経路からもプリンターの応答がありません。ケーブルやポートを変えるか、電源を入れ直して再試行してください。</string>
+    <!-- "may be using it", not "is using it": claimInterface returns a bare
+         boolean, so a device that vanished mid-connect is indistinguishable
+         from one another app holds. The attachment re-check narrows it, and the
+         wording no longer asserts what the check cannot prove. -->
+    <string name="error_connect_interface_busy">プリンターのUSB接続を占有できませんでした。他の印刷アプリやサービスが使用中の可能性があります。終了して再試行してください。</string>
+    <string name="error_reset_partial_shared">これらのカウンターは他のカウンターとメモリバイトを共有しているため、個別にはリセットできません。該当するすべてのカウンターを選択してください。</string>
+    <!-- The refusals the service raises before it writes anything. Each one used
+         to reach the user as "Operation failed"; they are kept apart because
+         each names a different thing the user can do about it. -->
+    <string name="error_reset_no_counter_selected">廃インクカウンターが選択されていないため、リセット対象がありません。</string>
+    <string name="error_reset_no_values">この機種には選択されたカウンターのリセット値が公開されていません。</string>
+    <string name="error_reset_percentage_unsupported">この選択では目標パーセントを設定できません（上限値が公開されており、4バイト以内で、他と共有されていない必要があります）。</string>
+    <string name="error_restore_no_applicable_addresses">このバックアップには現在接続中のプリンターで有効なアドレスが含まれていません。</string>
+
+    <!-- A local draft is reviewed before any external action. -->
+    <string name="action_report_model">機種追加に協力する</string>
+    <string name="action_copy_report">レポートをコピー</string>
+    <string name="report_model_note">端末内で限定レポートを作成・確認した上で共有方法を選択できます。アプリが自動でインターネット接続することはありません。</string>
+    <string name="dialog_model_support_title">機種対応のリクエスト</string>
+    <string name="field_model_report">確認・編集用レポート</string>
+    <string name="action_choose_report_channel">共有方法を選択</string>
+    <string name="action_review_report">レポートを再確認</string>
+    <string name="action_report_discord">Discordを開く</string>
+    <string name="action_report_github">GitHub Issueを開く</string>
+    <string name="action_share_report">レポートを共有</string>
+    <string name="report_privacy_note">対応は保証されません。このレポートには機種名、USB ID、アプリとAndroidのバージョンのみが含まれ、通信ログ、製造番号、EEPROMバックアップは含まれません。追加した内容を確認してください。外部共有は各アプリのプライバシーポリシーに従って行われます。</string>
+    <string name="report_discord_help">Discordアカウントが必要です。レポートをコピーし、コミュニティで機種リクエストの投稿先をお尋ねください（招待リンクを開いても自動投稿はされません）。</string>
+    <string name="report_github_help">GitHubアカウントが必要です。レポートをコピーし、Issueテンプレートに貼り付けてください。リンクに診断情報は含まれません。</string>
+    <string name="report_share_help">GitHubやDiscordをお持ちでない場合は、普段お使いのアプリ経由で開発者に転送できる方へ共有してください。共有シートを開いても管理者に届いたことを意味するものではありません。</string>
+    <string name="report_external_unavailable">この操作を開けるアプリがありませんでした。レポートをコピーして手動で貼り付けてください。</string>
+    <string name="report_copied">レポートをコピーしました</string>
+    <string name="msg_counters_updated">廃インクカウンターを更新しました。必要に応じてプリンターを再起動してください。</string>
+    <!-- Byte-level verification names addresses, not derived percentages. A
+         mismatch does not mean nothing changed: other writes may have applied. -->
+    <string name="error_counters_not_applied">%1$s で読み取ったバイトが送信したリセット値と一致しません。一部の値のみ変更された可能性があります。バックアップは以下、詳細は通信ログをご確認ください。</string>
+    <string name="error_restore_not_applied">%1$s で読み取ったバイトが送信した復元値と一致しません。一部の値のみ変更された可能性があります。バックアップは以下、詳細は通信ログをご確認ください。</string>
+    <string name="error_write_failed">%1$s への書き込みが完了しなかったか、応答を読み取れませんでした。手前の %2$d 件のアドレスは書き込まれています。以降の書き込みは中断されました。バックアップは以下にあります。</string>
+    <string name="error_read_back_failed">書き込みは完了しましたが、検証用の読み戻しができませんでした。結果は未検証です。バックアップは以下にあります。</string>
+    <string name="error_read_back_failed_at">書き込みは完了しましたが、%1$s のバイトを読み戻せませんでした。結果は未検証です。バックアップは以下にあります。</string>
+    <string name="msg_backup_restored">保存されていた値を書き戻しました。必要に応じてプリンターを再起動してください。</string>
+    <string name="msg_cleaning_sent_named">ヘッドクリーニングコマンド「%1$s」を送信しました。プリンターが動作を開始するまで待ち、手動で状態を更新してください。</string>
+    <string name="msg_cleaning_sent">ヘッドクリーニングジョブを送信しました。プリンターが動作を開始するまで待ち、手動で状態を更新してください。</string>
+    <string name="msg_nozzle_check_sent">ノズルチェック印刷ジョブを送信しました。印刷が完了するまでお待ちください。</string>
+
+    <!-- Readouts. The em dash stands for "no reading yet". -->
+    <string name="percent_value">%1$d%%</string>
+    <string name="waste_counter_default_name">廃インクカウンター %1$d</string>
+
+    <!-- Printer state, resolved from the code the printer reports. EpsonProtocol
+         still produces English text for the diagnostic log; the UI maps the code
+         to these labels, so the status line is translatable. -->
+    <string name="printer_state_self_printing">自己印刷中</string>
+    <string name="printer_state_busy">ビジー</string>
+    <string name="printer_state_waiting">待機中</string>
+    <string name="printer_state_idle">待機中（アイドル）</string>
+    <string name="printer_state_pause">一時停止中</string>
+    <string name="printer_state_cleaning">クリーニング中</string>
+    <string name="printer_state_error">エラー</string>
+
+    <!-- Printer error, resolved from the code the printer reports. -->
+    <string name="printer_error_interface">インターフェースエラー</string>
+    <string name="printer_error_paper_jam">紙詰まり</string>
+    <string name="printer_error_ink_out">インクエンド</string>
+    <string name="printer_error_paper_feed">用紙切れまたは給紙エラー</string>
+    <string name="printer_error_service_required">廃インク吸収パッドの限界または修理が必要</string>
+    <string name="printer_error_cover_open">カバーが開いています</string>
+
+    <!--
+      Still not translatable, and deliberately left in the protocol layer:
+
+        Ink colour names (InkLevel.color), e.g. "Black", "Light Cyan".
+
+      They are never shown to the user. The gauges display short labels derived
+      from them, and the same strings double as matching keys for the sort order
+      and for the gauge colour, so translating them would change behaviour
+      rather than just wording.
+    -->
+    <string name="temporary_backup_title">バックアップが保存されていません</string>
+    <string name="temporary_backup_warning">完全なバックアップはメモリ上のみに存在します。アプリ終了やプロセスキルにより失われます。まだ1バイトも書き込まれていません。リスクを了承の上で続行してください（先にバックアップテキストをコピーしてください）。</string>
+    <string name="action_continue_temporary">一時バックアップのまま続行</string>
+    <string name="error_restore_incomplete_counter">バックアップにカウンターの一部しか含まれていません。完全なグループを復元してください。書き込みは行われませんでした。</string>
+    <string name="error_restore_unit_mismatch">このバックアップは別のプリンター個体のものです。書き込みは行われませんでした。</string>
+    <string name="dialog_restore_legacy_identity">このバックアップには元のプリンター個体識別情報がありません。このプリンターのものであることを確認の上で復元してください。</string>
+    <string name="exit_busy_warning">処理が実行中です。今終了すると書き込みが中断され、カウンターの値が不整合になる恐れがあります。可能な限り完了までお待ちください。</string>
+</resources>

@@ -263,7 +263,7 @@ class PrinterService(
         }
 
         val seen = lastSeenDeviceId
-        if (seen != null && EpsonPrinterCatalog.resolve(appContext, seen) == null) {
+        if (seen != null && openProfile(appContext, seen) == null) {
             throw unknownModelFailure(seen)
         }
         throw lastError ?: ConnectException(ConnectFailure.UNKNOWN)

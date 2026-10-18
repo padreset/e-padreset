@@ -266,7 +266,7 @@ internal object BackupCodec {
         .replace("\n", "\\n")
         .replace("\r", "\\r")
 
-    private fun unescape(text: String): String = buildString {
+    internal fun unescape(text: String): String = buildString {
         var index = 0
         while (index < text.length) {
             val character = text[index]

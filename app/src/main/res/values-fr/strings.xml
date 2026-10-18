@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Traduction française de E-Pad Reset.
+-->
+<resources>
+    <string name="app_name">E-Pad Reset</string>
+
+    <!-- Accessibility descriptions for the icon-only controls. The icons carry
+         the meaning visually, but screen readers need something to announce. -->
+    <string name="action_about">À propos</string>
+    <string name="action_refresh_status">Actualiser l\'état</string>
+    <string name="action_connect_printer">Connecter l\'imprimante</string>
+    <string name="action_copy_log">Copier le journal de protocole</string>
+    <string name="action_open_maintenance">Ouvrir la maintenance</string>
+    <string name="action_back">Retour</string>
+
+    <!-- Section headings. -->
+    <string name="section_printer">Imprimante</string>
+    <string name="section_ink_levels">Niveaux d\'encre</string>
+    <string name="section_waste_levels">Niveaux d\'encre usagée</string>
+    <string name="section_maintenance">Maintenance</string>
+    <string name="section_protocol_log">Journal de protocole</string>
+
+    <!-- Printer status block. -->
+    <string name="status_working">En cours</string>
+    <string name="status_scanning">Recherche d\'une imprimante Epson via USB OTG</string>
+    <string name="status_no_printer">Aucune imprimante</string>
+    <string name="status_no_printer_hint">Connectez une imprimante Epson via USB OTG, puis appuyez sur le bouton d\'actualisation</string>
+    <string name="status_printer_error">L\'imprimante a signalé une erreur</string>
+    <string name="status_ready">Prête</string>
+    <string name="status_connected">Connectée via USB OTG</string>
+    <string name="status_stale">Dernier état lu avec succès ; la dernière actualisation a échoué</string>
+    <string name="error_status_refresh_title">Impossible d\'actualiser l\'état de l\'imprimante</string>
+    <string name="error_status_refresh_detail">Le dernier état est affiché et peut être obsolète. Vérifiez l\'écran de l\'imprimante pour connaître son état actuel, puis réessayez.</string>
+    <string name="status_busy_indicator">Traitement en cours…</string>
+    <!-- Shown while a connection is spending seconds on a route the printer did
+         not answer on, before the next one is tried. Says what is happening and
+         how long, because the wait is otherwise unexplained. -->
+    <string name="connect_slow_note">Aucune réponse sur la première voie de connexion, un autre itinéraire est à l\'essai. Cela peut prendre quelques secondes et sera plus rapide la prochaine fois.</string>
+    <!-- The same situation as connect_slow_note, for the floating pill. Three
+         words, because the pill is small and the card below it carries the
+         explanation. Says what the app is doing, so the wait reads as progress
+         rather than a stall; the duration is the card's job. -->
+    <string name="connect_slow_brief">Autre voie à l\'essai…</string>
+
+    <!-- Detail rows inside the printer card. -->
+    <string name="label_model">Modèle</string>
+    <string name="label_serial">Numéro de série</string>
+    <string name="label_highest_pad">Tampon le plus rempli</string>
+
+    <!-- Protocol log panel. -->
+    <string name="log_empty">Aucune entrée dans le journal pour le moment.</string>
+    <string name="log_copied">Journal de protocole copié</string>
+
+    <!-- Warning shown above the waste counters. -->
+    <string name="pad_warning_title">La réinitialisation ne nettoie pas le tampon</string>
+    <string name="pad_warning_body">Le compteur est électronique ; le tampon est physique. Lavez, remplacez ou déviez l\'encre usagée avant de réinitialiser, sinon l\'encre finira par fuir à l\'intérieur de l\'imprimante.</string>
+
+    <!-- Shown in place of the counters when the connected printer keeps its
+         waste ink counter somewhere the app cannot write to. Deliberately does
+         not claim to know which of the two causes applies: the catalog can tell
+         that a model has no counter, but not whether that is a maintenance box
+         or a gap in the database. The dialog explains both. -->
+    <string name="waste_unsupported_title">Aucun compteur à réinitialiser sur ce modèle</string>
+    <string name="waste_unsupported_body">Cette imprimante ne stocke pas de compteur d\'encre usagée modifiable par l\'application. Rien n\'est cassé : ni l\'application ni l\'imprimante ne sont en défaut.</string>
+    <string name="action_more_info">Plus d\'informations</string>
+    <!-- A printer that answered, but is not in the catalog. Not the same as
+         waste_unsupported: that one means the catalog knows there is nothing
+         to reset. This one means we do not have a verified profile, so we
+         must not claim the printer has no counter. -->
+    <string name="partial_session_title">Connectée, sans profil vérifié</string>
+    <string name="partial_session_body">L\'état et les niveaux d\'encre sont disponibles. Les compteurs d\'encre usagée ne sont ni lus ni réinitialisés tant qu\'un profil vérifié n\'est pas intégré à l\'application. Vous pouvez envoyer une demande de modèle ; il n\'est pas nécessaire d\'attendre pour consulter ces relevés.</string>
+    <string name="partial_cleaning_note">Le nettoyage des têtes consomme de l\'encre et incrémente le compteur d\'encre usagée. Cette application ne peut pas réinitialiser ce compteur sur cette imprimante faute de profil vérifié.</string>
+    <string name="error_power_clean_unverified">Le nettoyage en profondeur n\'est pas disponible sans profil vérifié. Il consomme davantage d\'encre et l\'application ne pourrait pas réinitialiser le compteur.</string>
+
+    <!-- Shown next to a counter whose ceiling the model does not publish, which
+         is every model sourced from reinkpy. Without a ceiling there is no
+         percentage, and the raw value is what the printer actually reports. -->
+    <string name="waste_scale_unknown">Aucun pourcentage : la limite du compteur de ce modèle n\'est pas publiée. La valeur ci-dessus est la lecture brute directe.</string>
+    <!-- Reset dialog body for those same models. There is no percentage field
+         and no per-counter choice, because the reset covers every address the
+         model publishes. -->
+    <string name="dialog_reset_model_values">La limite de compteur de ce modèle n\'est pas publiée, il n\'y a donc pas de pourcentage cible. La réinitialisation écrit les valeurs de référence publiées sur toutes les adresses listées.</string>
+
+    <!-- The EEPROM backup taken before any write. Shown after the write, whether
+         it succeeded or was refused partway through. -->
+    <string name="section_waste_backup">Sauvegarde avant écriture</string>
+    <string name="waste_backup_note">Valeurs enregistrées à ces adresses avant l\'écriture. Conservez-en une copie afin de pouvoir les restaurer en cas de problème.</string>
+    <string name="action_copy_backup">Copier la sauvegarde</string>
+    <string name="backup_copied">Sauvegarde copiée</string>
+    <!-- Write-path failures. The first pair means nothing was written at all;
+         the second means the printer refused partway through. -->
+    <string name="error_backup_failed">Impossible de lire les valeurs actuelles, aucune écriture n\'a été effectuée. L\'application effectue toujours une sauvegarde avant d\'écrire.</string>
+    <string name="error_backup_failed_at">Impossible de lire la valeur actuelle à l\'adresse %1$s, aucune écriture n\'a été effectuée. L\'application sauvegarde avant d\'écrire.</string>
+    <string name="error_write_rejected">L\'imprimante a refusé l\'écriture. Aucune autre modification n\'a été effectuée.</string>
+    <string name="error_write_rejected_at">L\'imprimante a refusé l\'écriture à l\'adresse %1$s. %2$d adresse(s) avaient déjà été écrites ; aucune autre modification n\'a été effectuée. La sauvegarde se trouve ci-dessous.</string>
+
+    <!-- Restoring a saved backup.
+         The backup is saved by the app before every write, so the case this
+         covers is the one where the mistake is noticed later - usually with the
+         app already closed. That is why it is automatic and why it is kept on
+         disk, and the wording says so rather than presenting a button.
+         Restoring raises the counters, which is the opposite of a reset, so the
+         dialog says that plainly instead of leaving it to be discovered. -->
+    <string name="section_restore_backup">Restaurer une sauvegarde</string>
+    <string name="restore_note">Une sauvegarde est automatiquement créée avant chaque écriture. Choisissez-en une pour réinjecter ces valeurs ou collez une sauvegarde conservée.</string>
+    <string name="restore_no_history">Aucune sauvegarde enregistrée pour le moment. Une sauvegarde est enregistrée avant chaque écriture.</string>
+    <string name="action_restore_selected">Restaurer la sauvegarde sélectionnée</string>
+    <string name="action_restore_paste">Restaurer depuis un texte collé</string>
+    <string name="restore_record_label">%1$s — %2$s</string>
+    <string name="restore_unknown_model">Modèle inconnu</string>
+    <!-- Which write found the state a saved record holds, and what it reads.
+         Two records can look identical by model and time, so without these the
+         list gives no way to tell which one undoes the mistake. The "unknown"
+         wording covers records saved before the origin was recorded at all. -->
+    <string name="restore_origin_reset">Enregistré avant une réinitialisation</string>
+    <string name="restore_origin_restore">Enregistré avant une restauration</string>
+    <string name="restore_origin_unknown">Enregistré avant une écriture</string>
+    <string name="restore_record_detail">%1$s · %2$s</string>
+    <string name="restore_record_reads">Valeur %1$s</string>
+    <string name="dialog_restore_title">Restaurer cette sauvegarde ?</string>
+    <string name="dialog_restore_body">Cette action réécrit les valeurs relevées avant une précédente opération. Elle augmente les compteurs, ce qui est l\'inverse d\'une réinitialisation. À n\'utiliser que pour annuler une erreur.</string>
+    <string name="dialog_restore_model">Sauvegarde de : %1$s</string>
+    <string name="dialog_restore_no_model">Cette sauvegarde ne mentionne aucun modèle d\'imprimante. Vérifiez qu\'elle provient bien de cet appareil.</string>
+    <string name="dialog_restore_addresses">%1$d adresse(s) seront écrites.</string>
+    <string name="dialog_restore_counter_delta">%1$s : %2$s → %3$s</string>
+    <string name="action_restore">Restaurer</string>
+    <string name="dialog_paste_backup_title">Coller une sauvegarde</string>
+    <string name="field_paste_backup">Texte de sauvegarde</string>
+    <string name="paste_backup_hint">Collez la sauvegarde copiée précédemment, avec ou sans ligne d\'en-tête.</string>
+    <string name="paste_backup_invalid">Aucune ligne de sauvegarde valide trouvée. Collez le texte fourni par l\'application, ou au moins ses lignes \'0x001C = 0x3F\'.</string>
+    <string name="paste_backup_parsed">%1$d adresse(s) trouvée(s).</string>
+    <!-- Blocked rather than warned: the addresses belong to the model, so
+         writing one printer's record onto another would write to addresses that
+         mean something else there. -->
+    <string name="error_restore_model_mismatch">Cette sauvegarde provient du modèle %1$s, mais l\'imprimante connectée est une %2$s. La restaurer sur un modèle différent risquerait d\'écrire sur les mauvaises adresses, l\'opération est donc bloquée.</string>
+
+    <!-- Shown when the model is on the curated maintenance-box list, so the
+         cause is known rather than guessed. The dialog that follows is the
+         tailored one below, not the two-cause one. -->
+    <string name="waste_box_title">Cette imprimante utilise un boîtier de maintenance</string>
+    <string name="waste_box_body">L\'encre usagée est dirigée vers un boîtier amovible muni de sa propre puce. L\'imprimante ne possède aucun compteur interne modifiable — lorsque le boîtier est plein, il doit être remplacé.</string>
+    <string name="waste_box_dialog_title">Votre imprimante utilise un boîtier de maintenance</string>
+    <string name="waste_box_dialog_body">L\'encre usagée issue du nettoyage des têtes est collectée dans un boîtier de maintenance et non dans des tampons internes. Ce boîtier intègre une puce qui enregistre le niveau d\'encre et l\'imprimante ne conserve aucun compteur propre — il n\'y a donc rien à réinitialiser par voie logicielle.\n\nLorsque le boîtier est plein, on le remplace ou on réinitialise sa puce avec un appareil physique dédié. Aucune de ces actions ne peut être réalisée par une application via USB.\n\nVous pouvez le constater sur l\'imprimante elle-même : son écran mentionne le boîtier de maintenance et avertit lorsqu\'il doit être changé.\n\nLe nettoyage des têtes et la vérification des buses restent parfaitement fonctionnels sur cette imprimante. Ils sont accessibles sur la page Maintenance.</string>
+
+    <string name="waste_unsupported_dialog_title">Où est stocké le niveau d\'encre usagée</string>
+    <string name="waste_unsupported_dialog_body">Epson enregistre le compteur d\'encre usagée à deux emplacements possibles.\n\nTampon interne : l\'encre est absorbée par des tampons situés à l\'intérieur de l\'imprimante et le niveau d\'usure est stocké dans la mémoire de l\'imprimante. C\'est ce cas précis que notre application peut réinitialiser.\n\nBoîtier de maintenance : l\'encre est collectée dans un boîtier amovible muni de sa propre puce. La mémoire interne de l\'imprimante ne contient aucun compteur, aucun logiciel ne peut le remettre à zéro. Le boîtier se remplace, ou sa puce est réinitialisée avec un programmateur externe.\n\nPour savoir quel système équipe votre modèle, consultez l\'écran de l\'imprimante. S\'il indique un boîtier de maintenance, aucun utilitaire logiciel de réinitialisation ne conviendra.\n\nSi votre imprimante utilise bien des tampons internes et affiche ce message, le modèle est simplement absent de la base de données. Cela peut être corrigé et vos retours sont les bienvenus.\n\nLe nettoyage des têtes et la vérification des buses restent disponibles sur la page Maintenance.</string>
+
+    <!-- Maintenance panel. -->
+    <string name="maintenance_head_cleaning">Nettoyage des têtes</string>
+    <string name="maintenance_nozzle_check">Vérification des buses</string>
+    <string name="maintenance_note">Le nettoyage des têtes consomme de l\'encre et incrémente les compteurs d\'encre usagée.</string>
+
+    <!-- Dialog actions shared by more than one dialog. -->
+    <string name="action_cancel">Annuler</string>
+    <string name="action_ok">OK</string>
+    <string name="action_close">Fermer</string>
+
+    <!-- Reset waste counters dialog. -->
+    <string name="dialog_reset_title">Réinitialiser les compteurs d\'encre usagée</string>
+    <string name="dialog_reset_warning">La réinitialisation des compteurs d\'encre usagée modifie les valeurs internes du micrologiciel de l\'imprimante. À utiliser à vos risques et périls.</string>
+    <string name="field_target_percentage">Pourcentage cible</string>
+    <string name="action_reset_counters">Réinitialiser les compteurs</string>
+    <string name="action_reset_counters_unverified">Réinitialiser les compteurs (profil non vérifié)</string>
+    <string name="action_paste_profile">Coller un profil</string>
+    <string name="action_delete_profile">Supprimer le profil local</string>
+    <string name="dialog_paste_profile_title">Coller un profil public</string>
+    <string name="paste_profile_hint">Collez une balise modèle reinkpy (&lt;model&gt;), avec les attributs source et version. Elle permet de prendre en charge un modèle non listé dans l\'application. Elle ne remplace pas une entrée existante et reste stockée sur cet appareil.</string>
+    <string name="field_paste_profile">Profil</string>
+    <string name="paste_profile_invalid">Ce texte n\'est pas un profil que l\'application peut enregistrer.</string>
+    <string name="error_gap_provenance">Un profil doit comporter une source publique et une version.</string>
+    <string name="error_gap_malformed">Le profil est incomplet ou hors limites.</string>
+    <string name="error_gap_box">Un modèle à boîtier de maintenance ne peut pas comporter de réinitialisation d\'encre usagée.</string>
+    <string name="error_gap_doctype">Ce texte n\'est pas un extrait de profil valide.</string>
+    <string name="error_gap_catalogued">Ce modèle est déjà présent dans l\'application. Impossible de le remplacer.</string>
+    <string name="error_gap_full">La liste locale est pleine. Supprimez d\'abord un profil.</string>
+
+    <!-- Head cleaning dialog, for models that accept service cleaning. -->
+    <string name="dialog_cleaning_title">Nettoyage des têtes</string>
+    <string name="dialog_cleaning_body">Le nettoyage des têtes consomme de l\'encre. Choisissez le niveau de nettoyage pris en charge par cette imprimante.</string>
+    <string name="action_start_cleaning">Démarrer le nettoyage</string>
+
+    <!-- Generic ESC/P2 cleaning dialog, used when service cleaning is refused. -->
+    <string name="dialog_generic_cleaning_body">Ce mode envoie une tâche générique de maintenance Epson ESC/P2. La compatibilité peut varier selon le modèle.</string>
+    <string name="cleaning_all_nozzles">Nettoyer toutes les buses</string>
+    <string name="cleaning_black_nozzle">Nettoyer la buse noire</string>
+    <string name="cleaning_color_nozzles">Nettoyer les buses couleur</string>
+    <string name="cleaning_alternative_mode">Nettoyage des têtes (mode alternatif)</string>
+    <string name="cleaning_power_clean">Nettoyage puissant (Power Clean)</string>
+
+    <!-- Service cleaning modes, as the model database names them.
+         The dialog is read, so it gets these labels. The protocol log keeps the
+         database wording instead, because it is a diagnostic record and people
+         search for the exact string. That wording also carries a leftover "%"
+         where a placeholder was never substituted, which these drop.
+         A name the table does not know falls back to the database wording. -->
+    <string name="cleaning_mode_gentle">Nettoyage doux</string>
+    <string name="cleaning_mode_normal">Nettoyage normal</string>
+    <string name="cleaning_mode_medium">Nettoyage moyen</string>
+    <string name="cleaning_mode_strong">Nettoyage fort</string>
+    <string name="cleaning_mode_gentle_mode">Nettoyage doux (mode)</string>
+    <string name="cleaning_mode_normal_mode">Nettoyage normal (mode)</string>
+    <string name="cleaning_mode_strong_mode">Nettoyage fort (mode)</string>
+    <string name="cleaning_mode_strong_a">Nettoyage fort, mode A</string>
+    <string name="cleaning_mode_strong_b">Nettoyage fort, mode B</string>
+    <string name="cleaning_all_gentle">Doux, toutes les buses</string>
+    <string name="cleaning_all_normal">Normal, toutes les buses</string>
+    <string name="cleaning_all_medium">Moyen, toutes les buses</string>
+    <string name="cleaning_all_strong">Fort, toutes les buses</string>
+    <string name="cleaning_black_gentle">Doux, buse noire</string>
+    <string name="cleaning_black_normal">Normal, buse noire</string>
+    <string name="cleaning_black_medium">Moyen, buse noire</string>
+    <string name="cleaning_black_strong">Fort, buse noire</string>
+    <string name="cleaning_color_gentle">Doux, buses couleur</string>
+    <string name="cleaning_color_normal">Normal, buses couleur</string>
+    <string name="cleaning_color_medium">Moyen, buses couleur</string>
+    <string name="cleaning_color_strong">Fort, buses couleur</string>
+
+    <!-- Nozzle check dialog. There is one check, not two: the sequence is what
+         escputil sends and what yusnel-rojas proved on hardware. The pair of
+         options that used to live here were the two halves of that sequence
+         offered separately, which is why one of them did nothing. -->
+    <string name="dialog_nozzle_check_title">Vérification des buses</string>
+    <string name="action_print_test">Imprimer le test</string>
+    <string name="dialog_nozzle_check_body">Imprime une page de vérification des buses. Cela utilise une feuille de papier et un peu d\'encre, et constitue le seul moyen fiable de savoir si un nettoyage est nécessaire.</string>
+
+    <!-- About dialog. -->
+    <string name="dialog_about_title">À propos</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_epson_only">Fonctionne exclusivement avec les imprimantes à jet d\'encre Epson.</string>
+    <!-- Shown only once the fork publishes releases of its own. The app holds no
+         network permission, so this opens the page rather than checking. -->
+    <string name="action_check_updates">Vérifier les mises à jour</string>
+    <string name="about_updates_note">Ouvre la page des versions dans votre navigateur. L\'application ne se connecte jamais directement à Internet.</string>
+    <string name="action_open_repo">Ouvrir le dépôt</string>
+    <!-- Shown with the support button, and only while DONATE_URL has a value:
+         the app does not ask for money it has nowhere to send. The button opens
+         the browser, which is also what keeps this outside Google Play's billing
+         requirement - no payment is taken inside the app. -->
+    <string name="about_donation">E-Pad Reset est gratuit, sans publicité et sans compte utilisateur. S\'il vous a évité une réparation coûteuse, vous pouvez soutenir son développement.</string>
+    <string name="action_support_development">Soutenir le développement</string>
+    <string name="action_open_github">Ouvrir le dépôt GitHub</string>
+
+    <!-- Exit confirmation. -->
+    <string name="dialog_exit_title">Quitter l\'application</string>
+    <string name="dialog_exit_body">Voulez-vous quitter et fermer %1$s ?</string>
+    <string name="action_exit">Quitter</string>
+
+    <!-- Titles for the dialog shown after an action succeeds. One per kind of
+         outcome, because the app knows different amounts about each: a counter
+         reset is read back and verified, a print job is only sent and has no
+         acknowledgement to wait for. A single title said the same thing about
+         both, which was true for one and a claim for the other. -->
+    <string name="dialog_counters_updated_title">Compteurs mis à jour</string>
+    <string name="dialog_backup_restored_title">Sauvegarde restaurée</string>
+    <string name="dialog_job_sent_title">Tâche envoyée</string>
+
+    <!-- Error callout. The title is fixed; the body is either a localized
+         message raised by the ViewModel, or this generic line when the failure
+         was a technical one with no localized wording of its own. -->
+    <string name="callout_operation_failed">L\'opération a échoué</string>
+
+    <!-- Messages raised by the ViewModel. -->
+    <string name="error_printer_not_connected">L\'imprimante n\'est pas connectée</string>
+    <!-- Shown in the red callout when a forced rescan comes up empty. The Wi-Fi
+         clause lives here and not in the "No printer" hint on purpose: the hint
+         is ambient, seen by everyone on every launch, and a reader who does not
+         have the language should not meet a wall of text there. This one only
+         appears after the user asked for a rescan, which is when the question
+         "why can it not see mine?" is actually being asked.
+
+         "Note:" is load-bearing, not decoration. Without it the two sentences
+         sit side by side and read as a diagnosis — as if the app had worked out
+         that the user was reaching for the printer over Wi-Fi, which may have
+         nothing to do with why the scan came up empty. Marked as a note it is
+         what it is: an aside about what this app does. -->
+    <string name="error_no_printer_detected">Aucune imprimante Epson détectée via USB OTG. Remarque : cette application ne fonctionne pas en Wi-Fi.</string>
+    <!-- Raised when a USB printer is attached but its vendor is not Epson. The
+         generic line above reads as a fault to someone holding a printer, so
+         this one names the real reason: the app is Epson-only. -->
+    <string name="error_non_epson_printer_detected">Une imprimante USB est connectée, mais ce n\'est pas une Epson. Cette application ne fonctionne qu\'avec les imprimantes à jet d\'encre Epson.</string>
+    <string name="error_connect_failed">Impossible d\'ouvrir une session de maintenance avec l\'imprimante</string>
+
+    <!-- Shown when the printer is unplugged while the app is open. A statement
+         rather than a failure: nothing the user did went wrong. -->
+    <string name="notice_printer_disconnected">L\'imprimante a été déconnectée. Rebranchez-la et appuyez sur actualiser pour relire son état.</string>
+
+    <!-- Connection failures, resolved from PrinterService.ConnectFailure so the
+         callout can name the actual cause instead of a generic failure. -->
+    <string name="error_connect_permission_denied">L\'accès USB a été refusé. Reconnectez l\'imprimante et acceptez la demande d\'autorisation.</string>
+    <!-- Kept apart from error_connect_permission_denied: the check that failed
+         cannot tell a refusal from a printer that is no longer there, and
+         sending someone to look for a permission dialog that will never appear
+         is worse than saying nothing. -->
+    <string name="error_connect_device_detached">L\'imprimante n\'est plus connectée. Rebranchez-la et réessayez.</string>
+    <string name="error_connect_no_interfaces">Ce périphérique USB ne comporte aucune interface utilisable par l\'application. Il ne s\'agit peut-être pas d\'une imprimante Epson prise en charge.</string>
+    <string name="error_connect_unsupported_model">Ce modèle Epson ne figure pas dans la base de données de l\'application, aucune session de maintenance ne peut être ouverte. Vous pouvez soumettre une demande ; la prise en charge nécessite des données vérifiées et des tests matériels, elle n\'est pas garantie.</string>
+    <string name="error_connect_unsupported_model_named">Le modèle Epson \'%1$s\' ne figure pas dans la base de données de l\'application, aucune session de maintenance ne peut être ouverte. Vous pouvez soumettre une demande ; la prise en charge nécessite des données vérifiées et des tests matériels, elle n\'est pas garantie.</string>
+    <!-- The mirror image of the two lines above. The model is missing from the
+         database as well, but the community database classifies it as using a
+         maintenance box, so adding it would never enable a reset. Kept apart so
+         the app does not promise an outcome the hardware cannot deliver. -->
+    <string name="error_connect_unsupported_model_box">Ce modèle Epson ne figure pas dans la base de données de l\'application et le catalogue communautaire indique qu\'il utilise un boîtier de maintenance. Vous pouvez demander l\'ajout du nettoyage et du test de buses, mais l\'application ne peut pas réinitialiser la puce du boîtier.</string>
+    <string name="error_connect_unsupported_model_box_named">Le modèle Epson \'%1$s\' ne figure pas dans la base de données de l\'application et le catalogue communautaire indique qu\'il utilise un boîtier de maintenance. Vous pouvez demander l\'ajout du nettoyage et du test de buses, mais l\'application ne peut pas réinitialiser la puce du boîtier.</string>
+    <string name="error_connect_dot4_nak">L\'imprimante a refusé la session de maintenance. Éteignez-la, rallumez-la et réessayez.</string>
+    <string name="error_connect_dot4_no_reply">L\'imprimante n\'a répondu sur aucun canal USB. Essayez un autre câble ou port, éteignez-la et rallumez-la, puis réessayez.</string>
+    <!-- "may be using it", not "is using it": claimInterface returns a bare
+         boolean, so a device that vanished mid-connect is indistinguishable
+         from one another app holds. The attachment re-check narrows it, and the
+         wording no longer asserts what the check cannot prove. -->
+    <string name="error_connect_interface_busy">Impossible de réserver la liaison USB de l\'imprimante. Une autre application l\'utilise peut-être (ex. service d\'impression) ; fermez les autres applications d\'impression et réessayez.</string>
+    <string name="error_reset_partial_shared">Ces compteurs partagent des octets de mémoire avec un autre compteur, ils ne peuvent donc être réinitialisés qu\'ensemble. Sélectionnez tous les compteurs pour continuer.</string>
+    <!-- The refusals the service raises before it writes anything. Each one used
+         to reach the user as "Operation failed"; they are kept apart because
+         each names a different thing the user can do about it. -->
+    <string name="error_reset_no_counter_selected">Aucun compteur d\'encre usagée n\'a été sélectionné, rien à réinitialiser.</string>
+    <string name="error_reset_no_values">Ce modèle ne publie pas de valeurs de réinitialisation pour les compteurs sélectionnés, rien à écrire.</string>
+    <string name="error_reset_percentage_unsupported">Impossible de définir un pourcentage pour cette sélection : les compteurs doivent comporter une limite, tenir sur 4 octets et ne pas partager d\'octets avec un autre compteur.</string>
+    <string name="error_restore_no_applicable_addresses">Cette sauvegarde ne contient aucune adresse utilisée par l\'imprimante connectée, rien à réécrire.</string>
+
+    <!-- A local draft is reviewed before any external action. -->
+    <string name="action_report_model">Aider à ajouter ce modèle</string>
+    <string name="action_copy_report">Copier le rapport</string>
+    <string name="report_model_note">Générez un rapport restreint localement, vérifiez-le et choisissez comment le partager. L\'application ne se connecte pas à Internet.</string>
+    <string name="dialog_model_support_title">Demander l\'ajout d\'un modèle</string>
+    <string name="field_model_report">Rapport à relire et modifier</string>
+    <string name="action_choose_report_channel">Choisir le mode de partage</string>
+    <string name="action_review_report">Relire le rapport</string>
+    <string name="action_report_discord">Ouvrir Discord</string>
+    <string name="action_report_github">Ouvrir une demande GitHub</string>
+    <string name="action_share_report">Partager le rapport</string>
+    <string name="report_privacy_note">L\'ajout n\'est pas garanti. Ce brouillon ne contient que les informations du modèle, les identifiants USB et les versions de l\'application et d\'Android, sans journaux bruts, numéros de série ou sauvegardes EEPROM. Relisez tout ajout éventuel. Rien n\'est envoyé automatiquement ; le partage externe dépend de votre navigateur ou d\'une autre application selon sa propre politique de confidentialité.</string>
+    <string name="report_discord_help">Discord nécessite un compte. Copiez le rapport vérifié, rejoignez la communauté et demandez où publier la demande. L\'invitation ne publie rien automatiquement.</string>
+    <string name="report_github_help">GitHub nécessite un compte. Copiez le rapport vérifié et collez-le dans le modèle de ticket de demande de modèle. Aucune donnée de diagnostic n\'est insérée dans le lien.</string>
+    <string name="report_share_help">Sans compte GitHub ou Discord, partagez via une application de votre choix avec une personne pouvant relayer la demande. Aucune boîte de réception dédiée n\'est configurée. Choisissez le destinataire ; l\'ouverture de la feuille de partage ne garantit pas la réception par un mainteneur.</string>
+    <string name="report_external_unavailable">Aucune application n\'a pu exécuter cette action. Vous pouvez copier le rapport et choisir une destination vous-même.</string>
+    <string name="report_copied">Rapport copié</string>
+    <string name="msg_counters_updated">Les compteurs d\'encre usagée ont été mis à jour. Redémarrez l\'imprimante si ce modèle l\'exige.</string>
+    <!-- Byte-level verification names addresses, not derived percentages. A
+         mismatch does not mean nothing changed: other writes may have applied. -->
+    <string name="error_counters_not_applied">Les octets relus à l\'adresse %1$s ne correspondent pas aux valeurs de réinitialisation envoyées. Certaines valeurs ont pu changer. La sauvegarde figure ci-dessous ; les octets attendus et lus sont dans le journal de protocole.</string>
+    <string name="error_restore_not_applied">Les octets relus à l\'adresse %1$s ne correspondent pas aux valeurs restaurées envoyées. Certaines valeurs ont pu changer. La sauvegarde figure ci-dessous ; les octets attendus et lus sont dans le journal de protocole.</string>
+    <string name="error_write_failed">L\'écriture à l\'adresse %1$s n\'a pas pu aboutir ou la réponse n\'a pas pu être lue. %2$d adresse(s) précédente(s) avaient été écrites ; cette adresse a peut-être également changé. Aucune autre modification n\'a été effectuée. La sauvegarde se trouve ci-dessous.</string>
+    <string name="error_read_back_failed">L\'écriture s\'est terminée, mais les valeurs n\'ont pas pu être relues. Le résultat n\'est pas vérifié ; certaines valeurs ont pu changer. La sauvegarde figure ci-dessous.</string>
+    <string name="error_read_back_failed_at">L\'écriture s\'est terminée, mais l\'octet à l\'adresse %1$s n\'a pas pu être relu. Le résultat n\'est pas vérifié ; certaines valeurs ont pu changer. La sauvegarde figure ci-dessous.</string>
+    <string name="msg_backup_restored">Les valeurs enregistrées ont été réécrites. Redémarrez l\'imprimante si le modèle l\'exige.</string>
+    <string name="msg_cleaning_sent_named">La commande de nettoyage des têtes \'%1$s\' a été envoyée. Attendez que l\'imprimante démarre le cycle, puis actualisez l\'état manuellement.</string>
+    <string name="msg_cleaning_sent">La tâche de nettoyage des têtes a été envoyée. Attendez que l\'imprimante démarre le cycle, puis actualisez l\'état manuellement.</string>
+    <string name="msg_nozzle_check_sent">La tâche d\'impression du test des buses a été envoyée. Veuillez patienter pendant l\'impression de la page.</string>
+
+    <!-- Readouts. The em dash stands for "no reading yet". -->
+    <string name="percent_value">%1$d%%</string>
+    <string name="waste_counter_default_name">Compteur d\'encre usagée %1$d</string>
+
+    <!-- Printer state, resolved from the code the printer reports. EpsonProtocol
+         still produces English text for the diagnostic log; the UI maps the code
+         to these labels, so the status line is translatable. -->
+    <string name="printer_state_self_printing">Impression autonome</string>
+    <string name="printer_state_busy">Occupée</string>
+    <string name="printer_state_waiting">En attente</string>
+    <string name="printer_state_idle">Inactive</string>
+    <string name="printer_state_pause">En pause</string>
+    <string name="printer_state_cleaning">Nettoyage en cours</string>
+    <string name="printer_state_error">Erreur</string>
+
+    <!-- Printer error, resolved from the code the printer reports. -->
+    <string name="printer_error_interface">Erreur d\'interface</string>
+    <string name="printer_error_paper_jam">Bourrage papier</string>
+    <string name="printer_error_ink_out">Encre épuisée</string>
+    <string name="printer_error_paper_feed">Plus de papier ou erreur d\'alimentation</string>
+    <string name="printer_error_service_required">Maintenance requise</string>
+    <string name="printer_error_cover_open">Capot ouvert</string>
+
+    <!--
+      Still not translatable, and deliberately left in the protocol layer:
+
+        Ink colour names (InkLevel.color), e.g. "Black", "Light Cyan".
+
+      They are never shown to the user. The gauges display short labels derived
+      from them, and the same strings double as matching keys for the sort order
+      and for the gauge colour, so translating them would change behaviour
+      rather than just wording.
+    -->
+    <string name="temporary_backup_title">La sauvegarde n\'a pas été enregistrée</string>
+    <string name="temporary_backup_warning">La sauvegarde complète est uniquement stockée en mémoire vive. Fermer l\'application ou perdre le processus l\'effacera. Aucun octet n\'a encore été écrit. Ne poursuivez que si vous acceptez ce risque ; copiez d\'abord la sauvegarde.</string>
+    <string name="action_continue_temporary">Continuer avec la sauvegarde temporaire</string>
+    <string name="error_restore_incomplete_counter">La sauvegarde ne contient qu\'une partie d\'un compteur. Restaurez un groupe complet de compteurs ; aucune écriture effectuée.</string>
+    <string name="error_restore_unit_mismatch">Cette sauvegarde appartient à une autre imprimante. Rien n\'a été écrit.</string>
+    <string name="dialog_restore_legacy_identity">Cette sauvegarde n\'identifie pas l\'imprimante d\'origine. Confirmez qu\'elle provient bien de cet appareil avant de la restaurer.</string>
+    <string name="exit_busy_warning">Une opération est en cours d\'exécution. Quitter maintenant peut interrompre une écriture et corrompre les compteurs. Attendez la fin de l\'opération si possible.</string>
+</resources>

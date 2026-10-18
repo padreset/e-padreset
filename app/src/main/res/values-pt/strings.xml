@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Tradução em português de E-Pad Reset.
+-->
+<resources>
+    <string name="app_name">E-Pad Reset</string>
+
+    <!-- Accessibility descriptions for the icon-only controls. The icons carry
+         the meaning visually, but screen readers need something to announce. -->
+    <string name="action_about">Sobre</string>
+    <string name="action_refresh_status">Atualizar estado</string>
+    <string name="action_connect_printer">Conectar impressora</string>
+    <string name="action_copy_log">Copiar registo de protocolo</string>
+    <string name="action_open_maintenance">Abrir manutenção</string>
+    <string name="action_back">Voltar</string>
+
+    <!-- Section headings. -->
+    <string name="section_printer">Impressora</string>
+    <string name="section_ink_levels">Níveis de tinta</string>
+    <string name="section_waste_levels">Níveis de tinta residual</string>
+    <string name="section_maintenance">Manutenção</string>
+    <string name="section_protocol_log">Registo de protocolo</string>
+
+    <!-- Printer status block. -->
+    <string name="status_working">A processar</string>
+    <string name="status_scanning">A procurar impressora Epson via USB OTG</string>
+    <string name="status_no_printer">Nenhuma impressora</string>
+    <string name="status_no_printer_hint">Conecte uma impressora Epson via USB OTG e toque no botão de atualizar</string>
+    <string name="status_printer_error">A impressora reportou um erro</string>
+    <string name="status_ready">Pronta</string>
+    <string name="status_connected">Conectada via USB OTG</string>
+    <string name="status_stale">Último estado obtido com sucesso; a atualização mais recente falhou</string>
+    <string name="error_status_refresh_title">Não foi possível atualizar o estado da impressora</string>
+    <string name="error_status_refresh_detail">O último estado é apresentado e pode estar desatualizado. Verifique o painel da impressora para confirmar a condição atual e tente novamente.</string>
+    <string name="status_busy_indicator">A processar…</string>
+    <!-- Shown while a connection is spending seconds on a route the printer did
+         not answer on, before the next one is tried. Says what is happening and
+         how long, because the wait is otherwise unexplained. -->
+    <string name="connect_slow_note">Sem resposta na primeira rota de ligação, a tentar outra alternativa. Isto pode demorar alguns segundos e deverá ser mais rápido da próxima vez.</string>
+    <!-- The same situation as connect_slow_note, for the floating pill. Three
+         words, because the pill is small and the card below it carries the
+         explanation. Says what the app is doing, so the wait reads as progress
+         rather than a stall; the duration is the card's job. -->
+    <string name="connect_slow_brief">A tentar outra rota…</string>
+
+    <!-- Detail rows inside the printer card. -->
+    <string name="label_model">Modelo</string>
+    <string name="label_serial">Número de série</string>
+    <string name="label_highest_pad">Almofada mais cheia</string>
+
+    <!-- Protocol log panel. -->
+    <string name="log_empty">Ainda não existem entradas no registo.</string>
+    <string name="log_copied">Registo de protocolo copiado</string>
+
+    <!-- Warning shown above the waste counters. -->
+    <string name="pad_warning_title">Redefinir não limpa a almofada</string>
+    <string name="pad_warning_body">O contador é eletrónico; a almofada é física. Lave, substitua ou redirecione a tinta residual antes de redefinir, caso contrário a tinta acabará por verter dentro da impressora.</string>
+
+    <!-- Shown in place of the counters when the connected printer keeps its
+         waste ink counter somewhere the app cannot write to. Deliberately does
+         not claim to know which of the two causes applies: the catalog can tell
+         that a model has no counter, but not whether that is a maintenance box
+         or a gap in the database. The dialog explains both. -->
+    <string name="waste_unsupported_title">Nenhum contador para redefinir neste modelo</string>
+    <string name="waste_unsupported_body">Esta impressora não mantém um contador de tinta residual que a aplicação possa redefinir. Nada está avariado: nem a aplicação nem a impressora têm problemas.</string>
+    <string name="action_more_info">Mais informações</string>
+    <!-- A printer that answered, but is not in the catalog. Not the same as
+         waste_unsupported: that one means the catalog knows there is nothing
+         to reset. This one means we do not have a verified profile, so we
+         must not claim the printer has no counter. -->
+    <string name="partial_session_title">Conectada, sem perfil verificado</string>
+    <string name="partial_session_body">O estado e os níveis de tinta estão disponíveis. Os contadores de tinta residual não são lidos nem redefinidos até que exista um perfil verificado na aplicação. Pode enviar um pedido de suporte do modelo; não é necessário aguardar para consultar estas leituras.</string>
+    <string name="partial_cleaning_note">A limpeza das cabeças consome tinta e aumenta o contador de tinta residual. Esta aplicação não pode redefinir esse contador nesta impressora porque não possui um perfil verificado.</string>
+    <string name="error_power_clean_unverified">A limpeza profunda não está disponível sem um perfil verificado. Consome mais tinta e esta aplicação não conseguiria reverter o contador de tinta residual.</string>
+
+    <!-- Shown next to a counter whose ceiling the model does not publish, which
+         is every model sourced from reinkpy. Without a ceiling there is no
+         percentage, and the raw value is what the printer actually reports. -->
+    <string name="waste_scale_unknown">Sem percentagem: o limite do contador deste modelo não foi publicado. O valor acima é a leitura direta bruta.</string>
+    <!-- Reset dialog body for those same models. There is no percentage field
+         and no per-counter choice, because the reset covers every address the
+         model publishes. -->
+    <string name="dialog_reset_model_values">O limite do contador deste modelo não foi publicado, pelo que não existe percentagem de destino. A reposição escreve os valores publicados para este modelo, em todos os endereços listados.</string>
+
+    <!-- The EEPROM backup taken before any write. Shown after the write, whether
+         it succeeded or was refused partway through. -->
+    <string name="section_waste_backup">Cópia de segurança antes de gravar</string>
+    <string name="waste_backup_note">Os valores que estes endereços tinham antes da gravação. Guarde uma cópia para os poder repor caso algo corra mal.</string>
+    <string name="action_copy_backup">Copiar cópia de segurança</string>
+    <string name="backup_copied">Cópia de segurança copiada</string>
+    <!-- Write-path failures. The first pair means nothing was written at all;
+         the second means the printer refused partway through. -->
+    <string name="error_backup_failed">Não foi possível ler os valores atuais, pelo que nada foi gravado. A aplicação cria uma cópia de segurança antes de gravar.</string>
+    <string name="error_backup_failed_at">Não foi possível ler o valor atual em %1$s, pelo que nada foi gravado. A aplicação cria uma cópia de segurança antes de gravar.</string>
+    <string name="error_write_rejected">A impressora recusou a gravação. Nada mais foi gravado.</string>
+    <string name="error_write_rejected_at">A impressora recusou a gravação em %1$s. Já tinha(m) sido gravado(s) %2$d endereço(s); nada mais foi gravado. A cópia de segurança está abaixo.</string>
+
+    <!-- Restoring a saved backup.
+         The backup is saved by the app before every write, so the case this
+         covers is the one where the mistake is noticed later - usually with the
+         app already closed. That is why it is automatic and why it is kept on
+         disk, and the wording says so rather than presenting a button.
+         Restoring raises the counters, which is the opposite of a reset, so the
+         dialog says that plainly instead of leaving it to be discovered. -->
+    <string name="section_restore_backup">Restaurar uma cópia de segurança</string>
+    <string name="restore_note">Uma cópia de segurança é guardada automaticamente antes de cada gravação. Escolha uma para repor esses valores ou cole uma cópia de segurança que tenha guardado.</string>
+    <string name="restore_no_history">Ainda não há cópias de segurança guardadas. Uma cópia é guardada automaticamente antes de cada gravação.</string>
+    <string name="action_restore_selected">Restaurar cópia de segurança selecionada</string>
+    <string name="action_restore_paste">Restaurar a partir de texto colado</string>
+    <string name="restore_record_label">%1$s — %2$s</string>
+    <string name="restore_unknown_model">Modelo desconhecido</string>
+    <!-- Which write found the state a saved record holds, and what it reads.
+         Two records can look identical by model and time, so without these the
+         list gives no way to tell which one undoes the mistake. The "unknown"
+         wording covers records saved before the origin was recorded at all. -->
+    <string name="restore_origin_reset">Guardado antes de redefinir</string>
+    <string name="restore_origin_restore">Guardado antes de restaurar</string>
+    <string name="restore_origin_unknown">Guardado antes de gravar</string>
+    <string name="restore_record_detail">%1$s · %2$s</string>
+    <string name="restore_record_reads">Lê %1$s</string>
+    <string name="dialog_restore_title">Restaurar esta cópia de segurança?</string>
+    <string name="dialog_restore_body">Isto grava de volta os valores registados antes de uma gravação anterior. Aumenta os contadores, o que é o oposto de uma redefinição. Utilize apenas para anular uma alteração.</string>
+    <string name="dialog_restore_model">Cópia de segurança de: %1$s</string>
+    <string name="dialog_restore_no_model">Esta cópia de segurança não identifica o modelo da impressora. Certifique-se de que provém desta impressora.</string>
+    <string name="dialog_restore_addresses">Será(ão) gravado(s) %1$d endereço(s).</string>
+    <string name="dialog_restore_counter_delta">%1$s: %2$s → %3$s</string>
+    <string name="action_restore">Restaurar</string>
+    <string name="dialog_paste_backup_title">Colar uma cópia de segurança</string>
+    <string name="field_paste_backup">Texto da cópia de segurança</string>
+    <string name="paste_backup_hint">Cole a cópia de segurança que copiou anteriormente, com ou sem a linha de cabeçalho.</string>
+    <string name="paste_backup_invalid">Nenhuma linha de cópia de segurança encontrada. Cole o texto fornecido pela aplicação, ou pelo menos as linhas \'0x001C = 0x3F\'.</string>
+    <string name="paste_backup_parsed">Encontrado(s) %1$d endereço(s).</string>
+    <!-- Blocked rather than warned: the addresses belong to the model, so
+         writing one printer's record onto another would write to addresses that
+         mean something else there. -->
+    <string name="error_restore_model_mismatch">Esta cópia de segurança é de %1$s, mas a impressora ligada é %2$s. Restaurar num modelo diferente poderia gravar endereços errados, pelo que a operação foi bloqueada.</string>
+
+    <!-- Shown when the model is on the curated maintenance-box list, so the
+         cause is known rather than guessed. The dialog that follows is the
+         tailored one below, not the two-cause one. -->
+    <string name="waste_box_title">Esta impressora utiliza uma caixa de manutenção</string>
+    <string name="waste_box_body">A tinta residual vai para uma caixa e esta regista o nível no seu próprio chip. Não existe nenhum contador na impressora para a aplicação redefinir — quando a caixa enche, deve ser substituída.</string>
+    <string name="waste_box_dialog_title">A sua impressora utiliza uma caixa de manutenção</string>
+    <string name="waste_box_dialog_body">A tinta residual da limpeza das cabeças acumula-se numa caixa de manutenção em vez de almofadas no interior da impressora. A caixa possui o seu próprio chip que regista o nível de enchimento e a impressora não guarda nenhum contador próprio — portanto, não há nada para qualquer utilitário de reposição limpar.\n\nQuando a caixa fica cheia, é substituída ou o seu chip é redefinido com uma ferramenta dedicada. Nenhuma destas operações pode ser feita por uma aplicação via USB.\n\nPode confirmar isto na própria impressora: o painel de estado indica a caixa de manutenção e avisa quando esta precisa de ser trocada.\n\nA limpeza das cabeças e a verificação dos injetores continuam a funcionar nesta impressora. Encontram-se na página de Manutenção.</string>
+
+    <string name="waste_unsupported_dialog_title">Onde fica guardada a contagem de tinta residual</string>
+    <string name="waste_unsupported_dialog_body">A Epson guarda a contagem de tinta residual num de dois locais.\n\nAlmofada interna: a tinta é absorvida por almofadas no interior da impressora e o nível de enchimento é mantido na memória da própria impressora. Este é o caso que esta aplicação consegue redefinir.\n\nCaixa de manutenção: a tinta é recolhida numa caixa amovível que possui um chip próprio que regista o nível. A memória da impressora não contém nenhum contador, pelo que nenhum software o pode limpar. A caixa é substituída ou o chip é redefinido com uma ferramenta dedicada.\n\nPara saber qual dos sistemas possui, consulte o painel de estado da impressora. Se indicar uma caixa de manutenção, nenhum utilitário de redefinição poderá ajudar.\n\nSe a sua impressora utiliza almofadas internas e ainda assim vê esta mensagem, o modelo está simplesmente em falta na base de dados da aplicação. Isso é solucionável e gostaríamos de ser informados.\n\nA limpeza de cabeças e a verificação de injetores continuam a funcionar nesta impressora. Encontram-se na página de Manutenção.</string>
+
+    <!-- Maintenance panel. -->
+    <string name="maintenance_head_cleaning">Limpeza de cabeças</string>
+    <string name="maintenance_nozzle_check">Verificação de injetores</string>
+    <string name="maintenance_note">A limpeza das cabeças consome tinta e aumenta os contadores de tinta residual.</string>
+
+    <!-- Dialog actions shared by more than one dialog. -->
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_ok">OK</string>
+    <string name="action_close">Fechar</string>
+
+    <!-- Reset waste counters dialog. -->
+    <string name="dialog_reset_title">Redefinir contadores de tinta residual</string>
+    <string name="dialog_reset_warning">Redefinir os contadores de tinta residual modifica valores internos do firmware da impressora. Utilize por sua conta e risco.</string>
+    <string name="field_target_percentage">Percentagem de destino</string>
+    <string name="action_reset_counters">Redefinir contadores</string>
+    <string name="action_reset_counters_unverified">Redefinir contadores (perfil não verificado)</string>
+    <string name="action_paste_profile">Colar perfil</string>
+    <string name="action_delete_profile">Remover perfil local</string>
+    <string name="dialog_paste_profile_title">Colar um perfil público</string>
+    <string name="paste_profile_hint">Cole um elemento de modelo do reinkpy (&lt;model&gt;), com os atributos source e version. Preenche um modelo que esta aplicação ainda não tem. Não substitui uma entrada do catálogo e as chaves permanecem neste dispositivo.</string>
+    <string name="field_paste_profile">Perfil</string>
+    <string name="paste_profile_invalid">Este texto não é um perfil que esta aplicação possa armazenar.</string>
+    <string name="error_gap_provenance">Um perfil precisa de uma origem pública e de uma versão.</string>
+    <string name="error_gap_malformed">O perfil está incompleto ou fora dos limites.</string>
+    <string name="error_gap_box">Um modelo com caixa de manutenção não pode conter redefinição de tinta residual.</string>
+    <string name="error_gap_doctype">Este texto não é um excerto de perfil válido.</string>
+    <string name="error_gap_catalogued">Este modelo já se encontra na aplicação. A colagem não o pode substituir.</string>
+    <string name="error_gap_full">A lista local está cheia. Remova primeiro um perfil.</string>
+
+    <!-- Head cleaning dialog, for models that accept service cleaning. -->
+    <string name="dialog_cleaning_title">Limpeza de cabeças</string>
+    <string name="dialog_cleaning_body">A limpeza das cabeças consome tinta. Escolha o nível de limpeza suportado por esta impressora.</string>
+    <string name="action_start_cleaning">Iniciar limpeza</string>
+
+    <!-- Generic ESC/P2 cleaning dialog, used when service cleaning is refused. -->
+    <string name="dialog_generic_cleaning_body">Este modo envia um trabalho genérico de manutenção Epson ESC/P2. O suporte pode variar consoante o modelo.</string>
+    <string name="cleaning_all_nozzles">Limpar todos os injetores</string>
+    <string name="cleaning_black_nozzle">Limpar o injetor de tinta preta</string>
+    <string name="cleaning_color_nozzles">Limpar os injetores de tinta colorida</string>
+    <string name="cleaning_alternative_mode">Limpeza de cabeças (modo alternativo)</string>
+    <string name="cleaning_power_clean">Limpeza profunda (Power Clean)</string>
+
+    <!-- Service cleaning modes, as the model database names them.
+         The dialog is read, so it gets these labels. The protocol log keeps the
+         database wording instead, because it is a diagnostic record and people
+         search for the exact string. That wording also carries a leftover "%"
+         where a placeholder was never substituted, which these drop.
+         A name the table does not know falls back to the database wording. -->
+    <string name="cleaning_mode_gentle">Limpeza suave</string>
+    <string name="cleaning_mode_normal">Limpeza normal</string>
+    <string name="cleaning_mode_medium">Limpeza média</string>
+    <string name="cleaning_mode_strong">Limpeza forte</string>
+    <string name="cleaning_mode_gentle_mode">Limpeza suave (modo)</string>
+    <string name="cleaning_mode_normal_mode">Limpeza normal (modo)</string>
+    <string name="cleaning_mode_strong_mode">Limpeza forte (modo)</string>
+    <string name="cleaning_mode_strong_a">Limpeza forte, modo A</string>
+    <string name="cleaning_mode_strong_b">Limpeza forte, modo B</string>
+    <string name="cleaning_all_gentle">Suave, todos os injetores</string>
+    <string name="cleaning_all_normal">Normal, todos os injetores</string>
+    <string name="cleaning_all_medium">Média, todos os injetores</string>
+    <string name="cleaning_all_strong">Forte, todos os injetores</string>
+    <string name="cleaning_black_gentle">Suave, injetor preto</string>
+    <string name="cleaning_black_normal">Normal, injetor preto</string>
+    <string name="cleaning_black_medium">Média, injetor preto</string>
+    <string name="cleaning_black_strong">Forte, injetor preto</string>
+    <string name="cleaning_color_gentle">Suave, injetores de cor</string>
+    <string name="cleaning_color_normal">Normal, injetores de cor</string>
+    <string name="cleaning_color_medium">Média, injetores de cor</string>
+    <string name="cleaning_color_strong">Forte, injetores de cor</string>
+
+    <!-- Nozzle check dialog. There is one check, not two: the sequence is what
+         escputil sends and what yusnel-rojas proved on hardware. The pair of
+         options that used to live here were the two halves of that sequence
+         offered separately, which is why one of them did nothing. -->
+    <string name="dialog_nozzle_check_title">Verificação de injetores</string>
+    <string name="action_print_test">Imprimir teste</string>
+    <string name="dialog_nozzle_check_body">Imprime uma página de teste de verificação de injetores. Utiliza uma folha de papel e um pouco de tinta, sendo a única forma de confirmar se vale a pena fazer uma limpeza de cabeças.</string>
+
+    <!-- About dialog. -->
+    <string name="dialog_about_title">Sobre</string>
+    <string name="about_version">Versão %1$s</string>
+    <string name="about_epson_only">Compatível apenas com impressoras a jato de tinta Epson.</string>
+    <!-- Shown only once the fork publishes releases of its own. The app holds no
+         network permission, so this opens the page rather than checking. -->
+    <string name="action_check_updates">Procurar atualizações</string>
+    <string name="about_updates_note">Abre a página de lançamentos no seu navegador. A aplicação nunca se liga à Internet.</string>
+    <string name="action_open_repo">Abrir repositório</string>
+    <!-- Shown with the support button, and only while DONATE_URL has a value:
+         the app does not ask for money it has nowhere to send. The button opens
+         the browser, which is also what keeps this outside Google Play's billing
+         requirement - no payment is taken inside the app. -->
+    <string name="about_donation">O E-Pad Reset é gratuito, sem anúncios e sem necessidade de conta. Se lhe poupou uma ida à assistência técnica, pode apoiar o seu desenvolvimento.</string>
+    <string name="action_support_development">Apoiar desenvolvimento</string>
+    <string name="action_open_github">Abrir repositório no GitHub</string>
+
+    <!-- Exit confirmation. -->
+    <string name="dialog_exit_title">Sair da aplicação</string>
+    <string name="dialog_exit_body">Deseja sair e fechar o %1$s?</string>
+    <string name="action_exit">Sair</string>
+
+    <!-- Titles for the dialog shown after an action succeeds. One per kind of
+         outcome, because the app knows different amounts about each: a counter
+         reset is read back and verified, a print job is only sent and has no
+         acknowledgement to wait for. A single title said the same thing about
+         both, which was true for one and a claim for the other. -->
+    <string name="dialog_counters_updated_title">Contadores atualizados</string>
+    <string name="dialog_backup_restored_title">Cópia de segurança restaurada</string>
+    <string name="dialog_job_sent_title">Trabalho enviado</string>
+
+    <!-- Error callout. The title is fixed; the body is either a localized
+         message raised by the ViewModel, or this generic line when the failure
+         was a technical one with no localized wording of its own. -->
+    <string name="callout_operation_failed">A operação falhou</string>
+
+    <!-- Messages raised by the ViewModel. -->
+    <string name="error_printer_not_connected">A impressora não está conectada</string>
+    <!-- Shown in the red callout when a forced rescan comes up empty. The Wi-Fi
+         clause lives here and not in the "No printer" hint on purpose: the hint
+         is ambient, seen by everyone on every launch, and a reader who does not
+         have the language should not meet a wall of text there. This one only
+         appears after the user asked for a rescan, which is when the question
+         "why can it not see mine?" is actually being asked.
+
+         "Note:" is load-bearing, not decoration. Without it the two sentences
+         sit side by side and read as a diagnosis — as if the app had worked out
+         that the user was reaching for the printer over Wi-Fi, which may have
+         nothing to do with why the scan came up empty. Marked as a note it is
+         what it is: an aside about what this app does. -->
+    <string name="error_no_printer_detected">Nenhuma impressora Epson detetada via USB OTG. Nota: esta aplicação não funciona via Wi-Fi.</string>
+    <!-- Raised when a USB printer is attached but its vendor is not Epson. The
+         generic line above reads as a fault to someone holding a printer, so
+         this one names the real reason: the app is Epson-only. -->
+    <string name="error_non_epson_printer_detected">Está conectada uma impressora via USB, mas não é da marca Epson. Esta aplicação funciona apenas com impressoras de jato de tinta Epson.</string>
+    <string name="error_connect_failed">Não foi possível abrir uma sessão de manutenção com a impressora</string>
+
+    <!-- Shown when the printer is unplugged while the app is open. A statement
+         rather than a failure: nothing the user did went wrong. -->
+    <string name="notice_printer_disconnected">A impressora foi desligada. Conecte-a novamente e toque em atualizar para ler de novo.</string>
+
+    <!-- Connection failures, resolved from PrinterService.ConnectFailure so the
+         callout can name the actual cause instead of a generic failure. -->
+    <string name="error_connect_permission_denied">O acesso USB foi recusado. Reconecte a impressora e aceite o pedido de autorização.</string>
+    <!-- Kept apart from error_connect_permission_denied: the check that failed
+         cannot tell a refusal from a printer that is no longer there, and
+         sending someone to look for a permission dialog that will never appear
+         is worse than saying nothing. -->
+    <string name="error_connect_device_detached">A impressora já não está conectada. Conecte-a novamente e tente de novo.</string>
+    <string name="error_connect_no_interfaces">Este dispositivo USB não tem nenhuma interface utilizável pela aplicação. Pode não ser uma impressora Epson compatível.</string>
+    <string name="error_connect_unsupported_model">Este modelo Epson não consta da base de dados da aplicação, pelo que não é possível abrir uma sessão de manutenção. Pode solicitar uma investigação; o suporte requer dados verificados e testes de hardware e não é garantido.</string>
+    <string name="error_connect_unsupported_model_named">O modelo Epson \'%1$s\' não consta da base de dados da aplicação, pelo que não é possível abrir uma sessão de manutenção. Pode solicitar uma investigação; o suporte requer dados verificados e testes de hardware e não é garantido.</string>
+    <!-- The mirror image of the two lines above. The model is missing from the
+         database as well, but the community database classifies it as using a
+         maintenance box, so adding it would never enable a reset. Kept apart so
+         the app does not promise an outcome the hardware cannot deliver. -->
+    <string name="error_connect_unsupported_model_box">Este modelo Epson não consta da base de dados da aplicação e o catálogo comunitário classifica-o como utilizando caixa de manutenção. Pode solicitar a investigação do suporte para limpeza e teste de injetores, mas esta aplicação não consegue redefinir o contador no chip da caixa.</string>
+    <string name="error_connect_unsupported_model_box_named">O modelo Epson \'%1$s\' não consta da base de dados da aplicação e o catálogo comunitário classifica-o como utilizando caixa de manutenção. Pode solicitar a investigação do suporte para limpeza e teste de injetores, mas esta aplicação não consegue redefinir o contador no chip da caixa.</string>
+    <string name="error_connect_dot4_nak">A impressora recusou a sessão de manutenção. Desligue-a e volte a ligá-la e tente de novo.</string>
+    <string name="error_connect_dot4_no_reply">A impressora não respondeu em nenhuma rota USB. Tente outro cabo ou porta, desligue-a e ligue-a novamente e tente de novo.</string>
+    <!-- "may be using it", not "is using it": claimInterface returns a bare
+         boolean, so a device that vanished mid-connect is indistinguishable
+         from one another app holds. The attachment re-check narrows it, and the
+         wording no longer asserts what the check cannot prove. -->
+    <string name="error_connect_interface_busy">Não foi possível obter a ligação USB da impressora. Outra aplicação pode estar a utilizá-la (ex.: serviço de impressão); feche outras aplicações de impressão e tente novamente.</string>
+    <string name="error_reset_partial_shared">Estes contadores partilham bytes de memória com outro contador, pelo que só podem ser redefinidos em conjunto. Selecione todos os contadores para prosseguir.</string>
+    <!-- The refusals the service raises before it writes anything. Each one used
+         to reach the user as "Operation failed"; they are kept apart because
+         each names a different thing the user can do about it. -->
+    <string name="error_reset_no_counter_selected">Nenhum contador de tinta residual foi selecionado, pelo que nada há a redefinir.</string>
+    <string name="error_reset_no_values">Este modelo não publica valores de redefinição para os contadores selecionados, pelo que nada há a gravar.</string>
+    <string name="error_reset_percentage_unsupported">Não é possível definir uma percentagem para esta seleção: os contadores devem publicar um limite, caber em quatro bytes e não partilhar bytes com outro contador.</string>
+    <string name="error_restore_no_applicable_addresses">Esta cópia de segurança não contém nenhum endereço utilizado pela impressora conectada, pelo que nada há a repor.</string>
+
+    <!-- A local draft is reviewed before any external action. -->
+    <string name="action_report_model">Ajudar a adicionar este modelo</string>
+    <string name="action_copy_report">Copiar relatório</string>
+    <string name="report_model_note">Prepare um relatório limitado localmente, reveja-o e escolha como o pretende partilhar. A aplicação não se liga à Internet.</string>
+    <string name="dialog_model_support_title">Pedir suporte para modelo</string>
+    <string name="field_model_report">Relatório para rever e editar</string>
+    <string name="action_choose_report_channel">Escolher como partilhar</string>
+    <string name="action_review_report">Rever relatório novamente</string>
+    <string name="action_report_discord">Abrir Discord</string>
+    <string name="action_report_github">Abrir pedido no GitHub</string>
+    <string name="action_share_report">Partilhar relatório</string>
+    <string name="report_privacy_note">O suporte não é garantido. Este rascunho inclui apenas campos do modelo, IDs de USB e versões da aplicação e do Android, sem registos brutos, números de série ou cópias da EEPROM. Reveja tudo o que adicionar. Nada é enviado automaticamente; outra aplicação ou o seu navegador gere a partilha externa de acordo com a sua própria política de privacidade.</string>
+    <string name="report_discord_help">O Discord requer uma conta. Copie o relatório revisto, abra a comunidade e pergunte onde publicar o pedido de modelo. Abrir o convite não cola nem publica nada.</string>
+    <string name="report_github_help">O GitHub requer uma conta. Copie o relatório revisto e cole-o no modelo de pedido de novo modelo. Não são colocados dados de diagnóstico na ligação.</string>
+    <string name="report_share_help">Se não tiver conta no GitHub ou Discord, partilhe através de uma aplicação que já utilize com alguém que possa reencaminhar o pedido. Não existe uma caixa de entrada configurada. Escolha o destinatário; abrir o painel de partilha não significa que um responsável o tenha recebido.</string>
+    <string name="report_external_unavailable">Nenhuma aplicação conseguiu abrir esta ação. Pode ainda assim copiar o relatório e escolher um destino manualmente.</string>
+    <string name="report_copied">Relatório copiado</string>
+    <string name="msg_counters_updated">Os contadores de tinta residual foram atualizados. Reinicie a impressora se o modelo o exigir.</string>
+    <!-- Byte-level verification names addresses, not derived percentages. A
+         mismatch does not mean nothing changed: other writes may have applied. -->
+    <string name="error_counters_not_applied">Os bytes lidos em %1$s não correspondem aos valores de reposição enviados. Alguns valores podem ter mudado. A cópia de segurança está abaixo; os bytes esperados e lidos constam do registo de protocolo.</string>
+    <string name="error_restore_not_applied">Os bytes lidos em %1$s não correspondem aos valores restaurados enviados. Alguns valores podem ter mudado. A cópia de segurança está abaixo; os bytes esperados e lidos constam do registo de protocolo.</string>
+    <string name="error_write_failed">A gravação em %1$s não pôde ser concluída ou a resposta não foi lida. Já tinham sido gravados %2$d endereço(s) anterior(es); este endereço também pode ter mudado. Nada mais foi gravado. A cópia de segurança está abaixo.</string>
+    <string name="error_read_back_failed">A gravação foi concluída, mas os valores não puderam ser relidos. O resultado não está verificado; alguns valores podem ter mudado. A cópia de segurança está abaixo.</string>
+    <string name="error_read_back_failed_at">A gravação foi concluída, mas o byte em %1$s não pôde ser relido. O resultado não está verificado; alguns valores podem ter mudado. A cópia de segurança está abaixo.</string>
+    <string name="msg_backup_restored">Os valores guardados foram repostos. Reinicie a impressora se o modelo o exigir.</string>
+    <string name="msg_cleaning_sent_named">O comando de limpeza de cabeças \'%1$s\' foi enviado. Aguarde que a impressora inicie a rotina e atualize o estado manualmente.</string>
+    <string name="msg_cleaning_sent">O trabalho de limpeza de cabeças foi enviado. Aguarde que a impressora inicie a rotina e atualize o estado manualmente.</string>
+    <string name="msg_nozzle_check_sent">O trabalho de impressão de teste de injetores foi enviado. Aguarde pela impressão da página.</string>
+
+    <!-- Readouts. The em dash stands for "no reading yet". -->
+    <string name="percent_value">%1$d%%</string>
+    <string name="waste_counter_default_name">Contador de tinta residual %1$d</string>
+
+    <!-- Printer state, resolved from the code the printer reports. EpsonProtocol
+         still produces English text for the diagnostic log; the UI maps the code
+         to these labels, so the status line is translatable. -->
+    <string name="printer_state_self_printing">Autoimpressão</string>
+    <string name="printer_state_busy">Ocupada</string>
+    <string name="printer_state_waiting">A aguardar</string>
+    <string name="printer_state_idle">Inativa</string>
+    <string name="printer_state_pause">Em pausa</string>
+    <string name="printer_state_cleaning">A limpar</string>
+    <string name="printer_state_error">Erro</string>
+
+    <!-- Printer error, resolved from the code the printer reports. -->
+    <string name="printer_error_interface">Erro de interface</string>
+    <string name="printer_error_paper_jam">Encravamento de papel</string>
+    <string name="printer_error_ink_out">Sem tinta</string>
+    <string name="printer_error_paper_feed">Sem papel ou erro de alimentação</string>
+    <string name="printer_error_service_required">Assistência técnica necessária</string>
+    <string name="printer_error_cover_open">Tampa aberta</string>
+
+    <!--
+      Still not translatable, and deliberately left in the protocol layer:
+
+        Ink colour names (InkLevel.color), e.g. "Black", "Light Cyan".
+
+      They are never shown to the user. The gauges display short labels derived
+      from them, and the same strings double as matching keys for the sort order
+      and for the gauge colour, so translating them would change behaviour
+      rather than just wording.
+    -->
+    <string name="temporary_backup_title">A cópia de segurança não foi guardada</string>
+    <string name="temporary_backup_warning">A cópia de segurança completa está apenas na memória. Fechar a aplicação ou perder o processo irá perdê-la. Ainda não foram gravados nenhuns bytes. Continue apenas se aceitar este risco; copie primeiro a cópia de segurança.</string>
+    <string name="action_continue_temporary">Continuar com cópia de segurança temporária</string>
+    <string name="error_restore_incomplete_counter">A cópia de segurança contém apenas parte de um contador. Restaure um grupo completo de contadores; nada foi gravado.</string>
+    <string name="error_restore_unit_mismatch">Esta cópia de segurança pertence a outra unidade de impressora. Nada foi gravado.</string>
+    <string name="dialog_restore_legacy_identity">Esta cópia de segurança não identifica a unidade original da impressora. Confirme que provém desta impressora antes de restaurar.</string>
+    <string name="exit_busy_warning">Uma operação está em curso. Sair pode interromper uma gravação e deixar contadores parcialmente alterados. Aguarde que termine se possível.</string>
+</resources>
