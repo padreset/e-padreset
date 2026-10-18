@@ -450,6 +450,18 @@ public repositories. It also offers branch protection that requires one approvin
 review, which is friction on a repository one person merges into; leave that one
 out with `gh secure ss vr dep cs` if it applies to you.
 
+**Leave Code Quality off.** The repository's overview offers it, and it is worth
+knowing what accepting would mean before wondering whether something is missing.
+It requires GitHub Team or Enterprise Cloud — on Free there is no access at all —
+and once on, it bills three ways: per unique active committer, per Actions minute
+spent scanning, and in AI credits. The AI part is not optional, because it
+generates a fix for every finding it reports, so there is no way to use the
+analysis without drawing from the shared credit pool.
+
+What it would add on top is already here for nothing. `detekt` runs on every push
+and pull request with `maxIssues: 0`, and CodeQL runs the security half free on
+public repositories. The difference it would make is a dashboard, not a check.
+
 **Verify the organization against the domain.** `padreset.com` is the root of the
 package name (`com.padreset.epadreset`), and it is the address the project's own
 pages are meant to be served from. GitHub lets an organization claim a domain it
