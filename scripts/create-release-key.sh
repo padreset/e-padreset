@@ -40,10 +40,31 @@ if ! gh auth status >/dev/null 2>&1; then
     exit 1
 fi
 
-read -r -s -p "Keystore password: " store_pass
+# Nothing is echoed while the password is typed, which is the point and also why
+# a terminal that cannot deliver it looks exactly like a working one. Both reads
+# are checked: a read that fails means this shell has no terminal behind it, not
+# that the password was empty. Saying which one happened saves the guessing.
+echo "Type the password and press Enter. Nothing appears as you type."
+
+if ! read -r -s -p "Keystore password: " store_pass; then
+    echo
+    echo "This terminal could not deliver a password." >&2
+    echo "Open Git Bash from the Start menu and run the script there." >&2
+    exit 1
+fi
 echo
-read -r -s -p "Repeat: " repeat
+if ! read -r -s -p "Repeat: " repeat; then
+    echo
+    echo "This terminal could not deliver a password." >&2
+    echo "Open Git Bash from the Start menu and run the script there." >&2
+    exit 1
+fi
 echo
+
+if [ -z "$store_pass" ]; then
+    echo "The password was empty. Nothing was created." >&2
+    exit 1
+fi
 
 if [ "$store_pass" != "$repeat" ]; then
     echo "Passwords differ." >&2
