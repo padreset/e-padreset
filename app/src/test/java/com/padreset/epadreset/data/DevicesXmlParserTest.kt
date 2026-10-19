@@ -103,6 +103,62 @@ class DevicesXmlParserTest {
     }
 
     /**
+     * The WP/PX families whose specs declare counter 0x14/0x15 with ceiling
+     * 13500 but shipped no `<reset>` carried no reset profile, so 36 models
+     * connected read-only. Their reset map ({0x14: 0, 0x15: 0}) was
+     * corroborated against EWR's database (see NOTICE for the provenance
+     * caveat) and added to the seven shared spec blocks. Pinned here so a
+     * future catalog edit cannot silently drop it again.
+     */
+    @Test
+    fun `WP families carry the corroborated reset map`() {
+        val specs = parse().associateBy { it.modelName }
+        val expected = mapOf(0x14 to 0, 0x15 to 0)
+        val models = listOf(
+            "WP-4020 Series",
+            "WP-4090 Series",
+            "WP-4520 Series",
+            "WP-4540 Series",
+            "WP-4590 Series",
+            "WP-M4011 Series",
+            "PX-B700",
+            "PX-K701",
+        )
+        assertTrue(
+            "expected the WP/PX families in devices.xml, got ${specs.size} models",
+            models.all { specs.containsKey(it) },
+        )
+        models.forEach { name ->
+            val spec = specs.getValue(name)
+            assertEquals(
+                "$name reset map",
+                expected,
+                spec.resetMap,
+            )
+            assertTrue(
+                "$name should offer a waste reset",
+                spec.supportsWasteReset,
+            )
+        }
+    }
+
+    /**
+     * No model may keep waste counters without a reset map: that is exactly
+     * the shape that left the WP families read-only (counters present, reset
+     * absent). Cleaning-only and maintenance-box models carry no counters at
+     * all, so they are unaffected by this invariant.
+     */
+    @Test
+    fun `no model keeps counters without a reset map`() {
+        val orphaned = parse().filter { it.wasteCounters.isNotEmpty() && it.resetMap.isEmpty() }
+
+        assertTrue(
+            "models with counters but no reset map: ${orphaned.map { it.modelName }}",
+            orphaned.isEmpty(),
+        )
+    }
+
+    /**
      * Only service-type jobs with a payload are kept. Anything else would be
      * dispatched as a head cleaning and send the wrong bytes to the printer,
      * which is a change no user can undo from the app.

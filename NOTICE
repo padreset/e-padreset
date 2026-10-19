@@ -5,7 +5,7 @@ A modified version of tekware-it/android-epson-reset, which is itself a port of
 CiRIP/ez-reset. This file states what the work is, what was changed, and under
 which licence it is distributed.
 
-This file is here because GPL-3.0 section 5 asks a modified work to carry
+This file is here because AGPL-3.0 section 5 asks a modified work to carry
 prominent notices that it was modified, with a relevant date, and that it is
 released under the licence. The notices live here rather than in a header on
 every source file: a header added to files that were otherwise untouched would
@@ -35,10 +35,11 @@ This version
 
     Modified by the PadReset project, September and October 2026.
 
-    Relicensed to GPL-3.0, which the GPL-2.0-or-later terms of the original
-    permit. The move to GPL-3.0 is what makes the maintenance-box data
-    combinable at all: section 13 of GPL-3.0 allows a covered work to be
-    combined with one licensed under AGPL-3.0.
+    Relicensed to AGPL-3.0, which the GPL-2.0-or-later terms of the original
+    permit via GPL-3.0 compatibility. The AGPL-3.0 terms apply to the
+    combined work as a whole, including its section 13 network-interaction
+    requirement, which covers the AGPL-3.0-derived data listed below.
+    This is a licensing statement, not legal advice.
 
     Substantially modified: the user interface, the service layer, the model
     catalog and the write path have been rewritten or replaced. What remains
@@ -56,6 +57,17 @@ Data and assets derived from other projects
         Copied from CiRIP/ez-reset. Its own licensing is not stated by its
         author, which the README records as an open question rather than a
         settled one.
+
+        October 2026: the seven WP/PX spec blocks (WP4020, WP4090, WP4520,
+        WP4540, WP4590, WM4020, WM4520) gained
+        `<reset>0x14 0x00 0x15 0x00</reset>`, corroborated against the
+        database.json of RxNaison/Epson-Waste-Reset (Apache-2.0 code).
+        That database is machine-merged from reinkpy (AGPL-3.0, its stated
+        "shipped base"), ez-reset, reink and gutenprint with no per-entry
+        provenance, so these reset values are treated as AGPL-3.0-derived
+        until proven otherwise. Cross-checked exactly (factory 0x81 0x09 =
+        rkey 2433, keyword bytes spelling its wkey, counter bytes and
+        ceiling 13500 match); not yet verified by a write test on hardware.
 
     app/src/main/assets/maintenance_boxes.xml
     app/src/main/assets/reinkpy_models.xml

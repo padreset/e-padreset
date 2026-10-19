@@ -19759,6 +19759,7 @@
 		<query>
 			<counter>0x14 0x15<max>13500</max></counter>
 		</query>
+		<reset>0x14 0x00 0x15 0x00</reset>
 	</waste>
 	<information>
 		<report>
@@ -20024,6 +20025,7 @@
 		<query>
 			<counter>0x14 0x15<max>13500</max></counter>
 		</query>
+		<reset>0x14 0x00 0x15 0x00</reset>
 	</waste>
 	<information>
 		<report>
@@ -20285,6 +20287,7 @@
 		<query>
 			<counter>0x14 0x15<max>13500</max></counter>
 		</query>
+		<reset>0x14 0x00 0x15 0x00</reset>
 	</waste>
 	<information>
 		<report>
@@ -20543,6 +20546,7 @@
 		<query>
 			<counter>0x14 0x15<max>13500</max></counter>
 		</query>
+		<reset>0x14 0x00 0x15 0x00</reset>
 	</waste>
 	<information>
 		<report>
@@ -20740,6 +20744,7 @@
 		<query>
 			<counter>0x14 0x15<max>13500</max></counter>
 		</query>
+		<reset>0x14 0x00 0x15 0x00</reset>
 	</waste>
 	<information>
 		<report>
@@ -20918,6 +20923,7 @@
 		<query>
 			<counter>0x14 0x15<max>13500</max></counter>
 		</query>
+		<reset>0x14 0x00 0x15 0x00</reset>
 	</waste>
 	<information>
 		<report>
@@ -21010,6 +21016,7 @@
 		<query>
 			<counter>0x14 0x15<max>13500</max></counter>
 		</query>
+		<reset>0x14 0x00 0x15 0x00</reset>
 	</waste>
 	<information>
 		<report>

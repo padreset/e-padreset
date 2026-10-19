@@ -265,10 +265,8 @@ function renderBoxes(models) {
     reinkpy: https://codeberg.org/atufi/reinkpy
     licence: GNU Affero General Public License v3.0 (AGPL-3.0)
 
-  This project is distributed under GPL-3.0. Section 13 of GPL-3.0 permits
-  combining a covered work with a work licensed under AGPL-3.0, which is what
-  makes this file possible. reinkpy retains its own licence and copyright over
-  its database.
+  This project is distributed under AGPL-3.0, which covers this AGPL-3.0-derived
+  file. reinkpy retains its own licence and copyright over its database.
 
   GENERATED
 

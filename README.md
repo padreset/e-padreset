@@ -850,17 +850,17 @@ Data sources:
 
 ## License Note
 
-This repository is distributed under `GPL-3.0`.
+This repository is distributed under `AGPL-3.0`.
 
-It was previously offered under `GPL-2.0-or-later`. The move to `GPL-3.0` is
-what makes the maintenance-box classification possible: the list in
-`assets/maintenance_boxes.xml` is derived from the
-[reinkpy](https://codeberg.org/atufi/reinkpy) model database, which is
-AGPL-3.0, and section 13 of GPL-3.0 permits combining a covered work with a
-work licensed under AGPL-3.0.
+It was previously offered under `GPL-2.0-or-later` (later `GPL-3.0`). The move
+to `AGPL-3.0` covers the reinkpy-derived data: the lists in
+`assets/maintenance_boxes.xml` and `assets/reinkpy_models.xml` are derived
+from the [reinkpy](https://codeberg.org/atufi/reinkpy) model database, which
+is AGPL-3.0, and so are the EWR-corroborated reset values added to
+`assets/devices.xml` (see NOTICE).
 
 [`NOTICE`](NOTICE) states what this work is derived from, what was modified and
-when, and which data and assets come from other projects. GPL-3.0 section 5 asks
+when, and which data and assets come from other projects. AGPL-3.0 section 5 asks
 a modified work to carry that; it lives in one file rather than in a header on
 every source file, because a header added to untouched files would attribute
 every one of their lines to the change that added it and erase the record the
