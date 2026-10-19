@@ -465,9 +465,15 @@ public repositories. The difference it would make is a dashboard, not a check.
 **Verify the organization against the domain.** `padreset.com` is the root of the
 package name (`com.padreset.epadreset`), and it is the address the project's own
 pages are meant to be served from. GitHub lets an organization claim a domain it
-controls — Settings → Organization verification, then a DNS `TXT` record or a file
-published on the site — and it puts a verified mark beside the name everywhere the
-organization appears.
+controls, which puts a verified mark beside its name: **Settings → Security →
+Verified and approved domains → Add a domain**, then a DNS `TXT` record. No paid
+plan is involved; an organization owner can do it.
+
+The badge only appears when the profile agrees with the domain, and that is the
+part that catches people out. Both the website and the public email shown on the
+organization's profile have to live on the verified domain — so the website should
+be `https://padreset.com` and the public email should stay empty. An address at
+any other domain would have to be verified too, and could not be.
 
 That mark is not decoration here. It ties the repository, the pages and the binary
 to one domain, which is the claim a reader is checking before any of them is
