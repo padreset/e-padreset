@@ -344,8 +344,10 @@ a chip reset. Reports request investigation, not a guarantee or release date.
   `play-store/source` rather than beside them, so the folder holds only files
   that are meant to be uploaded and there is nothing to guess at
 - `docs`
-  The GitHub Pages site, and the privacy policy URL the Play listing points at.
-  Plain HTML with no build step, so what is committed is what is served
+  Technical notes that belong beside the code: the model-request flow and the
+  catalog performance measurement. The project's website is not here — it is
+  `padreset.com`, served separately, so nothing in this folder is published by
+  GitHub Pages
 
 ## Build
 

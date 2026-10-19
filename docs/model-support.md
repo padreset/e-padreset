@@ -9,7 +9,7 @@ E-Pad Reset funciona sin conexión y no tiene permiso `INTERNET`. Un modelo ause
 1. Use **Help add this model / Ayudar a añadir este modelo** when connection reports a missing model.
 2. Review and optionally edit the local draft. It contains only model fields, USB VID/PID, app/Android versions and a summary of the catalog failure. No raw logs, serial numbers or EEPROM backups are attached. Check anything you add yourself.
 3. Choose how to share. **Copy report / Copiar informe** copies only on request.
-   - [Discord community / Comunidad Discord](https://discord.gg/NYqqn4b25): requires an account. Open the invite, ask where to post a model request and paste the reviewed report. Opening the link does not send the report.
+   - [Discord community / Comunidad Discord](https://discord.gg/8PHVDBm6W): requires an account. Open the invite, ask where to post a model request and paste the reviewed report. Opening the link does not send the report.
    - [GitHub model request / Petición de modelo](https://github.com/padreset/e-padreset/issues/new?template=01-model-support.yml): requires an account. Search for your model, then paste the report into the template. The link contains no report/model data.
    - **Share report / Compartir informe**: use another app with someone who can relay the request. The chooser needs no GitHub/Discord account, but the receiving app may need an account. There is no dedicated support inbox yet; choosing an app does not guarantee delivery to a maintainer.
 4. Do not post raw protocol logs, EEPROM dumps/backups, serial numbers or unredacted photos. Do not try guessed keys, addresses or experimental EEPROM writes.

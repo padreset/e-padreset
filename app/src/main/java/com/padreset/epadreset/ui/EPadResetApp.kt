@@ -50,7 +50,7 @@ internal const val REPO_URL = "https://github.com/padreset/e-padreset"
 internal val REPORT_REPO_URL: String? = "https://github.com/padreset/e-padreset"
 
 /** Opened by the user's browser/Discord app, never by an in-app network client. */
-internal const val COMMUNITY_URL = "https://discord.gg/NYqqn4b25"
+internal const val COMMUNITY_URL = "https://discord.gg/8PHVDBm6W"
 
 /**
  * Where releases are published, or null while there is nowhere to publish them.
