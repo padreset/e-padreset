@@ -534,6 +534,26 @@ gh attestation verify EPadReset-v1.0.0.apk -R padreset/e-padreset
 That line belongs in the release notes, which the workflow writes for you. An
 attestation nobody knows to check is worth nothing.
 
+**Know the certificate's fingerprint.** The attestation says where a file came
+from; the signature says which key made it. Only the second can be checked without
+a network:
+
+```sh
+apksigner verify --print-certs EPadReset-v1.0.0.apk
+```
+
+The signer certificate's SHA-256 digest is
+
+```
+e90415fb3b8289646fa83373de3358f18fbf1cbc92d5f91ab491ae96aa514c55
+```
+
+That is the certificate, not the APK. Being self-signed, the value is a name
+rather than a proof — what it gives you is that a build signed by a *different*
+key is visible as such, which is the substitution an attacker would reach for.
+It does not change for the life of the app; if it ever does, the key was replaced
+and that is the thing to ask about.
+
 **The checksum is published too, and it is not a second security measure.** The
 digest is already inside the attestation, because the subject of a provenance
 statement is the artifact's hash. `SHA256SUMS` is attached to the release and the
