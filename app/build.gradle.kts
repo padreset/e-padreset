@@ -91,8 +91,8 @@ android {
         // is worth a scheme that stays legible. This leaves 99 minor and 99
         // patch releases per major and still lands far below the 2,100,000,000
         // ceiling.
-        versionCode = 10000
-        versionName = "1.0.0"
+        versionCode = 10100
+        versionName = "1.1.0"
 
         // Needed for the instrumented tests. Without it the default runner is
         // the framework's, which does not know about AndroidX Test and reports
