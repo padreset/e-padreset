@@ -1,5 +1,6 @@
 package com.padreset.epadreset.data
 
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -190,6 +191,23 @@ class DevicesXmlParserTest {
         assertEquals(listOf(0x30, 0x31, 0x2F), counter.addresses)
         assertTrue("0xFF filter must store no mask", counter.masks.isEmpty())
         assertTrue("unshared addresses must not count", spec.sharedAddresses.isEmpty())
+    }
+
+    /**
+     * The SC-P600 keyword has three bytes in the 0x80-0xFF range (0x86, 0x97,
+     * 0xB6). Those are the bytes an earlier text-based loader turned into two
+     * bytes each, so the first write was refused. Pinned against the real file
+     * so the parser cannot lose that shape without a failing test.
+     */
+    @Test
+    fun `SC-P600 keyword keeps its high bytes as single bytes`() {
+        val spec = parse().firstOrNull { it.modelName == "SC-P600 Series" }
+            ?: throw AssertionError("SC-P600 Series not in devices.xml")
+
+        assertArrayEquals(
+            byteArrayOf(0x97.toByte(), 0x26, 0x86.toByte(), 0x97.toByte(), 0x36, 0x16, 0x16, 0xB6.toByte()),
+            spec.keyword,
+        )
     }
 
     /**

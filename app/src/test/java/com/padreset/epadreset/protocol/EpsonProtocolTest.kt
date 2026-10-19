@@ -70,6 +70,36 @@ class EpsonProtocolTest {
     }
 
     @Test
+    fun `write keyword with bytes above 0x7F reaches the frame as one byte each`() {
+        // Regression for a text-based keyword loader that turned each high byte
+        // into two, producing a 12-byte keyword the printer refused. The SC-P600
+        // key is 0x97 0x26 0x86 0x97 0x36 0x16 0x16 0xB6.
+        val keyword = byteArrayOf(
+            0x97.toByte(), 0x26, 0x86.toByte(), 0x97.toByte(), 0x36, 0x16, 0x16, 0xB6.toByte(),
+        )
+        val highKeyProtocol = EpsonProtocol(
+            PrinterSpec(
+                modelName = "SC-P600 Series",
+                controlModel = byteArrayOf(0x4A, 0x36),
+                keyword = keyword,
+                wasteCounters = emptyList(),
+                resetMap = emptyMap(),
+                cleaningOptions = emptyList(),
+            ),
+        )
+
+        val command = highKeyProtocol.buildWriteEepromCommand(0x30, 0x00)
+
+        // Keyword is the tail of the frame, unchanged: 8 bytes, no expansion.
+        assertArrayEquals(keyword, command.copyOfRange(command.size - keyword.size, command.size))
+        // Length field counts the body: model (2) + action code (3) + address,
+        // value (3) + keyword (8) = 16, so the frame is 2 + 2 + 16 bytes.
+        val lengthField = (command[2].toInt() and 0xFF) or ((command[3].toInt() and 0xFF) shl 8)
+        assertEquals(16, lengthField)
+        assertEquals(20, command.size)
+    }
+
+    @Test
     fun `write replies are classified by their service markers`() {
         assertEquals(
             EpsonProtocol.WriteReply.Applied,
