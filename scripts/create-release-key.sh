@@ -61,6 +61,13 @@ if ! read -r -s -p "Repeat: " repeat; then
 fi
 echo
 
+if [ -z "$store_pass" ] && [ -n "$repeat" ]; then
+    echo "The first prompt read nothing, but the second one got a value." >&2
+    echo "That is what a pasted command looks like from here: the newline at the" >&2
+    echo "end of the paste is consumed by the first prompt before you type." >&2
+    echo "Run the script on a line of its own, then type the password." >&2
+    exit 1
+fi
 if [ -z "$store_pass" ]; then
     echo "The password was empty. Nothing was created." >&2
     exit 1
