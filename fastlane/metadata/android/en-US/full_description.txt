@@ -1,0 +1,9 @@
+E-Pad Reset is a maintenance utility for Epson inkjet printers, connected over USB OTG.
+
+It detects supported Epson USB devices, opens the control channel, reads printer status, inspects waste ink (maintenance box) counters, issues waste counter reset commands, and sends maintenance jobs such as nozzle check and head cleaning — directly from your Android device, with no computer needed.
+
+Everything works fully offline: the app requests no network access. It carries a bundled model database covering 1000+ printers, extended with additional reset profiles.
+
+E-Pad Reset is free and open-source software (AGPL-3.0). It is a community project with no affiliation with Seiko Epson Corporation.
+
+You need an OTG adapter or USB-C cable to connect the printer to your phone or tablet, and a printer model supported by the bundled database.

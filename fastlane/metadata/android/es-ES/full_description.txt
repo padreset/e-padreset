@@ -1,0 +1,9 @@
+E-Pad Reset es una utilidad de mantenimiento para impresoras Epson de inyección de tinta, conectada por USB OTG.
+
+Detecta dispositivos USB Epson compatibles, abre el canal de control, lee el estado de la impresora, inspecciona los contadores de tinta residual (caja de mantenimiento), ejecuta comandos de reinicio de contadores y envía trabajos de mantenimiento como test de inyectores y limpieza de cabezales, directamente desde tu Android, sin computadora.
+
+Funciona totalmente sin conexión: la app no solicita acceso a red. Incluye una base de datos con más de 1000 impresoras, ampliada con perfiles de reinicio adicionales.
+
+E-Pad Reset es software libre y de código abierto (AGPL-3.0). Es un proyecto comunitario sin afiliación con Seiko Epson Corporation.
+
+Necesitas un adaptador OTG o cable USB-C para conectar la impresora a tu teléfono o tableta, y un modelo de impresora incluido en la base de datos.

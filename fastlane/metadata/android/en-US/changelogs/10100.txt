@@ -1,0 +1,5 @@
+v1.1.0:
+- Project relicensed to AGPL-3.0
+- Completed reset profiles for the WP/PX printer families
+- Extended maintenance-box model database
+- Translation and UI fixes
