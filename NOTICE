@@ -54,9 +54,11 @@ Data and assets derived from other projects
 -------------------------------------------
 
     app/src/main/assets/devices.xml
-        Copied from CiRIP/ez-reset. Its own licensing is not stated by its
-        author, which the README records as an open question rather than a
-        settled one.
+        Copied from CiRIP/ez-reset, which is licensed under AGPL-3.0
+        (a LICENSE file at the repository root, verified October 2026).
+        That matches this project's own AGPL-3.0 licensing, so the database
+        no longer carries the open licensing question the README used to
+        record.
 
         October 2026: the seven WP/PX spec blocks (WP4020, WP4090, WP4520,
         WP4540, WP4590, WM4020, WM4520) gained

@@ -866,6 +866,7 @@ every source file, because a header added to untouched files would attribute
 every one of their lines to the change that added it and erase the record the
 notice exists to state.
 
-The upstream `ez-reset` repository does not currently expose a clear top-level
-project license in its repository metadata. The upstream licensing situation
-should therefore still be confirmed with the original author or maintainer.
+The upstream `ez-reset` repository is licensed under `AGPL-3.0` (a `LICENSE`
+file at the repository root, verified October 2026), which matches how this
+repository is distributed — so the model database it contributed no longer
+carries an open licensing question.
