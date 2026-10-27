@@ -1,0 +1,2 @@
+v1.1.1:
+- Added 13 maintenance-box models (ET-2980/2985/2988, ET-3843, ET-3930/3940/3943/3950/3958, ET-4950/4955/4958, L6370) so they show the correct replacement guidance

@@ -77,21 +77,32 @@
     <model>ET-2836</model>
     <model>ET-2838</model>
     <model>ET-2980</model>
+    <model>ET-2985</model>
+    <model>ET-2988</model>
     <model>ET-3700</model>
     <model>ET-3710</model>
     <model>ET-3750</model>
     <model>ET-3760</model>
     <model>ET-3800</model>
     <model>ET-3830</model>
+    <model>ET-3843</model>
     <model>ET-3850</model>
     <model>ET-3850U</model>
     <model>ET-3856</model>
+    <model>ET-3930</model>
+    <model>ET-3940</model>
+    <model>ET-3943</model>
+    <model>ET-3950</model>
+    <model>ET-3958</model>
     <model>ET-4750</model>
     <model>ET-4760</model>
     <model>ET-4810</model>
     <model>ET-4850</model>
     <model>ET-4850U</model>
     <model>ET-4856</model>
+    <model>ET-4950</model>
+    <model>ET-4955</model>
+    <model>ET-4958</model>
     <model>ET-5150</model>
     <model>ET-5170</model>
     <model>ET-5800</model>
@@ -157,6 +168,7 @@
     <model>L6296</model>
     <model>L6298</model>
     <model>L6299</model>
+    <model>L6370</model>
     <model>L6460</model>
     <model>L6466</model>
     <model>L6468</model>
