@@ -123,7 +123,7 @@ jobs:
           EXPECTED_CERT_SHA256: e90415fb3b8289646fa83373de3358f18fbf1cbc92d5f91ab491ae96aa514c55
         run: |
           set -euo pipefail
-          signers=$(grep -E '^Signer #[0-9]+ certificate SHA-256 digest:' "$RUNNER_TEMP/certs.txt" \
+          signers=$(grep -Ei 'certificate SHA-256 digest:' "$RUNNER_TEMP/certs.txt" \
             | awk '{print tolower($NF)}' | sort -u)
           if [ "$signers" != "$EXPECTED_CERT_SHA256" ]; then
             echo "::error::Signer certificate digest is '${signers:-none}', expected $EXPECTED_CERT_SHA256."
