@@ -1,0 +1,6 @@
+v1.2.0:
+- More Epson models connect for status, nozzle check and cleaning instead of showing as unsupported
+- Matches printers that report a shorter model name than the catalog (e.g. "R2000"); ambiguous names are still refused
+- A refused waste-counter write is retried once with the model's alternate write key, when published
+- A failed retry reports every address already written
+- Copying the protocol log hides it from the clipboard preview

@@ -516,6 +516,15 @@ class PrinterService(
     ): WasteWriter.VerifiedWrite<PrinterStatusSnapshot> = WasteWriter(
         readByte = { address -> readEepromByte(connection, address) },
         writeByte = { address, value -> writeEeprom(connection, address, value) },
+        // Only offered when the model publishes a second key, so a refusal on a
+        // model that does not is still reported as the refusal it is.
+        writeByteAlternate = connection.protocol
+            .takeIf { it.hasAlternateWriteKey }
+            ?.let { protocol ->
+                { address: Int, value: Int ->
+                    writeEeprom(connection, address, value, protocol, alternate = true)
+                }
+            },
         log = { line -> log(line) },
     ).writeAndVerify(plan, onBackup) { readByte -> readStatus(connection, readByte) }
 
@@ -539,12 +548,14 @@ class PrinterService(
         connection: ConnectionState.Catalogued,
         address: Int,
         value: Int,
+        protocol: EpsonProtocol = connection.protocol,
+        alternate: Boolean = false,
     ): EpsonProtocol.WriteReply {
         val reply = sendControlPayload(
             connection,
-            connection.protocol.buildWriteEepromCommand(address, value),
+            protocol.buildWriteEepromCommand(address, value, alternate),
         )
-        val verdict = connection.protocol.classifyWriteReply(reply)
+        val verdict = protocol.classifyWriteReply(reply)
 
         // Only the raw answer is logged here, because this is where the bytes
         // are. What the verdict means for the run is [WasteWriter]'s business.

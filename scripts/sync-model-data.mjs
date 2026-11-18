@@ -232,7 +232,7 @@ function crossCheck(ez, reinkpy) {
 // asset rendering
 // ---------------------------------------------------------------------------
 
-function renderBoxes(models) {
+function renderBoxes(models, localCount = 0) {
   return `<?xml version="1.0" encoding="utf-8"?>
 <!--
   Epson models whose waste ink is collected in a user-replaceable maintenance
@@ -280,10 +280,11 @@ function renderBoxes(models) {
 
   COVERAGE
 
-  The list below is reinkpy's complete platen-only classification (${models.length} models),
-  not just the intersection with our own catalog. Only models also present in
-  devices.xml will ever match a connected printer; the rest are kept so this
-  file stays a faithful, regenerable copy of the source.
+  The list below is reinkpy's complete platen-only classification, not just the
+  intersection with our own catalog. Only models also present in devices.xml
+  will ever match a connected printer; the rest are kept so this file stays a
+  faithful, regenerable copy of the source. It also carries ${localCount} model(s)
+  added by hand from a manufacturer source, which regeneration preserves.
 
   NOTE: XML comments may not contain a double hyphen, so no dash underlines.
 -->
@@ -308,7 +309,7 @@ function keywordBytes(wkey) {
     .join(" ");
 }
 
-function renderExtra(models) {
+function renderExtra(models, localBlocks = []) {
   return `<?xml version="1.0" encoding="utf-8"?>
 <!--
   Epson models that reinkpy knows and devices.xml does not.
@@ -357,6 +358,21 @@ function renderExtra(models) {
   in <factory>; the keyword is the same eight bytes it spells in <keyword>.
   Addresses and reset values are decimal, as reinkpy publishes them.
 
+  keyword1 is the model's second write key, as reinkpy publishes it, used only
+  when a write is refused: firmware that answers :NG; to the first key often
+  accepts this one. In every block so far it is keyword with each byte
+  decremented by one. It is omitted when upstream has none, which is a
+  different fact from it being equal to keyword.
+
+  LOCAL ENTRIES
+
+  A model at the end of this file whose block is preceded by a "local" comment
+  was added by hand and is not in reinkpy. Regenerating keeps it: this script
+  preserves every committed model whose name upstream does not produce, rather
+  than treating the committed file as something to overwrite wholesale. Each
+  one has to carry its own provenance, because that is the only evidence behind
+  models nothing can cross-check.
+
   NOTE: XML comments may not contain a double hyphen, so no dash underlines.
 -->
 <models count="${models.length}">
@@ -370,13 +386,22 @@ ${models
             .join(" ")}"/>`,
       )
       .join("\n");
+    // A second key identical to the primary is not a fallback, and emitting it
+    // would make the app retry the same bytes and report a second attempt.
+    const alternate = m.wkey1 && m.wkey1 !== m.wkey
+      ? ` keyword1="${keywordBytes(m.wkey1)}"`
+      : "";
     return `    <model name="${escapeAttr(m.name)}" rkey="${m.rkey}" keyword="${keywordBytes(
       m.wkey,
-    )}">
+    )}"${alternate}>
 ${pads}
     </model>`;
   })
-  .join("\n")}
+  .join("\n")}${
+    localBlocks.length
+      ? `\n\n<!-- Added by hand; not present upstream. See LOCAL ENTRIES above. -->\n${localBlocks.join("\n")}`
+      : ""
+  }
 </models>
 `;
 }
@@ -431,6 +456,26 @@ function dataBody(xml) {
 
 function committedData(path) {
   return existsSync(path) ? dataBody(readFileSync(path, "utf8")) : null;
+}
+
+/** The app's own name normalisation, so "X Series" and "x" are one entry. */
+function normName(value) {
+  return String(value).trim().toUpperCase().replace(/\s+SERIES$/, "").trim();
+}
+
+/** Model names a committed maintenance-box list already carries. */
+function committedBoxNames() {
+  if (!existsSync(BOXES)) return [];
+  return [...readFileSync(BOXES, "utf8").matchAll(/<model>([^<]*)<\/model>/g)]
+    .map((m) => m[1].trim())
+    .filter(Boolean);
+}
+
+/** Whole <model> blocks a committed extension already carries, comments ignored. */
+function committedExtraBlocks() {
+  if (!existsSync(EXTRA)) return [];
+  const xml = readFileSync(EXTRA, "utf8").replace(/<!--[\s\S]*?-->/g, "");
+  return [...xml.matchAll(/<model\b[\s\S]*?<\/model>/g)].map((m) => m[0]);
 }
 
 function fallback(reason) {
@@ -507,6 +552,10 @@ const extra = reinkpy
     name: m.name,
     rkey: m.rkey,
     wkey: m.wkey,
+    // Carried through the projection deliberately: this map builds a new object,
+    // so a field left out here is silently dropped, which is how the fallback
+    // key would go missing without anything noticing.
+    wkey1: m.wkey1,
     padGroups: (m.pad_groups || [])
       .filter((g) => (g.addresses || []).length)
       .map((g) => ({
@@ -517,33 +566,57 @@ const extra = reinkpy
   }))
   .sort((a, b) => byName(a.name, b.name));
 
-const boxesXml = renderBoxes(boxes);
-const extraXml = renderExtra(extra);
-assertSane(boxesXml, boxes.length, "maintenanceBoxes");
-assertSane(extraXml, extra.length, "models");
+// --- models added by hand, kept across regeneration ---
+// The committed files are the record of those additions, because that is the
+// only place they exist: upstream has never published them. Without this the
+// script silently deletes them on the next run, which is what happened to the
+// hand-checked maintenance-box models in November 2026.
+const upstreamBoxes = new Set(boxes.map(normName));
+const localBoxes = committedBoxNames().filter((name) => !upstreamBoxes.has(normName(name)));
+const mergedBoxes = [...boxes, ...localBoxes].sort(byName);
+if (localBoxes.length) {
+  console.log(`keeping ${localBoxes.length} maintenance-box model(s) added by hand: ${localBoxes.join(", ")}`);
+}
+
+const upstreamExtra = new Set(extra.map((m) => normName(m.name)));
+const localExtraBlocks = committedExtraBlocks().filter((block) => {
+  const name = (/name="([^"]*)"/.exec(block) || [])[1];
+  return name && !upstreamExtra.has(normName(name));
+});
+if (localExtraBlocks.length) {
+  const names = localExtraBlocks.map((b) => (/name="([^"]*)"/.exec(b) || [])[1]);
+  console.log(`keeping ${localExtraBlocks.length} model(s) added by hand: ${names.join(", ")}`);
+}
+
+const boxesXml = renderBoxes(mergedBoxes, localBoxes.length);
+const extraXml = renderExtra(extra, localExtraBlocks);
+assertSane(boxesXml, mergedBoxes.length, "maintenanceBoxes");
+assertSane(extraXml, extra.length + localExtraBlocks.length, "models");
 
 const boxesStale = committedData(BOXES) !== dataBody(boxesXml);
 const extraStale = committedData(EXTRA) !== dataBody(extraXml);
 
 if (!boxesStale && !extraStale) {
   console.log(
-    `\nup to date — ${boxes.length} maintenance-box models, ${extra.length} reinkpy-only models`,
+    `\nup to date — ${mergedBoxes.length} maintenance-box models ` +
+      `(${localBoxes.length} local), ${extra.length} reinkpy-only models ` +
+      `(${localExtraBlocks.length} local)`,
   );
   process.exit(0);
 }
 
 if (checkOnly) {
-  if (boxesStale) console.error(`maintenance_boxes.xml is stale (${boxes.length} upstream)`);
-  if (extraStale) console.error(`reinkpy_models.xml is stale (${extra.length} upstream)`);
+  if (boxesStale) console.error(`maintenance_boxes.xml is stale (${mergedBoxes.length} upstream)`);
+  if (extraStale) console.error(`reinkpy_models.xml is stale (${extra.length + localExtraBlocks.length} upstream)`);
   console.error("Run: node scripts/sync-model-data.mjs");
   process.exit(1);
 }
 
 if (boxesStale) {
   writeFileSync(BOXES, boxesXml);
-  console.log(`wrote ${BOXES} — ${boxes.length} models`);
+  console.log(`wrote ${BOXES} — ${mergedBoxes.length} models`);
 }
 if (extraStale) {
   writeFileSync(EXTRA, extraXml);
-  console.log(`wrote ${EXTRA} — ${extra.length} models`);
+  console.log(`wrote ${EXTRA} — ${extra.length + localExtraBlocks.length} models`);
 }

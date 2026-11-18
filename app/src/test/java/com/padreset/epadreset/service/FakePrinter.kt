@@ -48,4 +48,31 @@ internal class FakePrinter(
     }
 
     fun writer() = WasteWriter(::read, ::write) { line -> lines += line }
+
+    /**
+     * A writer whose second write key is honoured where the first is refused.
+     *
+     * This is the firmware the fallback exists for: `:NG;` to the model's write
+     * key, `:OK;` to the alternate. Addresses in [refusedByPrimary] answer the
+     * refusal and are left untouched by that pass, so a test can tell which key
+     * produced which write rather than only that the memory ended up right.
+     */
+    fun writerWithAlternateKey(refusedByPrimary: Set<Int>) = WasteWriter(
+        readByte = ::read,
+        writeByte = { address, value ->
+            if (address in refusedByPrimary) {
+                calls += "write 0x%04X=0x%02X".format(address, value)
+                EpsonProtocol.WriteReply.Rejected
+            } else {
+                write(address, value)
+            }
+        },
+        writeByteAlternate = { address, value ->
+            calls += "write[alt] 0x%04X=0x%02X".format(address, value)
+            writeStarted = true
+            memory[address] = value.toByte()
+            EpsonProtocol.WriteReply.Applied
+        },
+        log = { line -> lines += line },
+    )
 }

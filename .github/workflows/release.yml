@@ -112,7 +112,24 @@ jobs:
           set -euo pipefail
           apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
           apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
-          "$apksigner" verify --print-certs "$apk"
+          "$apksigner" verify --print-certs "$apk" | tee "$RUNNER_TEMP/certs.txt"
+
+      # A valid signature is not enough: an APK signed with any other key would
+      # pass the step above, publish with a valid attestation and checksum, and
+      # then fail to install as an update for everyone who already has the app.
+      # The expected value is the one the README publishes; change both together.
+      - name: Refuse a release signed with another key
+        env:
+          EXPECTED_CERT_SHA256: e90415fb3b8289646fa83373de3358f18fbf1cbc92d5f91ab491ae96aa514c55
+        run: |
+          set -euo pipefail
+          signers=$(grep -E '^Signer #[0-9]+ certificate SHA-256 digest:' "$RUNNER_TEMP/certs.txt" \
+            | awk '{print tolower($NF)}' | sort -u)
+          if [ "$signers" != "$EXPECTED_CERT_SHA256" ]; then
+            echo "::error::Signer certificate digest is '${signers:-none}', expected $EXPECTED_CERT_SHA256."
+            exit 1
+          fi
+          echo "OK: signed with the published certificate."
 
       - name: Name the file after the release
         id: apk

@@ -55,6 +55,9 @@ internal object StreamingPrinterCatalog {
             val model = parser.attr("name").trim()
             val readKey = parser.attr("rkey").trim().toIntOrNull()
             val keyword = hexBytes(parser.attr("keyword"))
+            // Optional: upstream publishes a second write key for most blocks.
+            // Absent is expected and means "no fallback", not "same as primary".
+            val alternateKeyword = hexBytes(parser.attr("keyword1"))
             val counters = mutableListOf<WasteCounterSpec>()
             val reset = linkedMapOf<Int, Int>()
             var padIndex = 0
@@ -73,13 +76,18 @@ internal object StreamingPrinterCatalog {
             }
             if (model.isNotEmpty() && readKey != null && keyword.isNotEmpty()) {
                 result += PrinterSpec(
-                    model,
-                    byteArrayOf((readKey and 0xFF).toByte(), ((readKey shr 8) and 0xFF).toByte()),
-                    keyword,
-                    uniqueCounterNames(counters.distinctBy { it.name to it.addresses }),
-                    reset,
-                    emptyList(),
-                    maintenance.contains(normalizeModel(model)),
+                    modelName = model,
+                    controlModel = byteArrayOf((readKey and 0xFF).toByte(), ((readKey shr 8) and 0xFF).toByte()),
+                    keyword = keyword,
+                    wasteCounters = uniqueCounterNames(counters.distinctBy { it.name to it.addresses }),
+                    resetMap = reset,
+                    cleaningOptions = emptyList(),
+                    usesMaintenanceBox = maintenance.contains(normalizeModel(model)),
+                    // A "fallback" identical to the primary is not one; dropping
+                    // it here keeps the write path from retrying the same key
+                    // and presenting it as a second attempt.
+                    alternateKeyword = alternateKeyword.takeIf { it.isNotEmpty() && !it.contentEquals(keyword) }
+                        ?: ByteArray(0),
                 )
             }
         }
@@ -263,10 +271,13 @@ internal object StreamingPrinterCatalog {
                 cleaning = spec.cleaning
             }
         }
-        val hasWaste = counters.isNotEmpty() && reset.isNotEmpty()
+        // Session keys are enough. Waste counters and service cleaning jobs are
+        // not required: maintenance-box models and other Windows-listed Epson
+        // names (WF-110, XP-3100, SC-P700, …) carry factory+keyword with no
+        // pad reset, and status, nozzle check and ESC/P2 cleaning still work.
+        // Requiring a "useful job" here dropped those names as unsupported.
         val canOpenSession = control.isNotEmpty() && keyword.isNotEmpty()
-        val hasUsefulJob = hasWaste || cleaning.isNotEmpty()
-        if (!canOpenSession || !hasUsefulJob) return null
+        if (!canOpenSession) return null
         return PrinterSpec(
             record.model,
             control,

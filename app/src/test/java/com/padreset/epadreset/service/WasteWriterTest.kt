@@ -116,6 +116,107 @@ class WasteWriterTest {
     }
 
     @Test
+    fun `a refusal is retried once with the alternate key`() {
+        // Firmware that answers :NG; to the model's write key and :OK; to the
+        // alternate. reinkpy publishes both keys for 549 of 555 models, and this
+        // is the case that made the fallback worth carrying.
+        val printer = FakePrinter(initial = mapOf(0x1C to 0x11, 0x1D to 0x22))
+
+        printer.writerWithAlternateKey(setOf(0x1C)).write(mapOf(0x1C to 0x00, 0x1D to 0x00))
+
+        // The whole plan is repeated under the second key, not just the refused
+        // address: the first pass may have written earlier bytes with a key the
+        // printer did not honour.
+        assertEquals(
+            listOf(
+                "read 0x001C",
+                "read 0x001D",
+                "write 0x001C=0x00",
+                "write[alt] 0x001C=0x00",
+                "write[alt] 0x001D=0x00",
+            ),
+            printer.calls,
+        )
+        assertEquals(0x00.toByte(), printer.memory[0x1C])
+        assertEquals(0x00.toByte(), printer.memory[0x1D])
+    }
+
+    @Test
+    fun `both keys refused still reports the refusal`() {
+        val printer = FakePrinter(initial = mapOf(0x1C to 0x11, 0x1D to 0x22))
+        val writer = WasteWriter(
+            readByte = printer::read,
+            writeByte = { address, value ->
+                printer.calls += "write 0x%04X=0x%02X".format(address, value)
+                EpsonProtocol.WriteReply.Rejected
+            },
+            writeByteAlternate = { address, value ->
+                printer.calls += "write[alt] 0x%04X=0x%02X".format(address, value)
+                EpsonProtocol.WriteReply.Rejected
+            },
+            log = { line -> printer.lines += line },
+        )
+
+        val failure = failureFrom { writer.write(mapOf(0x1C to 0x00, 0x1D to 0x00)) }
+
+        assertEquals(PrinterService.WasteWriteException.Reason.REJECTED, failure?.reason)
+        assertEquals(0x1C, failure?.address)
+        // The backup still travels with the failure, and it holds what was
+        // there before either attempt.
+        assertEquals(0x11.toByte(), failure?.backup?.get(0x1C))
+        assertEquals(0x22.toByte(), failure?.backup?.get(0x1D))
+    }
+
+    @Test
+    fun `a retry refused earlier still reports what the first pass wrote`() {
+        // The primary key writes 0x1C and 0x1D and is refused at 0x1E; the
+        // alternate is refused at the very first address. Both bytes the first
+        // pass wrote have changed, and the message is what decides whether the
+        // user reaches for the backup, so it must not say "0 written".
+        val printer = FakePrinter(
+            initial = mapOf(0x1C to 0x11, 0x1D to 0x22, 0x1E to 0x33),
+            replies = mapOf(0x1E to EpsonProtocol.WriteReply.Rejected),
+        )
+        val writer = WasteWriter(
+            readByte = printer::read,
+            writeByte = printer::write,
+            writeByteAlternate = { address, value ->
+                printer.calls += "write[alt] 0x%04X=0x%02X".format(address, value)
+                EpsonProtocol.WriteReply.Rejected
+            },
+            log = { line -> printer.lines += line },
+        )
+
+        val failure = failureFrom { writer.write(mapOf(0x1C to 0x00, 0x1D to 0x00, 0x1E to 0x00)) }
+
+        assertEquals(PrinterService.WasteWriteException.Reason.REJECTED, failure?.reason)
+        assertEquals(0x1C, failure?.address)
+        assertEquals(2, failure?.writtenBefore)
+        assertEquals(0x00.toByte(), printer.memory[0x1C])
+        assertEquals(0x00.toByte(), printer.memory[0x1D])
+    }
+
+    @Test
+    fun `a transport failure during the retry still reports what the first pass wrote`() {
+        val printer = FakePrinter(
+            initial = mapOf(0x1C to 0x11, 0x1D to 0x22, 0x1E to 0x33),
+            replies = mapOf(0x1E to EpsonProtocol.WriteReply.Rejected),
+        )
+        val writer = WasteWriter(
+            readByte = printer::read,
+            writeByte = printer::write,
+            writeByteAlternate = { _, _ -> error("write timeout") },
+            log = { line -> printer.lines += line },
+        )
+
+        val failure = failureFrom { writer.write(mapOf(0x1C to 0x00, 0x1D to 0x00, 0x1E to 0x00)) }
+
+        assertEquals(PrinterService.WasteWriteException.Reason.WRITE_FAILED, failure?.reason)
+        assertEquals(0x1C, failure?.address)
+        assertEquals(2, failure?.writtenBefore)
+    }
+
+    @Test
     fun `a reply the app does not recognise does not stop the run`() {
         val printer = FakePrinter(
             initial = mapOf(0x1C to 0x11, 0x1D to 0x22),

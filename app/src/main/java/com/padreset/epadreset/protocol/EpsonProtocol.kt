@@ -18,9 +18,23 @@ class EpsonProtocol(
     private val modelName: String,
     private val controlModel: ByteArray?,
     private val keyword: ByteArray?,
+    /**
+     * The model's second write key, when it publishes one. Null or empty means
+     * there is no fallback to try.
+     *
+     * It is only ever used by [buildWriteEepromCommand]'s `alternate` argument.
+     * Everything else — reads, cleaning, the session — keeps using [keyword],
+     * because that is the key the printer accepted when the session opened.
+     */
+    private val alternateKeyword: ByteArray? = null,
 ) {
     /** A catalogued printer. Factory commands and EEPROM writes use its keys. */
-    constructor(spec: PrinterSpec) : this(spec.modelName, spec.controlModel, spec.keyword)
+    constructor(spec: PrinterSpec) : this(
+        spec.modelName,
+        spec.controlModel,
+        spec.keyword,
+        spec.alternateKeyword.takeIf { it.isNotEmpty() },
+    )
 
     companion object {
         /**
@@ -159,12 +173,21 @@ class EpsonProtocol(
         return buildFactoryCommand(0x41, byteArrayOf((address and 0xFF).toByte(), ((address ushr 8) and 0xFF).toByte()))
     }
 
-    fun buildWriteEepromCommand(address: Int, value: Int): ByteArray {
+    /**
+     * Whether this model publishes a second write key worth trying.
+     *
+     * Asked before a retry so the write path can tell "no fallback exists" from
+     * "the fallback was already refused", which are different things to report.
+     */
+    val hasAlternateWriteKey: Boolean get() = alternateKeyword?.isNotEmpty() == true
+
+    fun buildWriteEepromCommand(address: Int, value: Int, alternate: Boolean = false): ByteArray {
+        val key = if (alternate && alternateKeyword?.isNotEmpty() == true) alternateKeyword else keyword
         val payload = byteArrayOf(
             (address and 0xFF).toByte(),
             ((address ushr 8) and 0xFF).toByte(),
             value.toByte(),
-        ) + requireNotNull(keyword) { "EEPROM writes need a catalogued profile" }
+        ) + requireNotNull(key) { "EEPROM writes need a catalogued profile" }
         return buildFactoryCommand(0x42, payload)
     }
 

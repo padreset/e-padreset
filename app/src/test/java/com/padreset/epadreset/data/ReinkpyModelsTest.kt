@@ -86,6 +86,42 @@ class ReinkpyModelsTest {
     }
 
     @Test
+    fun `carries the second write key where upstream publishes a different one`() {
+        val specs = parse().filter { it.alternateKeyword.isNotEmpty() }
+
+        // 549 of the bundled models publish a second key; reinkpy has blocks
+        // with no fallback at all, and those must stay without one rather than
+        // borrowing the primary.
+        assertTrue("expected a fallback on most models, got ${specs.size}", specs.size > 400)
+        assertTrue(
+            "a fallback identical to the primary is not a fallback",
+            specs.all { !it.alternateKeyword.contentEquals(it.keyword) },
+        )
+
+        // DX4050's primary is "Opabxbpt" and its alternate "No`awaos".
+        val dx = parse().first { it.modelName == "DX4050" }
+        assertEquals("Opabxbpt", dx.keyword.decodeToString())
+        assertEquals("No`awaos", dx.alternateKeyword.decodeToString())
+    }
+
+    @Test
+    fun `models with only one published key get no fallback`() {
+        val without = parse().filter { it.alternateKeyword.isEmpty() }
+        assertTrue("expected some models with a single key", without.isNotEmpty())
+    }
+
+    @Test
+    fun `the hand added EP-M476T is present and complete`() {
+        // Not in reinkpy: characterised on hardware by padzero and copied in by
+        // hand. It has to survive regeneration, so the test pins it by name.
+        val spec = parse().first { it.modelName == "EP-M476T" }
+        assertEquals(0x364A, (spec.controlModel[0].toInt() and 0xFF) or ((spec.controlModel[1].toInt() and 0xFF) shl 8))
+        assertEquals("Maribaya", spec.keyword.decodeToString())
+        assertEquals(3, spec.wasteCounters.size)
+        assertTrue(spec.supportsWasteReset)
+    }
+
+    @Test
     fun `does not include models devices_xml already covers`() {
         // ET-16600 is in devices.xml, so it must not be duplicated here: the
         // devices.xml entry is the richer one and the merge keeps it.

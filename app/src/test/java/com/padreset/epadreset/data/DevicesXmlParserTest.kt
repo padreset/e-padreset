@@ -2,6 +2,7 @@ package com.padreset.epadreset.data
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -264,6 +265,76 @@ class DevicesXmlParserTest {
             byteArrayOf(0x97.toByte(), 0x26, 0x86.toByte(), 0x97.toByte(), 0x36, 0x16, 0x16, 0xB6.toByte()),
             spec.keyword,
         )
+    }
+
+    /**
+     * Session keys alone keep a model. Windows lists Epson names that have
+     * factory+keyword and no pad reset (WF-110, XP-3100, SC-P700, …). The
+     * previous keep-rule also demanded waste counters or a service cleaning
+     * job, so those names never reached the catalog. A missing keyword still
+     * drops the row: the app does not invent write keys.
+     */
+    @Test
+    fun `session keys alone keep a model and a missing keyword still drops it`() {
+        val xml = """
+            <data><records>
+            <printer brand="epson" model="Session Only" specs="SESS"/>
+            <printer brand="epson" model="No Keyword" specs="NOKEY"/>
+            </records><devices>
+            <SESS>
+            <service><factory>0x37 0x06</factory><keyword>0x42 0x66 0x74 0x75 0x6A 0x77 0x62 0x6D</keyword></service>
+            </SESS>
+            <NOKEY>
+            <service><factory>0x0B 0x54</factory></service>
+            <waste><query>
+            <counter><entry>0x0D 0x0C</entry><max>25000</max></counter>
+            </query><reset>0x0D 0x00 0x0C 0x00</reset></waste>
+            </NOKEY>
+            </devices></data>
+        """.trimIndent()
+        val specs = xml.byteInputStream().use { EpsonPrinterCatalog.parseDevicesXml(it) }
+        val names = specs.map { it.modelName }
+        assertEquals(listOf("Session Only"), names)
+        assertFalse(specs.single().supportsWasteReset)
+        assertTrue(specs.single().cleaningOptions.isEmpty())
+    }
+
+    /**
+     * Windows-listed Epson names that already have factory+keyword in
+     * devices.xml must stay in the runtime catalog. They have no internal
+     * pad reset; connecting still opens status, nozzle check and ESC/P2
+     * cleaning, the same as other maintenance-box models.
+     */
+    @Test
+    fun `Windows-listed Epson models with session keys stay in the catalog`() {
+        val specs = parse().associateBy { it.modelName }
+        val expected = listOf(
+            "WF-110 Series",
+            "EC-C110 Series",
+            "PX-S06 Series",
+            "XP-3100 Series",
+            "XP-4100 Series",
+            "XP-4200 Series",
+            "XP-6100 Series",
+            "XP-8500 Series",
+            "XP-8700 Series",
+            "WF-2810 Series",
+            "WF-2850 Series",
+            "WF-2910 Series",
+            "SC-P700 Series",
+            "SC-P900 Series",
+            "EP-884A Series",
+            "EW-452A Series",
+            "EW-456A Series",
+        )
+        val missing = expected.filter { it !in specs }
+        assertTrue("missing Windows-listed session models: $missing", missing.isEmpty())
+        expected.forEach { name ->
+            val spec = specs.getValue(name)
+            assertTrue("$name must keep factory bytes", spec.controlModel.isNotEmpty())
+            assertTrue("$name must keep a keyword", spec.keyword.isNotEmpty())
+            assertFalse("$name must not invent a waste reset", spec.supportsWasteReset)
+        }
     }
 
     /**

@@ -73,6 +73,69 @@ class ResolveMatchTest {
     }
 
     @Test
+    fun `an MDL that is a whole token of one catalog name matches it`() {
+        // The gap this rule closes: devices.xml calls a printer "Stylus DX4800"
+        // or "Epson Stylus Photo R2000", while reinkpy, padzero and EWR — the
+        // tools that discovered the keys — call it "DX4800" and "R2000". The
+        // keys were already in the catalog under the long name.
+        assertEquals(
+            "Stylus DX4800",
+            EpsonPrinterCatalog.resolveName("DX4800", "MDL:DX4800;", listOf("Stylus DX4800")),
+        )
+        assertEquals(
+            "Epson Stylus Photo R2000",
+            EpsonPrinterCatalog.resolveName(
+                "R2000",
+                "MDL:R2000;",
+                listOf("Epson Stylus Photo R2000"),
+            ),
+        )
+    }
+
+    @Test
+    fun `a contained MDL still refuses numeric continuations`() {
+        // The mirror rule must not undo the reason the forward one exists.
+        assertNull(
+            EpsonPrinterCatalog.resolveName("R300", "MDL:R300;", listOf("Stylus R3000")),
+        )
+        assertNull(
+            EpsonPrinterCatalog.resolveName("XP-42", "MDL:XP-42;", listOf("XP-4200 Series")),
+        )
+    }
+
+    @Test
+    fun `a contained MDL matching two catalog entries is refused`() {
+        // "NX230" names both rows, and picking either would hand a different
+        // EEPROM map to the write path. Refusing is the only safe answer.
+        val ambiguous = mutableListOf<String>()
+        val got = EpsonPrinterCatalog.resolveName(
+            "NX230",
+            "MDL:NX230;",
+            listOf("Epson Stylus NX230", "NX230 TX230"),
+            onAmbiguous = ambiguous::add,
+        )
+        assertNull(got)
+        assertTrue(ambiguous.isNotEmpty())
+    }
+
+    @Test
+    fun `a very short MDL is never matched as a fragment`() {
+        assertNull(EpsonPrinterCatalog.resolveName("R2", "MDL:R2;", listOf("Stylus R2000")))
+    }
+
+    @Test
+    fun `an exact catalog name still wins over a containing one`() {
+        assertEquals(
+            "NX230",
+            EpsonPrinterCatalog.resolveName(
+                "NX230",
+                "MDL:NX230;",
+                listOf("Epson Stylus NX230", "NX230"),
+            ),
+        )
+    }
+
+    @Test
     fun `unknown MDL finds nothing`() {
         assertNull(
             EpsonPrinterCatalog.resolveName("ZZ-9999", "MFG:EPSON;MDL:ZZ-9999;", names),

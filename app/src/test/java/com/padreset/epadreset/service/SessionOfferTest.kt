@@ -38,6 +38,26 @@ class SessionOfferTest {
     }
 
     @Test
+    fun `a catalogued model without waste still connects and does not offer a pad reset`() {
+        val offer = SessionOffer.decide(
+            PrinterSpec(
+                modelName = "WF-110 Series",
+                controlModel = byteArrayOf(0x37, 0x06),
+                keyword = ByteArray(8),
+                wasteCounters = emptyList(),
+                resetMap = emptyMap(),
+                cleaningOptions = emptyList(),
+            ),
+        )
+
+        assertFalse(offer.readOnly)
+        assertTrue(offer.nozzleCheck)
+        assertTrue(offer.gentleClean)
+        assertFalse(offer.wasteWrite)
+        assertFalse(offer.serviceCleaning)
+    }
+
+    @Test
     fun `power cleaning on a read-only session is refused before any bytes are sent`() {
         val refused = runCatching {
             SessionOffer.refusePowerClean(SessionOffer.decide(spec = null), powerClean = true)

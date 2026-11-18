@@ -91,8 +91,8 @@ android {
         // is worth a scheme that stays legible. This leaves 99 minor and 99
         // patch releases per major and still lands far below the 2,100,000,000
         // ceiling.
-        versionCode = 10101
-        versionName = "1.1.1"
+        versionCode = 10200
+        versionName = "1.2.0"
 
         // Needed for the instrumented tests. Without it the default runner is
         // the framework's, which does not know about AndroidX Test and reports
@@ -112,6 +112,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Sufijo para que la debug conviva con la release en el mismo
+            // dispositivo: distinto applicationId, distinta firma, sin
+            // conflicto de paquete (INSTALL_FAILED_UPDATE_INCOMPATIBLE).
+            applicationIdSuffix = ".debug"
+        }
         release {
             // R8 and resource shrinking are most of the APK. Without them the
             // release shipped the whole of material-icons-extended - about

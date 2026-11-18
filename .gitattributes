@@ -1,0 +1,15 @@
+# Line endings are normalised to LF in the repository whatever the editor or
+# OS. Without this, an editor on Windows rewrote whole files to CRLF and a
+# 1,700-line change showed up as 7,700, taking `git blame` with it.
+* text=auto eol=lf
+
+# cmd.exe mishandles labels and GOTO in LF batch files.
+*.bat text eol=crlf
+
+# Never touch these.
+*.jar binary
+*.jks binary
+*.keystore binary
+*.png binary
+*.webp binary
+*.apk binary

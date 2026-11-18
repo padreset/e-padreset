@@ -48,9 +48,14 @@
   COVERAGE
 
   The list below is reinkpy's complete platen-only classification (313 models),
-  not just the intersection with our own catalog. Only models also present in
+  not just the intersection with our own catalog, plus 13 models added by hand
+  from Epson documentation for 326 in total. Only models also present in
   devices.xml will ever match a connected printer; the rest are kept so this
-  file stays a faithful, regenerable copy of the source.
+  file stays a faithful copy of the source.
+
+  Regenerating with scripts/sync-model-data.mjs keeps the 13: the script
+  preserves every committed model upstream does not produce, instead of
+  overwriting the file wholesale.
 
   NOTE: XML comments may not contain a double hyphen, so no dash underlines.
 -->

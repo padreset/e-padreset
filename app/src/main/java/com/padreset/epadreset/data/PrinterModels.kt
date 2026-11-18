@@ -53,6 +53,24 @@ data class PrinterSpec(
      * list is a seed and only ever makes the explanation more specific.
      */
     val usesMaintenanceBox: Boolean = false,
+    /**
+     * The model's second write key, when the source publishes one.
+     *
+     * reinkpy records a `wkey1` beside `wkey` (549 of the 555 bundled models,
+     * 51 distinct keys), and EWR retries a refused write with it before giving
+     * up: a firmware that answers `:NG;` to the first key often accepts the
+     * second. In the shipped data the second key is always the first with every
+     * byte decremented by one ("Bsboujgp" -> "Arantifo"), so it is an alternate
+     * encoding of the same key rather than an independent secret. It is still
+     * read from the source instead of derived here, so a block where upstream
+     * breaks that pattern is carried as published. Empty means the source
+     * published none, which is every model that came from devices.xml —
+     * ez-reset carries a single `<keyword>` per spec.
+     *
+     * Only the write path uses it. Reads and the session itself use [keyword],
+     * because that is the key the printer answers to for everything else.
+     */
+    val alternateKeyword: ByteArray = ByteArray(0),
 ) {
     /**
      * Whether this model exposes waste ink counters the app can read and reset.
@@ -161,6 +179,16 @@ object EpsonPrinterCatalog {
      * 3. A single catalog name found in MDL at a word boundary (e.g. MDL
      *    "EPSON XP-420" contains "XP-420" whole). Multiple candidates are
      *    refused and reported via [onAmbiguous], never resolved by length/order.
+     * 4. The reverse: MDL is itself a whole token of a single catalog name.
+     *    devices.xml spells a printer "Stylus DX4800" or "Epson Stylus Photo
+     *    R2000" where reinkpy, padzero and EWR call it "DX4800" and "R2000",
+     *    and those are the names the tools that discovered the keys use. Whole
+     *    tokens only, so "R300" still never matches "Stylus R3000", and MDLs
+     *    shorter than [MIN_CONTAINED_MDL] are refused rather than allowed to
+     *    match on a fragment. Ambiguity is refused exactly as in 3: "NX230"
+     *    names two catalog entries ("Epson Stylus NX230", "NX230 TX230"), and
+     *    guessing between them would hand the wrong EEPROM map to the write
+     *    path.
      * Unmatched MDL stays unresolved: DES/SN/CMD must not supply a write profile.
      */
     internal fun resolveName(
@@ -178,10 +206,35 @@ object EpsonPrinterCatalog {
             return null
         }
         candidates.maxByOrNull { it.second.length }?.let { return it.first }
+
+        // Rule 4: MDL is a whole token of one catalog name. See the KDoc above.
+        if (mdl.length >= MIN_CONTAINED_MDL) {
+            val contained = stripped.filter { (_, name) -> boundaryContains(name, mdl) }
+            if (contained.size > 1) {
+                onAmbiguous(
+                    "Ambiguous model '$mdl' is contained in ${contained.map { it.first }}; " +
+                        "refusing write profile",
+                )
+                return null
+            }
+            contained.firstOrNull()?.let { return it.first }
+        }
+
         // DES/SN/CMD can mention another model. They must never supply write keys.
         onAmbiguous("No model match in MDL '$mdl'; refusing device-ID fallback (${deviceId.length} characters)")
         return null
     }
+
+    /**
+     * Shortest MDL that rule 4 of [resolveName] will look for inside a catalog
+     * name.
+     *
+     * Three characters is the shortest real Epson model name in the catalog
+     * ("C58", "T20", "B30"), so a shorter MDL can only be a fragment of one —
+     * and a fragment that matched a single catalog entry would look resolved
+     * while naming something the user does not have.
+     */
+    internal const val MIN_CONTAINED_MDL: Int = 3
 
     /**
      * Whether [needle] occurs in [haystack] as a whole token: bounded on both
@@ -311,6 +364,9 @@ object EpsonPrinterCatalog {
                 logger?.invoke("Skipping reinkpy model '$modelName': no keyword")
                 continue
             }
+            val alternateKeyword = parseHexBytes(model.getAttribute("keyword1"))
+                .takeIf { it.isNotEmpty() && !it.contentEquals(keyword) }
+                ?: ByteArray(0)
 
             val counters = mutableListOf<WasteCounterSpec>()
             val resetMap = linkedMapOf<Int, Int>()
@@ -344,6 +400,7 @@ object EpsonPrinterCatalog {
                 // models devices.xml leaves without one.
                 cleaningOptions = emptyList(),
                 usesMaintenanceBox = maintenanceBoxModels.contains(normalizeModelName(modelName)),
+                alternateKeyword = alternateKeyword,
             )
         }
 
@@ -397,9 +454,9 @@ object EpsonPrinterCatalog {
      * One `<printer>` entry, or null when it cannot mean anything.
      *
      * Split out of [parseDevicesXml] to keep that function's length and branch
-     * count away from the detekt ceilings: the keep-rule below (session keys
-     * plus some useful job) is what once dropped every maintenance-box model,
-     * so it stays explained where it runs rather than inlined where it hides.
+     * count away from the detekt ceilings: the keep-rule below (session keys)
+     * is what once dropped every maintenance-box model, so it stays explained
+     * where it runs rather than inlined where it hides.
      */
     private fun parsePrinterElement(
         printer: Element,
@@ -454,20 +511,17 @@ object EpsonPrinterCatalog {
             }
         }
 
-        // A model is worth keeping if we can open a session with it and then
-        // do something useful. Waste counters are NOT required: models that
-        // collect waste ink in a maintenance box carry no counter, but they
-        // do carry the control model, the keyword and their cleaning jobs,
-        // and head cleaning and the nozzle check still work on them.
+        // A model is worth keeping if we can open a session with it. Waste
+        // counters and service cleaning jobs are NOT required: models that
+        // collect waste ink in a maintenance box, and other Windows-listed
+        // Epson names with factory+keyword only, still connect for status,
+        // head cleaning and the nozzle check.
         //
-        // Requiring counters here is what made those models answer
-        // "Unsupported Epson model" instead of connecting — the spec was
-        // dropped before it ever reached the catalog.
+        // Requiring a waste or cleaning job here is what made those models
+        // answer "Unsupported Epson model" instead of connecting — the spec
+        // was dropped before it ever reached the catalog.
         val canOpenSession = controlModel.isNotEmpty() && keyword.isNotEmpty()
-        val hasWasteJobs = wasteCounters.isNotEmpty() && resetMap.isNotEmpty()
-        val hasCleaningJobs = cleaningOptions.isNotEmpty()
-
-        if (!canOpenSession || !(hasWasteJobs || hasCleaningJobs)) return null
+        if (!canOpenSession) return null
         return PrinterSpec(
             modelName = modelName,
             controlModel = controlModel,

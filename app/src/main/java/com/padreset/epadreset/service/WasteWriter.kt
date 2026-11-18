@@ -26,11 +26,31 @@ import kotlinx.coroutines.CancellationException
 internal class WasteWriter(
     private val readByte: (Int) -> Byte,
     private val writeByte: (Int, Int) -> EpsonProtocol.WriteReply,
+    /**
+     * The same write with the model's second write key, or null when it has
+     * none to try.
+     *
+     * A `:NG;` answer is the printer refusing that key, not the model refusing
+     * the reset, and the firmware on several families accepts the second key
+     * after rejecting the first. reinkpy publishes both keys for 549 of the 555
+     * bundled models, and EWR — where most of this model data originates — retries with
+     * the second before giving up. The transport is passed in rather than the
+     * key so this class stays free of the protocol, exactly as it is for
+     * [writeByte].
+     */
+    private val writeByteAlternate: ((Int, Int) -> EpsonProtocol.WriteReply)? = null,
     private val log: (String) -> Unit,
 ) {
     /**
      * Applies [plan], address to value, and returns what those addresses held
      * beforehand.
+     *
+     * The plan is attempted once with the model's write key. If the printer
+     * refuses one of those writes and the model publishes an alternate key, the
+     * whole plan is attempted a second time with it. The whole plan, not just
+     * the refused address: the first pass may have written earlier addresses
+     * with a key the printer did not honour, and the read-back that follows
+     * verifies every address either way.
      *
      * @throws PrinterService.WasteWriteException before writing anything if the
      *   backup cannot be completed, or at the address the printer refuses.
@@ -46,17 +66,63 @@ internal class WasteWriter(
         // read that might fail. The caller can persist it even if USB disappears.
         onBackup(backup)
 
+        val stopped = attempt(expected, writeByte, backup)
+        if (stopped == null) {
+            log("Write complete: ${expected.size} addresses")
+            return backup
+        }
+
+        val alternate = writeByteAlternate
+        if (alternate == null) throw refusal(stopped, backup)
+
+        log(
+            "Write ${stopped.label} refused with the model's write key; " +
+                "retrying the whole plan once with the alternate key",
+        )
+        // The first pass already wrote every address before the one refused,
+        // and both passes walk the same sorted plan. So whatever the second
+        // pass reaches, at least that many addresses have changed: a retry
+        // refused at its first address must not report "0 written".
+        val retried = attempt(expected, alternate, backup, alreadyWritten = stopped.writtenBefore)
+        if (retried == null) {
+            log("Write complete with the alternate key: ${expected.size} addresses")
+            return backup
+        }
+        throw refusal(retried, backup)
+    }
+
+    /** Where a write pass stopped: the address the printer refused. */
+    private data class Refusal(val address: Int, val writtenBefore: Int, val label: String)
+
+    /**
+     * One pass over the plan with one write key.
+     *
+     * Null means every address went through. A refusal stops the pass at that
+     * address — the addresses after it must not be touched, because the caller
+     * cannot tell from here whether the earlier writes were applied.
+     *
+     * [alreadyWritten] is how many leading addresses of the plan an earlier
+     * pass wrote. A failure reports the larger of that and this pass's own
+     * count, since it is the printer's memory the user is being told about,
+     * not this pass.
+     */
+    private fun attempt(
+        expected: Map<Int, Int>,
+        write: (Int, Int) -> EpsonProtocol.WriteReply,
+        backup: Map<Int, Byte>,
+        alreadyWritten: Int = 0,
+    ): Refusal? {
         var written = 0
         for ((address, value) in expected) {
             val label = "0x${"%04X".format(address)} = 0x${"%02X".format(value)}"
             val reply = try {
-                writeByte(address, value)
+                write(address, value)
             } catch (t: Exception) {
                 if (t is CancellationException) throw t
                 throw WasteWriteException(
                     reason = Reason.WRITE_FAILED,
                     address = address,
-                    writtenBefore = written,
+                    writtenBefore = maxOf(written, alreadyWritten),
                     backup = backup,
                     cause = t,
                 )
@@ -66,12 +132,7 @@ internal class WasteWriter(
 
                 EpsonProtocol.WriteReply.Rejected -> {
                     log("Write $label refused after $written address(es); stopping here")
-                    throw PrinterService.WasteWriteException(
-                        reason = PrinterService.WasteWriteException.Reason.REJECTED,
-                        address = address,
-                        writtenBefore = written,
-                        backup = backup,
-                    )
+                    return Refusal(address, maxOf(written, alreadyWritten), label)
                 }
 
                 // Not a failure. The reply shape comes from a sibling
@@ -84,10 +145,16 @@ internal class WasteWriter(
             }
             written++
         }
-
-        log("Write complete: $written addresses")
-        return backup
+        return null
     }
+
+    private fun refusal(stopped: Refusal, backup: Map<Int, Byte>) =
+        PrinterService.WasteWriteException(
+            reason = PrinterService.WasteWriteException.Reason.REJECTED,
+            address = stopped.address,
+            writtenBefore = stopped.writtenBefore,
+            backup = backup,
+        )
 
     companion object {
         /** The same exact plan is backed up, sent and verified; never rebuild it from a readout. */

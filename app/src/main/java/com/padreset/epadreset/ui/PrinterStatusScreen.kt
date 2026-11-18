@@ -823,7 +823,6 @@ private fun ProtocolLogPanel(logs: List<String>) {
 
 @Composable
 private fun CopyLogButton(logs: List<String>) {
-    val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val allLogs = logs.joinToString(separator = "\n")
     // Resolved up front: the click lambda below is not a composable scope, so
@@ -839,7 +838,8 @@ private fun CopyLogButton(logs: List<String>) {
         size = 40.dp,
         filled = false,
         onClick = {
-            clipboard.setText(AnnotatedString(allLogs))
+            // Marked sensitive: the log carries the printer's serial number.
+            context.copySensitiveText("E-Pad Reset log", allLogs)
             Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
         },
     )
