@@ -4,7 +4,7 @@ import { runInNewContext } from "node:vm";
 import { test } from "node:test";
 
 const script = readFileSync(new URL("./sync-model-data.mjs", import.meta.url), "utf8");
-const helpers = script.slice(script.indexOf("function dataBody("), script.indexOf("function fallback("));
+const helpers = script.slice(script.indexOf("function stripXmlComments("), script.indexOf("function fallback("));
 const decisions = script.slice(script.indexOf("const boxesStale ="), script.indexOf("if (!boxesStale"));
 function compare(boxes, extra, nextBoxes = boxes, nextExtra = extra) {
   return runInNewContext(`${helpers}\n${decisions}\n({ boxesStale, extraStale });`, {
@@ -28,4 +28,12 @@ test("same model names with changed keys addresses reset values or pad kind are 
 });
 test("replacing a maintenance-box model at equal count is stale", () => {
   assert.equal(compare(boxes, extra, boxes.replace("TEST-A", "TEST-B")).boxesStale, true);
+});
+test("nested comment markers are removed, not reassembled", () => {
+  const stripped = runInNewContext(
+    `${helpers}\nstripXmlComments(${JSON.stringify("<model>KEEP</model><!<!-- x -->-- and -->")})`,
+    {},
+  );
+  assert.equal(stripped, "<model>KEEP</model>");
+  assert.equal(stripped.includes("<!--"), false);
 });

@@ -448,10 +448,25 @@ function assertSane(xml, expectedCount, rootTag) {
   }
 }
 
+/**
+ * Remove XML comments, repeating until a pass removes nothing.
+ *
+ * One replace is not enough: `<!<!-- x -->-->` loses the inner comment and
+ * the leftover pieces form `<!-- -->`.
+ */
+function stripXmlComments(text) {
+  let previous;
+  do {
+    previous = text;
+    text = text.replace(/<!--[\s\S]*?-->/g, "");
+  } while (text !== previous);
+  return text;
+}
+
 // Compare the generated data, not its prose header or only model names/counts.
 // An address or key fix for an existing model is just as important as a new model.
 function dataBody(xml) {
-  return xml.replace(/<!--[\s\S]*?-->/g, "").replace(/<\?xml[^>]*\?>/g, "").trim();
+  return stripXmlComments(xml).replace(/<\?xml[^>]*\?>/g, "").trim();
 }
 
 function committedData(path) {
@@ -474,7 +489,7 @@ function committedBoxNames() {
 /** Whole <model> blocks a committed extension already carries, comments ignored. */
 function committedExtraBlocks() {
   if (!existsSync(EXTRA)) return [];
-  const xml = readFileSync(EXTRA, "utf8").replace(/<!--[\s\S]*?-->/g, "");
+  const xml = stripXmlComments(readFileSync(EXTRA, "utf8"));
   return [...xml.matchAll(/<model\b[\s\S]*?<\/model>/g)].map((m) => m[0]);
 }
 
