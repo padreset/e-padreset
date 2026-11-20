@@ -1,0 +1,2 @@
+v1.2.1:
+- Stylus Pro 7890, 7900, 9890 and 9900 are classified as maintenance-tank printers, so the app explains that the tank chip cannot be reset instead of treating them as unknown models
