@@ -208,7 +208,10 @@ So the distinction is carried as data, and the source is the
 [reinkpy](https://codeberg.org/atufi/reinkpy) project (AGPL-3.0). reinkpy's
 database records, per model, whether the counter lives in the printer
 ("Waste counter") or on the box's chip ("Platen pad counters"); the file holds
-its complete platen-only classification, 313 models. Only models also present
+its complete platen-only classification, 313 models. Stylus Pro 7890, 7900,
+9890 and 9900 are on the list by hand: reinkpy does not classify them, and
+Epson's maintenance tank C12C890191 does. The chip on that tank is not a
+counter this app can reset. Only models also present
 in `devices.xml` will ever match a connected printer — the rest are kept so the
 file stays a faithful, regenerable copy of the source rather than a one-off
 intersection.

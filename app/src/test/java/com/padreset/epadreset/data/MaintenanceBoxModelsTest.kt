@@ -39,6 +39,23 @@ class MaintenanceBoxModelsTest {
     }
 
     @Test
+    fun `recognises the hand-added Stylus Pro maintenance tanks`() {
+        val models = parse()
+
+        // MDL is "Stylus Pro NNNN", and the parser stores names upper-cased.
+        // These four are not in reinkpy; a regeneration that drops hand-added
+        // models would send a connected printer back to the unknown-model path.
+        for (name in listOf(
+            "STYLUS PRO 7890",
+            "STYLUS PRO 7900",
+            "STYLUS PRO 9890",
+            "STYLUS PRO 9900",
+        )) {
+            assertTrue("$name missing", models.contains(name))
+        }
+    }
+
+    @Test
     fun `normalises model names to upper case`() {
         val models = parse()
 

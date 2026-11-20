@@ -48,12 +48,16 @@
   COVERAGE
 
   The list below is reinkpy's complete platen-only classification (313 models),
-  not just the intersection with our own catalog, plus 13 models added by hand
-  from Epson documentation for 326 in total. Only models also present in
-  devices.xml will ever match a connected printer; the rest are kept so this
-  file stays a faithful copy of the source.
+  not just the intersection with our own catalog, plus 17 models added by hand
+  from Epson documentation for 330 in total. Only models also present in
+  devices.xml open a catalogued session; the rest are kept so this file stays
+  a faithful copy of the source. A printer missing from devices.xml is still
+  classified from this list by its IEEE 1284 MDL. Stylus Pro 7890, 7900,
+  9890 and 9900 are in the hand-added set for that reason: Epson lists them
+  for maintenance tank C12C890191, the fill level lives on the tank chip, and
+  the MDL they report is "Stylus Pro NNNN".
 
-  Regenerating with scripts/sync-model-data.mjs keeps the 13: the script
+  Regenerating with scripts/sync-model-data.mjs keeps the 17: the script
   preserves every committed model upstream does not produce, instead of
   overwriting the file wholesale.
 
@@ -232,6 +236,10 @@
     <model>SC-PX1VL</model>
     <model>ST-C8000</model>
     <model>ST-C8090</model>
+    <model>Stylus Pro 7890</model>
+    <model>Stylus Pro 7900</model>
+    <model>Stylus Pro 9890</model>
+    <model>Stylus Pro 9900</model>
     <model>WF-110</model>
     <model>WF-2810</model>
     <model>WF-2811</model>
